@@ -17,7 +17,7 @@ permissions:
 jobs:
   build:
     runs-on: macos-26
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -25,7 +25,7 @@ jobs:
         run: xcodebuild -version
 
       - name: Install tools
-        run: brew install xcodegen ldid
+        run: brew install xcodegen ldid imagemagick
 
       - name: Generate Xcode project
         run: xcodegen generate
@@ -41,6 +41,16 @@ jobs:
         with:
           name: GymApp-ipa
           path: build/GymApp.ipa
+
+      - name: UI captures
+        run: scripts/capture.sh
+
+      - name: Upload captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GymApp-captures
+          path: build/captures
 
       - name: Upload logs on failure
         if: failure()

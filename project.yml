@@ -63,6 +63,18 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
+  GymAppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - UITests
+    dependencies:
+      - target: GymApp
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: GymApp
+        PRODUCT_BUNDLE_IDENTIFIER: com.wfc5114.gymapp.uitests
 schemes:
   GymApp:
     build:
@@ -71,3 +83,4 @@ schemes:
     test:
       targets:
         - GymAppTests
+        - GymAppUITests
