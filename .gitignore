@@ -1,0 +1,11 @@
+# Generated
+*.xcodeproj
+App/Info.plist
+Widgets/Info.plist
+build/
+DerivedData/
+# macOS / Xcode
+.DS_Store
+xcuserdata/
+*.xcuserstate
+.swiftpm/
