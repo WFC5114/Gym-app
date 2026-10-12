@@ -323,6 +323,8 @@ final class MachineModel {
     /// Accessible face switching: the same spring as a swipe.
     func rotate(by step: Int) {
         guard inset == .closed else { return }
+        // A swipe the system cancelled without an end event must not lock the prism.
+        if isRotating { isRotating = false; rotateStart = nil }
         showSwipeHint = false
         settle(toIndex: faceIndex + step, velocity: 0)
     }

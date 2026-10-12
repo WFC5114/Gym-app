@@ -94,6 +94,9 @@ final class GestureTests: XCTestCase {
     private func require(_ element: XCUIElement, _ identifier: String) -> Bool {
         if element.waitForExistence(timeout: Self.elementTimeout) { return true }
         XCTFail("Element '\(identifier)' did not appear within \(Int(Self.elementTimeout)) s.")
+        // The hierarchy goes to the log so a failure can be diagnosed without the result bundle.
+        let tree = XCUIApplication().debugDescription
+        print("=== HIERARCHY when '\(identifier)' was missing ===\n\(tree.prefix(30_000))\n=== END HIERARCHY ===")
         return false
     }
 

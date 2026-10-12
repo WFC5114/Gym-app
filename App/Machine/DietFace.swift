@@ -215,10 +215,12 @@ struct BlockDrag: ViewModifier {
     let model: MachineModel
     let grab: @MainActor (CGPoint, CFTimeInterval) -> UUID?
     @State private var holding: UUID?
+    @GestureState private var active = false
 
     func body(content: Content) -> some View {
         content.highPriorityGesture(
             DragGesture(minimumDistance: 0, coordinateSpace: .named("face"))
+                .updating($active) { _, state, _ in state = true }
                 .onChanged { value in
                     let t = CACurrentMediaTime()
                     if holding == nil { holding = grab(value.startLocation, t) }
@@ -229,6 +231,14 @@ struct BlockDrag: ViewModifier {
                     holding = nil
                 }
         )
+        .onChange(of: active) { _, isActive in
+            // A cancelled drag never calls onEnded: the block springs home and logs nothing.
+            guard !isActive else { return }
+            DispatchQueue.main.async {
+                if let id = holding { model.cancelBlock(id) }
+                holding = nil
+            }
+        }
     }
 }
 

@@ -115,6 +115,7 @@ struct FaceLayer: View {
 struct EdgeStrips: View {
     let model: MachineModel
     let layout: MachineLayout
+    @GestureState private var active = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -124,6 +125,9 @@ struct EdgeStrips: View {
         }
         .frame(width: layout.size.width, height: layout.size.height)
         .allowsHitTesting(model.inset == .closed)
+        .onChange(of: active) { _, isActive in
+            if !isActive { DispatchQueue.main.async { model.cancelRotate() } }
+        }
     }
 
     private var strip: some View {
@@ -136,6 +140,7 @@ struct EdgeStrips: View {
 
     private var rotateGesture: some Gesture {
         DragGesture(minimumDistance: 4, coordinateSpace: .global)
+            .updating($active) { _, state, _ in state = true }
             .onChanged { value in
                 if !model.isRotating { model.beginRotate(screenX: value.startLocation.x, time: CACurrentMediaTime()) }
                 model.updateRotate(screenX: value.location.x, time: CACurrentMediaTime())
@@ -148,10 +153,12 @@ struct EdgeStrips: View {
 /// when they are clearly horizontal; vertical drags stay with the face.
 struct FaceSwipe: ViewModifier {
     let model: MachineModel
+    @GestureState private var active = false
 
     func body(content: Content) -> some View {
         content.gesture(
             DragGesture(minimumDistance: 12, coordinateSpace: .global)
+                .updating($active) { _, state, _ in state = true }
                 .onChanged { value in
                     let dx = value.translation.width, dy = value.translation.height
                     if !model.isRotating {
@@ -162,6 +169,10 @@ struct FaceSwipe: ViewModifier {
                 }
                 .onEnded { _ in model.endRotate(time: CACurrentMediaTime()) }
         )
+        .onChange(of: active) { _, isActive in
+            // A cancelled drag never calls onEnded; settle the prism anyway.
+            if !isActive { DispatchQueue.main.async { model.cancelRotate() } }
+        }
     }
 }
 
