@@ -182,11 +182,13 @@ struct BrutalButton: View {
     }
 }
 
-/// Buttons sink into their hard shadow when pressed.
+/// Buttons are extruded keys: pressing plunges them into their own thickness
+/// and tilts them slightly on the Z-axis, then springs them back.
 struct PressDownStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .offset(x: configuration.isPressed ? 4 : 0, y: configuration.isPressed ? 4 : 0)
+            .rotation3DEffect(.degrees(configuration.isPressed ? 6 : 0), axis: (x: 1, y: 0, z: 0), perspective: 0.6)
             .animation(Brutal.snap, value: configuration.isPressed)
     }
 }

@@ -10,9 +10,16 @@ Product owner: Wei (GitHub `WFC5114`). Wei approves scope, designs and releases.
 - App and widgets share data only through the App Group `group.com.wfc5114.gymapp` (`AppGroup`, `SnapshotStore`).
 - Data stays on device. No network calls except food databases (Open Food Facts, USDA) and, only if Wei adds a key, the Claude API.
 
-## Design rules
-- Brutalist: monospaced black-weight type, hard 3pt borders, hard offset shadows, paper/ink/signal-orange palette (`Shared/Brutal.swift`). No gradients, no soft shadows, no rounded cards.
-- Motion is required, not optional: numbers roll (`.contentTransition(.numericText)`), fills use springs, milestones get haptics. Always honour Reduce Motion.
+## Design rules (binding: read `docs/DESIGN_LANGUAGE.md` before any UI work)
+- Software as a toy: every control has mass, friction and elasticity; mundane actions get juicy feedback (motion + custom sound + custom haptic).
+- Default skin is monochrome (black, white, neutral grey). Colour only comes from skins, 3D materials and rewards. Skins live in `Shared/Brutal.swift` (`Skin`).
+- Oversized editorial type; numbers are hero graphics with tight kerning.
+- Cards are 3D slabs that spin, flip and slide on a real Z-axis. Navigation morphs in 3D.
+- All motion uses damped springs (mass, stiffness, damping). No linear or ease curves.
+- Custom Core Haptics and AVAudioEngine sound, synced to the spring peak and driven by gesture velocity. No system presets or beeps.
+- The timeline scrubber is the primary way to explore data. Streaks earn badges and unlockable skins.
+- RealityKit + Metal for 3D (SceneKit is deprecated). Always honour Reduce Motion, the silent switch and a sound toggle.
+- Rest and cardio timers are data sources for the AI review: store every rest period and cardio session.
 
 ## Workflow
 See `docs/WORKFLOW.md` and the role files in `.claude/agents/`. One GitHub issue per user story; one PR per issue; branch names `<issue#>-short-name`.
