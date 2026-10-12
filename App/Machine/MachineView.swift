@@ -13,8 +13,14 @@ struct MachineView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
+        // The reader stays inside the safe area so it reports the real insets
+        // (a reader that ignores the safe area reports zero, which put the face
+        // header under the status bar). The machine then covers the whole screen.
         GeometryReader { geo in
-            let layout = MachineLayout(size: geo.size, safe: geo.safeAreaInsets)
+            let safe = geo.safeAreaInsets
+            let full = CGSize(width: geo.size.width + safe.leading + safe.trailing,
+                              height: geo.size.height + safe.top + safe.bottom)
+            let layout = MachineLayout(size: full, safe: safe)
             ZStack(alignment: .topLeading) {
                 Color.black
                 RealityView { content in
@@ -40,7 +46,9 @@ struct MachineView: View {
                         .accessibilityIdentifier("machine.ready")
                 }
             }
-            .frame(width: geo.size.width, height: geo.size.height)
+            .frame(width: full.width, height: full.height)
+            // Shift from the safe-area origin to the screen origin.
+            .offset(x: -safe.leading, y: -safe.top)
             .onAppear { configure(layout) }
             .task {
                 // Fixture poses depend on the final layout, so they wait for it to settle.
@@ -58,8 +66,8 @@ struct MachineView: View {
                 model.wake()
             }
         }
-        .ignoresSafeArea(.container)
         .ignoresSafeArea(.keyboard)
+        .background(Color.black.ignoresSafeArea())
         .overlay {
             InsetLayer(model: model)
         }

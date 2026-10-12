@@ -30,10 +30,12 @@ struct MaterialKit {
         }
         let r = Float(skin.roughness)
         var glass = PhysicallyBasedMaterial()
-        glass.baseColor = .init(tint: UIColor(white: 0.9, alpha: 1))
-        glass.roughness = .init(floatLiteral: 0.35)
+        // Frosted, not polished: the captures showed hot specular spots on a 0.35 glass.
+        glass.baseColor = .init(tint: UIColor(white: 0.7, alpha: 1))
+        glass.roughness = .init(floatLiteral: 0.75)
         glass.metallic = .init(floatLiteral: 0)
-        glass.blending = .transparent(opacity: .init(floatLiteral: 0.13))
+        glass.specular = .init(floatLiteral: 0.08)
+        glass.blending = .transparent(opacity: .init(floatLiteral: 0.1))
         glass.faceCulling = .none
         return MaterialKit(
             chassis: matte(0.05, roughness: r, grainScale: 3),
@@ -42,7 +44,7 @@ struct MaterialKit {
             weight: matte(0.86, roughness: 0.85, grainScale: 6),
             unknownWeight: matte(0.46, roughness: 0.9, grainScale: 6),
             glass: glass,
-            sand: matte(0.8, roughness: 1.0, grainScale: 20),
+            sand: matte(0.66, roughness: 1.0, grainScale: 20),
             body: matte(0.12, roughness: 0.8)
         )
     }

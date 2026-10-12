@@ -242,9 +242,11 @@ final class MachineScene {
 
         // Camera: centred on the prism axis, level with the face centre.
         if var ortho = camera.components[OrthographicCameraComponent.self] {
-            let viewHeight = World.len(layout.size.height)
-            if ortho.scale != viewHeight {
-                ortho.scale = viewHeight
+            // `scale` is half the visible extent along `scaleDirection` (measured
+            // from CI captures: a full-height value drew everything at 50%).
+            let halfHeight = World.len(layout.size.height / 2)
+            if ortho.scale != halfHeight {
+                ortho.scale = halfHeight
                 camera.components.set(ortho)
             }
         }
