@@ -13,12 +13,16 @@ Product owner: Wei (GitHub `WFC5114`). Wei approves scope, designs and releases.
 ## Design rules (binding: read `docs/DESIGN_LANGUAGE.md` before any UI work)
 - The app is ONE machine, the Laboratory Measuring Deck: a matte-black triangular prism on #000000 with DIET, TRAIN and BODY faces. No tab bars, menus or pushed screens.
 - Swipe edge to edge to rotate the prism 120° (8% overshoot). Orthographic camera.
-- DIET: hydraulic counterweight deck; drag 50/100/250/500 kcal weights onto it (spring 3.5/450/22, 3 bounces). TRAIN: piston core; SET DONE fires it (1.0/800/35) with camera shake; rest = matte fluid draining. BODY: deforming low-poly mesh scrubbed by a vernier ruler (numbers 1.2/180/28).
+- Working contract: `docs/ART_DIRECTION.md` (Wei's Revision 2 prompt; Wei's decisions at its end override it). How it was applied, adopted proposals and the PASS/FAIL/NOT TESTED checklist: `docs/DESIGN_REVIEW.md`.
+- DIET: real food logging (Wei). LOG FOOD opens an in-face intake inset (search, barcode, serving) that forms a mass block; drag it onto the hydraulic deck (spring 3.5/450/22), which compresses in the face plane. 50/100/250/500 kcal weights are quick-add with unknown macros. Contact commits exactly once; edit, delete and undo.
+- TRAIN: an HOURGLASS (Wei; replaces the draining fluid). Adjustable rest; glass size follows rest length. SET DONE logs the set and flips the glass (1.0/800/35) with a brief shake. Wall-clock time is the truth; every rest and every added block of time is logged for the coach. Coach recommends rest per body part, adapted daily.
+- BODY: deforming low-poly mesh labelled schematic, scrubbed by a vernier ruler (numbers 1.2/180/28).
 - Damped springs only (mass/stiffness/damping). No easing curves.
 - Every event has a specified sound (AVAudioEngine) and Core Haptics profile (see the sensory table). No presets or system beeps.
 - Widgets and the Dynamic Island are typographic: text on black, light-to-heavy "strike" on change; island is a flat gauge.
 - Skins (MONO default, CONCRETE, SIGNAL) bundle palette, material, physics and sound kit. Defined in `Shared/Brutal.swift`.
-- RealityKit + Metal (SceneKit is deprecated). Honour Reduce Motion, silent switch, sound toggle and VoiceOver.
+- RealityKit + Metal (SceneKit is deprecated); text and controls are SwiftUI layers projected with the same orthographic maths. Honour Reduce Motion, silent switch, sound and haptics toggles, VoiceOver, Dynamic Type, 44 pt targets.
+- Fixture data, sample data and untested behaviour are always labelled as such.
 - Rest and cardio sessions are stored and feed the AI review.
 
 ## Workflow

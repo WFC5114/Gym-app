@@ -18,6 +18,10 @@ struct SpringConfig: Equatable {
     static let bodyNumbers = SpringConfig(mass: 1.2, stiffness: 180, damping: 28)
     /// Prism rotation: about 8% overshoot on the 120° turn.
     static let prism = SpringConfig(mass: 1.0, stiffness: 300, damping: 21.7)
+    /// Reduce Motion: critically damped, no overshoot, nothing travels far.
+    static let calm = SpringConfig(mass: 1.0, stiffness: 300, damping: 34.64)
+    /// Display values that track a moving target closely (sand level, glass size).
+    static let follow = SpringConfig(mass: 1.0, stiffness: 400, damping: 40)
 }
 
 /// One spring-driven value, integrated every frame (semi-implicit Euler).
@@ -30,6 +34,15 @@ struct SpringState: Equatable {
         let force = -config.stiffness * (position - target) - config.damping * velocity
         velocity += force / config.mass * dt
         position += velocity * dt
+    }
+
+    /// Integrates a real frame interval in bounded fixed substeps (≤ 1/480 s), so
+    /// the result does not depend on frame rate and a long hitch cannot explode.
+    mutating func advance(_ dt: Double, config: SpringConfig) {
+        let clamped = min(max(dt, 0), 1.0 / 15)
+        let steps = max(1, Int((clamped * 480).rounded(.up)))
+        let h = clamped / Double(steps)
+        for _ in 0..<steps { step(h, config: config) }
     }
 
     func isSettled(tolerance: Double = 0.001) -> Bool {

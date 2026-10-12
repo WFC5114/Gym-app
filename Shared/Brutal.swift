@@ -59,7 +59,6 @@ enum Brutal {
     static var muted: Color { skin.mid }
 
     static let border: CGFloat = 3
-    static let shadowOffset: CGFloat = 6
     static let grid: CGFloat = 8
 
     static func display(_ size: CGFloat) -> Font {
@@ -74,27 +73,4 @@ enum Brutal {
     static let snap = Animation.interpolatingSpring(mass: SpringConfig.piston.mass, stiffness: SpringConfig.piston.stiffness, damping: SpringConfig.piston.damping)
     static let settle = Animation.interpolatingSpring(mass: SpringConfig.bodyNumbers.mass, stiffness: SpringConfig.bodyNumbers.stiffness, damping: SpringConfig.bodyNumbers.damping)
     static let heavy = Animation.interpolatingSpring(mass: SpringConfig.deck.mass, stiffness: SpringConfig.deck.stiffness, damping: SpringConfig.deck.damping)
-}
-
-struct BrutalCard: ViewModifier {
-    var fill: Color = Brutal.paper
-
-    func body(content: Content) -> some View {
-        content
-            .padding(Brutal.grid * 2)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(fill)
-            .overlay(Rectangle().stroke(Brutal.ink, lineWidth: Brutal.border))
-            .background(
-                Rectangle()
-                    .fill(Brutal.ink)
-                    .offset(x: Brutal.shadowOffset, y: Brutal.shadowOffset)
-            )
-    }
-}
-
-extension View {
-    func brutalCard(fill: Color = Brutal.paper) -> some View {
-        modifier(BrutalCard(fill: fill))
-    }
 }
