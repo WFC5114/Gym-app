@@ -133,7 +133,8 @@ final class MachineModelTests: XCTestCase {
     }
 
     func testOverTargetDayStaysInsideTheFace() {
-        let entries = (0..<8).map { i in FoodEntry.quickAdd(kcal: 500, at: clock.addingTimeInterval(Double(-i) * 60)) }
+        // 8,000 kcal against 2,450: well past the 120% compression bound and taller than the stack allowance.
+        let entries = (0..<16).map { i in FoodEntry.quickAdd(kcal: 500, at: clock.addingTimeInterval(Double(-i) * 60)) }
         let model = makeModel(foods: entries)
         run(model, seconds: 2)
         XCTAssertTrue(model.isStackScaled)
