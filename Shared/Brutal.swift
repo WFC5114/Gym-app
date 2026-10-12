@@ -1,66 +1,79 @@
 import SwiftUI
 
-/// A swappable visual skin. The default is strictly monochrome; colour arrives
-/// only through skins that are unlocked by streaks and milestones.
+/// A skin is a full configuration of the machine: palette, surface material,
+/// physics feel and sound kit. See docs/DESIGN_LANGUAGE.md, section 5.
 struct Skin: Identifiable, Equatable {
     let id: String
     let name: String
-    let paper: Color
-    let ink: Color
-    /// The highlight colour for progress and rewards. Grey in the monochrome skin.
-    let signal: Color
-    let muted: Color
+    let base: Color
+    let accent: Color
+    let mid: Color
+    /// PBR surface: roughness and metalness for the RealityKit material.
+    let roughness: Double
+    let metalness: Double
+    let soundKit: String
     /// What unlocks the skin, or nil when it is available from the start.
     let unlock: String?
 
     static let mono = Skin(
-        id: "mono", name: "Mono",
-        paper: Color(white: 0.96), ink: Color(white: 0.04),
-        signal: Color(white: 0.55), muted: Color(white: 0.45),
+        id: "mono", name: "MONO",
+        base: Color(hex: 0x000000), accent: Color(hex: 0xFFFFFF), mid: Color(hex: 0x333333),
+        roughness: 0.9, metalness: 0.0, soundKit: "Anvil",
         unlock: nil
     )
     static let concrete = Skin(
-        id: "concrete", name: "Concrete",
-        paper: Color(white: 0.78), ink: Color(white: 0.10),
-        signal: Color(white: 0.98), muted: Color(white: 0.38),
-        unlock: "7-day logging streak"
+        id: "concrete", name: "CONCRETE",
+        base: Color(hex: 0x4A4A4A), accent: Color(hex: 0xF5F5F7), mid: Color(hex: 0x8E8E93),
+        roughness: 0.95, metalness: 0.0, soundKit: "Quarry",
+        unlock: "7-day continuous logging streak"
     )
-    static let signalOrange = Skin(
-        id: "signal", name: "Signal",
-        paper: Color(red: 0.949, green: 0.941, blue: 0.910), ink: Color(white: 0.04),
-        signal: Color(red: 1.0, green: 0.271, blue: 0.0), muted: Color(white: 0.45),
-        unlock: "Hit protein 14 days in a row"
+    static let signal = Skin(
+        id: "signal", name: "SIGNAL",
+        base: Color(hex: 0x0F0F11), accent: Color(hex: 0xFF3B30), mid: Color(hex: 0xFF9500),
+        roughness: 0.15, metalness: 0.85, soundKit: "Synth-Volt",
+        unlock: "100% protein target 14 days in a row"
     )
-    static let all: [Skin] = [.mono, .concrete, .signalOrange]
+    static let all: [Skin] = [.mono, .concrete, .signal]
 }
 
-/// The GYM design system. See docs/DESIGN_LANGUAGE.md: software as a toy,
-/// monochrome canvas, oversized type, 3D slabs, spring physics.
+extension Color {
+    init(hex: UInt32) {
+        self.init(
+            red: Double((hex >> 16) & 0xFF) / 255,
+            green: Double((hex >> 8) & 0xFF) / 255,
+            blue: Double(hex & 0xFF) / 255
+        )
+    }
+}
+
+/// The GYM design system for the Laboratory Measuring Deck.
 enum Brutal {
     static var skin: Skin = .mono
 
-    static var paper: Color { skin.paper }
-    static var ink: Color { skin.ink }
-    static var signal: Color { skin.signal }
-    static var muted: Color { skin.muted }
+    /// Background of the machine and the void around it.
+    static var paper: Color { skin.base }
+    /// Type and edges.
+    static var ink: Color { skin.accent }
+    /// Secondary surfaces and highlights.
+    static var signal: Color { skin.mid }
+    static var muted: Color { skin.mid }
 
     static let border: CGFloat = 3
-    /// Visible thickness of a slab: the side face drawn below and right of it.
     static let shadowOffset: CGFloat = 6
     static let grid: CGFloat = 8
 
     static func display(_ size: CGFloat) -> Font {
-        .system(size: size, weight: .black, design: .default).width(.condensed)
+        .system(size: size, weight: .black, design: .default).width(.expanded)
     }
 
     static func label(_ size: CGFloat = 12) -> Font {
         .system(size: size, weight: .bold, design: .monospaced)
     }
 
-    /// Damped harmonic springs. Every animation in the app uses one of these.
-    static let snap = Animation.interpolatingSpring(mass: 1, stiffness: 320, damping: 18)
-    static let settle = Animation.interpolatingSpring(mass: 1.4, stiffness: 160, damping: 20)
-    static let heavy = Animation.interpolatingSpring(mass: 3, stiffness: 260, damping: 26)
+    /// SwiftUI fallbacks for flat UI. The 3D machine integrates `SpringState` per frame instead.
+    static let snap = Animation.interpolatingSpring(mass: SpringConfig.piston.mass, stiffness: SpringConfig.piston.stiffness, damping: SpringConfig.piston.damping)
+    static let settle = Animation.interpolatingSpring(mass: SpringConfig.bodyNumbers.mass, stiffness: SpringConfig.bodyNumbers.stiffness, damping: SpringConfig.bodyNumbers.damping)
+    static let heavy = Animation.interpolatingSpring(mass: SpringConfig.deck.mass, stiffness: SpringConfig.deck.stiffness, damping: SpringConfig.deck.damping)
 }
 
 struct BrutalCard: ViewModifier {

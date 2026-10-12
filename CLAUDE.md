@@ -11,15 +11,15 @@ Product owner: Wei (GitHub `WFC5114`). Wei approves scope, designs and releases.
 - Data stays on device. No network calls except food databases (Open Food Facts, USDA) and, only if Wei adds a key, the Claude API.
 
 ## Design rules (binding: read `docs/DESIGN_LANGUAGE.md` before any UI work)
-- Software as a toy: every control has mass, friction and elasticity; mundane actions get juicy feedback (motion + custom sound + custom haptic).
-- Default skin is monochrome (black, white, neutral grey). Colour only comes from skins, 3D materials and rewards. Skins live in `Shared/Brutal.swift` (`Skin`).
-- Oversized editorial type; numbers are hero graphics with tight kerning.
-- Cards are 3D slabs that spin, flip and slide on a real Z-axis. Navigation morphs in 3D.
-- All motion uses damped springs (mass, stiffness, damping). No linear or ease curves.
-- Custom Core Haptics and AVAudioEngine sound, synced to the spring peak and driven by gesture velocity. No system presets or beeps.
-- The timeline scrubber is the primary way to explore data. Streaks earn badges and unlockable skins.
-- RealityKit + Metal for 3D (SceneKit is deprecated). Always honour Reduce Motion, the silent switch and a sound toggle.
-- Rest and cardio timers are data sources for the AI review: store every rest period and cardio session.
+- The app is ONE machine, the Laboratory Measuring Deck: a matte-black triangular prism on #000000 with DIET, TRAIN and BODY faces. No tab bars, menus or pushed screens.
+- Swipe edge to edge to rotate the prism 120° (8% overshoot). Orthographic camera.
+- DIET: hydraulic counterweight deck; drag 50/100/250/500 kcal weights onto it (spring 3.5/450/22, 3 bounces). TRAIN: piston core; SET DONE fires it (1.0/800/35) with camera shake; rest = matte fluid draining. BODY: deforming low-poly mesh scrubbed by a vernier ruler (numbers 1.2/180/28).
+- Damped springs only (mass/stiffness/damping). No easing curves.
+- Every event has a specified sound (AVAudioEngine) and Core Haptics profile (see the sensory table). No presets or system beeps.
+- Widgets and the Dynamic Island are typographic: text on black, light-to-heavy "strike" on change; island is a flat gauge.
+- Skins (MONO default, CONCRETE, SIGNAL) bundle palette, material, physics and sound kit. Defined in `Shared/Brutal.swift`.
+- RealityKit + Metal (SceneKit is deprecated). Honour Reduce Motion, silent switch, sound toggle and VoiceOver.
+- Rest and cardio sessions are stored and feed the AI review.
 
 ## Workflow
 See `docs/WORKFLOW.md` and the role files in `.claude/agents/`. One GitHub issue per user story; one PR per issue; branch names `<issue#>-short-name`.

@@ -10,7 +10,7 @@ Responsibilities:
 - Shared app/widget code goes in `Shared/`. Widgets read data only through `SnapshotStore` in the App Group.
 - Every PR adds or updates tests in `Tests/`. Add new files to the right folder; `project.yml` globs folders, so it rarely needs edits.
 - There is no local compiler. Push and let CI build. Fix every CI failure before asking for review.
-- Implement the motion spec from Design, including the Reduce Motion fallback. Follow `docs/DESIGN_LANGUAGE.md`: damped springs only, RealityKit and Metal shaders for 3D (never SceneKit), Core Haptics patterns driven by gesture velocity, AVAudioEngine for sound. Hold 120 Hz; profile 3D screens.
+- Implement the motion spec from Design, including the Reduce Motion fallback. Follow `docs/DESIGN_LANGUAGE.md`: one RealityKit scene with the prism (never SceneKit), an orthographic camera, per-frame damped spring integration, Metal shaders for fluid and mesh deformation, Core Haptics and AVAudioEngine profiles from the sensory table, VoiceOver labels on 3D text. Hold 120 Hz; profile every face.
 - Timers (rest and cardio) persist every session with planned versus actual times so the AI review can use them.
 
 Never: commit `*.xcodeproj`, send health data off the device, or skip/disable tests to get green.

@@ -1,10 +1,12 @@
 import XCTest
+import SwiftUI
 @testable import GymApp
 
 final class SkinTests: XCTestCase {
-    func testDefaultSkinIsMonochromeAndUnlocked() {
+    func testDefaultSkinIsMonoAndUnlocked() {
         XCTAssertEqual(Brutal.skin, Skin.mono)
         XCTAssertNil(Skin.mono.unlock)
+        XCTAssertEqual(Skin.mono.base, Color(hex: 0x000000))
     }
 
     func testSkinIdsAreUnique() {
