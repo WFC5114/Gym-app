@@ -1,0 +1,100 @@
+import SwiftUI
+
+/// A skin is a full configuration of the machine: palette, surface material,
+/// physics feel and sound kit. See docs/DESIGN_LANGUAGE.md, section 5.
+struct Skin: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let base: Color
+    let accent: Color
+    let mid: Color
+    /// PBR surface: roughness and metalness for the RealityKit material.
+    let roughness: Double
+    let metalness: Double
+    let soundKit: String
+    /// What unlocks the skin, or nil when it is available from the start.
+    let unlock: String?
+
+    static let mono = Skin(
+        id: "mono", name: "MONO",
+        base: Color(hex: 0x000000), accent: Color(hex: 0xFFFFFF), mid: Color(hex: 0x333333),
+        roughness: 0.9, metalness: 0.0, soundKit: "Anvil",
+        unlock: nil
+    )
+    static let concrete = Skin(
+        id: "concrete", name: "CONCRETE",
+        base: Color(hex: 0x4A4A4A), accent: Color(hex: 0xF5F5F7), mid: Color(hex: 0x8E8E93),
+        roughness: 0.95, metalness: 0.0, soundKit: "Quarry",
+        unlock: "7-day continuous logging streak"
+    )
+    static let signal = Skin(
+        id: "signal", name: "SIGNAL",
+        base: Color(hex: 0x0F0F11), accent: Color(hex: 0xFF3B30), mid: Color(hex: 0xFF9500),
+        roughness: 0.15, metalness: 0.85, soundKit: "Synth-Volt",
+        unlock: "100% protein target 14 days in a row"
+    )
+    static let all: [Skin] = [.mono, .concrete, .signal]
+}
+
+extension Color {
+    init(hex: UInt32) {
+        self.init(
+            red: Double((hex >> 16) & 0xFF) / 255,
+            green: Double((hex >> 8) & 0xFF) / 255,
+            blue: Double(hex & 0xFF) / 255
+        )
+    }
+}
+
+/// The GYM design system for the Laboratory Measuring Deck.
+enum Brutal {
+    static var skin: Skin = .mono
+
+    /// Background of the machine and the void around it.
+    static var paper: Color { skin.base }
+    /// Type and edges.
+    static var ink: Color { skin.accent }
+    /// Secondary surfaces and highlights.
+    static var signal: Color { skin.mid }
+    static var muted: Color { skin.mid }
+
+    static let border: CGFloat = 3
+    static let shadowOffset: CGFloat = 6
+    static let grid: CGFloat = 8
+
+    static func display(_ size: CGFloat) -> Font {
+        .system(size: size, weight: .black, design: .default).width(.expanded)
+    }
+
+    static func label(_ size: CGFloat = 12) -> Font {
+        .system(size: size, weight: .bold, design: .monospaced)
+    }
+
+    /// SwiftUI fallbacks for flat UI. The 3D machine integrates `SpringState` per frame instead.
+    static let snap = Animation.interpolatingSpring(mass: SpringConfig.piston.mass, stiffness: SpringConfig.piston.stiffness, damping: SpringConfig.piston.damping)
+    static let settle = Animation.interpolatingSpring(mass: SpringConfig.bodyNumbers.mass, stiffness: SpringConfig.bodyNumbers.stiffness, damping: SpringConfig.bodyNumbers.damping)
+    static let heavy = Animation.interpolatingSpring(mass: SpringConfig.deck.mass, stiffness: SpringConfig.deck.stiffness, damping: SpringConfig.deck.damping)
+}
+
+struct BrutalCard: ViewModifier {
+    var fill: Color = Brutal.paper
+
+    func body(content: Content) -> some View {
+        content
+            .padding(Brutal.grid * 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(fill)
+            .overlay(Rectangle().stroke(Brutal.ink, lineWidth: Brutal.border))
+            .background(
+                Rectangle()
+                    .fill(Brutal.ink)
+                    .offset(x: Brutal.shadowOffset, y: Brutal.shadowOffset)
+            )
+    }
+}
+
+extension View {
+    func brutalCard(fill: Color = Brutal.paper) -> some View {
+        modifier(BrutalCard(fill: fill))
+    }
+}
