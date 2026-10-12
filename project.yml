@@ -1,0 +1,73 @@
+name: GymApp
+options:
+  bundleIdPrefix: com.wfc5114
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+    CODE_SIGN_STYLE: Automatic
+targets:
+  GymApp:
+    type: application
+    platform: iOS
+    sources:
+      - App
+      - Shared
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: GYM
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSSupportsLiveActivities: true
+        NSHealthShareUsageDescription: GYM reads your weight, InBody body composition, activity, sleep and workouts to track your progress. Your data stays on your phone.
+        NSHealthUpdateUsageDescription: GYM saves the workouts you log to Apple Health.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.wfc5114.gymapp
+        CODE_SIGN_ENTITLEMENTS: App/GymApp.entitlements
+    dependencies:
+      - target: GymWidgets
+  GymWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - Widgets
+      - Shared
+    info:
+      path: Widgets/Info.plist
+      properties:
+        CFBundleDisplayName: GYM Widgets
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.wfc5114.gymapp.widgets
+        CODE_SIGN_ENTITLEMENTS: Widgets/GymWidgets.entitlements
+  GymAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - Tests
+    dependencies:
+      - target: GymApp
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  GymApp:
+    build:
+      targets:
+        GymApp: all
+    test:
+      targets:
+        - GymAppTests
