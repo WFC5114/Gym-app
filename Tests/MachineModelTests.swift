@@ -338,6 +338,18 @@ final class MachineModelTests: XCTestCase {
         XCTAssertEqual(model.store.data.sets.count, 2)
     }
 
+    func testGlassKeepsClearOfTheCoachNoteAndInsideTheFace() {
+        let model = makeModel()
+        let g = model.glassGeometry
+        let l = model.layout
+        for h in stride(from: g.minHeight, through: g.maxHeight, by: 10) {
+            let c = g.center(forHeight: h)
+            let half = h * HourglassGeometry.aspect / 2
+            XCTAssertGreaterThanOrEqual(c.x - half, l.side + l.contentWidth * HourglassGeometry.noteShare, "height \(h)")
+            XCTAssertLessThanOrEqual(c.x + half, l.side + l.contentWidth + 0.5, "height \(h)")
+        }
+    }
+
     // MARK: Desk hourglass
 
     func testDeskHourglassStandsOneUnitTallAndSymmetric() {

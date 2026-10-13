@@ -38,8 +38,8 @@ final class MachineScene {
     /// draining shape or the pile, from meshes made once per step of sand.
     private var sandA = ModelEntity()
     private var sandB = ModelEntity()
-    private var drainMeshes: [MeshResource] = []
-    private var heapMeshes: [MeshResource] = []
+    /// Sand meshes by step, made the first time each step shows (keyed drain 1000+, pile 0+).
+    private var sandMeshes: [Int: MeshResource] = [:]
     private var sandShown: [Int] = [-1, -1]
     private var stream: ModelEntity?
     /// Sand drawn in this many steps; at a 3:00 rest that is one step every 3.75 s.
@@ -266,15 +266,9 @@ final class MachineScene {
             }
         }
 
-        // Sand: one mesh per step for each shape, made once.
-        drainMeshes = (0...Self.sandSteps).compactMap {
-            try? Geometry.lathe(H.drainProfile(Float($0) / Float(Self.sandSteps)), segments: 56, name: "drain\($0)")
-        }
-        heapMeshes = (0...Self.sandSteps).compactMap {
-            try? Geometry.lathe(H.heapProfile(Float($0) / Float(Self.sandSteps)), segments: 56, name: "heap\($0)")
-        }
-        sandA.model = ModelComponent(mesh: drainMeshes.last ?? .generateSphere(radius: 0.01), materials: [materials.sand])
-        sandB.model = ModelComponent(mesh: heapMeshes.first ?? .generateSphere(radius: 0.01), materials: [materials.sand])
+        // Sand: meshes are made per step on first use (see `sandMesh`).
+        sandA.model = ModelComponent(mesh: .generateSphere(radius: 0.001), materials: [materials.sand])
+        sandB.model = ModelComponent(mesh: .generateSphere(radius: 0.001), materials: [materials.sand])
         sandShown = [-1, -1]
         glassSpin.addChild(sandA)
         glassSpin.addChild(sandB)
@@ -483,15 +477,22 @@ final class MachineScene {
 
     private func showSand(_ entity: ModelEntity, slot: Int, amount: Float, draining: Bool, turn: simd_quatf) {
         entity.isEnabled = amount > 0.002
-        let meshes = draining ? drainMeshes : heapMeshes
-        guard !meshes.isEmpty else { return }
-        let step = Int((amount * Float(Self.sandSteps)).rounded())
+        let step = min(max(Int((amount * Float(Self.sandSteps)).rounded()), 0), Self.sandSteps)
         let key = (draining ? 1000 : 0) + step
-        if sandShown[slot] != key {
+        if sandShown[slot] != key, let mesh = sandMesh(key: key, step: step, draining: draining) {
             sandShown[slot] = key
-            entity.model?.mesh = meshes[min(step, meshes.count - 1)]
+            entity.model?.mesh = mesh
         }
         entity.orientation = turn
+    }
+
+    private func sandMesh(key: Int, step: Int, draining: Bool) -> MeshResource? {
+        if let mesh = sandMeshes[key] { return mesh }
+        let amount = Float(step) / Float(Self.sandSteps)
+        let profile = draining ? DeskHourglass.drainProfile(amount) : DeskHourglass.heapProfile(amount)
+        let mesh = try? Geometry.lathe(profile, segments: 56, name: draining ? "drain\(step)" : "heap\(step)")
+        sandMeshes[key] = mesh
+        return mesh
     }
 
     private func applyBody(_ model: MachineModel, layout: MachineLayout) {

@@ -33,8 +33,8 @@ struct TrainFace: View {
             ImpactRays(model: model, face: .train)
 
             CoachNote(model: model)
-                .frame(width: layout.contentWidth * 0.34, alignment: .leading)
-                .position(x: layout.side + layout.contentWidth * 0.17, y: layout.mechanismRect.minY + 70)
+                .frame(width: layout.contentWidth * HourglassGeometry.noteShare, alignment: .leading)
+                .position(x: layout.side + layout.contentWidth * HourglassGeometry.noteShare / 2, y: layout.mechanismRect.minY + 70)
 
             TrainControls(model: model, rail: rail)
                 .frame(width: rail.controls.width, height: rail.controls.height)

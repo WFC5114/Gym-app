@@ -358,10 +358,19 @@ struct HourglassGeometry {
     static let labelClearance: CGFloat = 34
     var maxHeight: CGFloat { max(mech.height - Self.coachClearance - Self.labelClearance, minHeight) }
 
-    /// The glass stands near the bottom of the mechanism and grows upward.
+    /// The glass stands near the bottom of the mechanism and grows upward. It
+    /// keeps clear of the coach's note on the left (34% of the content width),
+    /// so it sits right of centre when it is wide, without leaving the face.
     func center(forHeight h: CGFloat) -> CGPoint {
-        CGPoint(x: layout.faceWidth / 2, y: mech.maxY - Self.labelClearance - h / 2)
+        let half = h * Self.aspect / 2
+        let clearOfNote = layout.side + layout.contentWidth * Self.noteShare + 12 + half
+        let rightLimit = layout.side + layout.contentWidth - half
+        let x = min(max(layout.faceWidth / 2, clearOfNote), max(rightLimit, layout.faceWidth / 2))
+        return CGPoint(x: x, y: mech.maxY - Self.labelClearance - h / 2)
     }
+
+    /// Share of the content width the coach's note takes on the left.
+    static let noteShare: CGFloat = 0.34
 
     /// Centre of the engraved rest length under the glass.
     var labelY: CGFloat { mech.maxY - Self.labelClearance / 2 + 2 }
@@ -580,7 +589,7 @@ enum DeskHourglass {
     static func sandRadius(_ y: Float) -> Float { max(innerRadius(y) - sandInset, 0) }
 
     /// Sand volume between two heights against the inner wall.
-    static func volume(from a: Float, to b: Float, steps: Int = 120) -> Float {
+    static func volume(from a: Float, to b: Float, steps: Int = 60) -> Float {
         guard b > a else { return 0 }
         let h = (b - a) / Float(steps)
         var v: Float = 0
