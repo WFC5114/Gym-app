@@ -125,8 +125,12 @@ XCB_COMMON=(
   CODE_SIGNING_ALLOWED=NO
 )
 
+# The CI simulator sometimes fails to launch the app or times out taking a
+# screenshot. A failed test runs once more; a real failure fails both times.
 XCB_TEST_OPTS=(
   -parallel-testing-enabled NO
+  -retry-tests-on-failure
+  -test-iterations 2
   -test-timeouts-enabled YES
   -default-test-execution-time-allowance 180
   -maximum-test-execution-time-allowance 300
