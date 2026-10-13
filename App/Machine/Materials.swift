@@ -14,6 +14,8 @@ struct MaterialKit {
     var glass: PhysicallyBasedMaterial
     var sand: PhysicallyBasedMaterial
     var body: PhysicallyBasedMaterial
+    /// Hero numerals: bright and satin so the extrusion's faces separate by tone.
+    var numeral: PhysicallyBasedMaterial
 
     static func make(skin: Skin, grain: TextureResource?) -> MaterialKit {
         func matte(_ white: CGFloat, roughness: Float, metallic: Float = 0, grainScale: Float = 1) -> PhysicallyBasedMaterial {
@@ -45,7 +47,17 @@ struct MaterialKit {
             unknownWeight: matte(0.46, roughness: 0.9, grainScale: 6),
             glass: glass,
             sand: matte(0.66, roughness: 1.0, grainScale: 20),
-            body: matte(0.12, roughness: 0.8)
+            body: matte(0.12, roughness: 0.8),
+            numeral: {
+                var m = PhysicallyBasedMaterial()
+                m.baseColor = .init(tint: UIColor(white: 0.93, alpha: 1))
+                m.roughness = .init(floatLiteral: 0.42)
+                m.metallic = .init(floatLiteral: 0)
+                m.specular = .init(floatLiteral: 0.45)
+                m.clearcoat = .init(floatLiteral: 0.5)
+                m.clearcoatRoughness = .init(floatLiteral: 0.3)
+                return m
+            }()
         )
     }
 

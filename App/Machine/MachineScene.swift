@@ -29,6 +29,8 @@ final class MachineScene {
     private var slabEntities: [UUID: (entity: ModelEntity, size: CGSize)] = [:]
     private var coilMesh: MeshResource?
 
+    private var dietNumerals: Numerals3D?
+
     // TRAIN
     private let glassGroup = Entity()
     private let glassSpin = Entity()
@@ -125,6 +127,11 @@ final class MachineScene {
             face.orientation = simd_quatf(angle: theta, axis: SIMD3(0, 1, 0))
         }
         buildDiet(layout: layout, model: model)
+        if dietNumerals == nil {
+            let numerals = Numerals3D(material: materials.numeral)
+            faces[0].addChild(numerals.root)
+            dietNumerals = numerals
+        }
         positionHourglass(layout: layout)
         buildBody(layout: layout)
     }
@@ -264,6 +271,13 @@ final class MachineScene {
         }
 
         applyDiet(model, layout: layout)
+        if let numerals = dietNumerals {
+            numerals.root.isEnabled = model.heroIn3D && model.dietHeroFrame != nil
+            if model.heroIn3D, let frame = model.dietHeroFrame {
+                numerals.update(text: Readout.kcal(model.heroKcal.position.rounded()), size: model.dietHeroSize,
+                                frame: frame, punch: model.heroPunch.position, layout: layout)
+            }
+        }
         applyTrain(model, layout: layout)
         applyBody(model, layout: layout)
     }

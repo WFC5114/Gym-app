@@ -5,6 +5,7 @@ import SwiftUI
 struct DietFace: View {
     let model: MachineModel
     let layout: MachineLayout
+    static let space = "face.diet"
 
     var body: some View {
         let totals = model.totals
@@ -65,6 +66,7 @@ struct DietFace: View {
                 .frame(width: rail.buttonRow.width, height: rail.buttonRow.height)
                 .position(x: rail.buttonRow.midX, y: rail.buttonRow.midY)
         }
+        .coordinateSpace(name: Self.space)
     }
 }
 
@@ -91,6 +93,15 @@ struct DietHero: View {
                     .fixedSize()
                     .monospacedDigit()
                     .scaleEffect(1 + 0.07 * model.heroPunch.position, anchor: .bottomLeading)
+                    // Lit 3D glyphs take its place; it keeps the layout and reports its frame.
+                    .opacity(model.heroIn3D ? 0 : 1)
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(key: HeroFrameKey.self, value: geo.frame(in: .named(DietFace.space)))
+                    })
+                    .onPreferenceChange(HeroFrameKey.self) { frame in
+                        if model.dietHeroFrame != frame { model.dietHeroFrame = frame }
+                        if model.dietHeroSize != size { model.dietHeroSize = size }
+                    }
                 Engraved(text: remaining >= 0 ? "KCAL LEFT" : "KCAL OVER TARGET", size: 11, color: .white.opacity(0.85))
                 Engraved(text: "\(Readout.kcal(totals.kcal)) OF \(Readout.kcal(targets.kcal)) EATEN", size: 10)
                 HStack(spacing: 14) {
@@ -351,22 +362,23 @@ struct ImpactRays: View {
                     rng ^= rng << 13; rng ^= rng >> 7; rng ^= rng << 17
                     return Double(rng % 10_000) / 10_000
                 }
-                let p = min(max(burst.progress.position, 0), 1.05)
-                let count = 9 + Int(next() * 6)
-                let reach = 54 + 96 * burst.strength
+                let p: Double = min(max(burst.progress.position, 0), 1.05)
+                let count: Int = 9 + Int(next() * 6)
+                let reach: Double = 54 + 96 * burst.strength
                 let upward = face == .diet
                 for k in 0..<count {
-                    let slot = (Double(k) + 0.2 + next() * 0.6) / Double(count)
-                    let angle = upward ? -.pi * (0.06 + 0.88 * slot) : 2 * .pi * slot
-                    let length = reach * (0.55 + 0.45 * next())
+                    let slot: Double = (Double(k) + 0.2 + next() * 0.6) / Double(count)
+                    let angle: Double = upward ? -Double.pi * (0.06 + 0.88 * slot) : 2 * Double.pi * slot
+                    let length: Double = reach * (0.55 + 0.45 * next())
                     let outer = CGFloat(length * p)
                     let inner = CGFloat(length * p * p * 0.9)
                     let dir = CGVector(dx: CGFloat(cos(angle)), dy: CGFloat(sin(angle)))
                     var path = Path()
                     path.move(to: CGPoint(x: burst.origin.x + dir.dx * inner, y: burst.origin.y + dir.dy * inner))
                     path.addLine(to: CGPoint(x: burst.origin.x + dir.dx * outer, y: burst.origin.y + dir.dy * outer))
-                    let fade = max(0, 1 - p)
-                    let width = CGFloat(0.8 + 3.2 * fade * (0.6 + 0.4 * burst.strength))
+                    let fade: Double = max(0, 1 - p)
+                    let heft: Double = 0.6 + 0.4 * burst.strength
+                    let width = CGFloat(0.8 + 3.2 * fade * heft)
                     ctx.stroke(path, with: .color(.white.opacity(0.9 * fade)),
                                style: StrokeStyle(lineWidth: width, lineCap: .round))
                 }
@@ -374,5 +386,13 @@ struct ImpactRays: View {
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+}
+
+private struct HeroFrameKey: PreferenceKey {
+    static let defaultValue = CGRect.zero
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+        let next = nextValue()
+        if next != .zero { value = next }
     }
 }
