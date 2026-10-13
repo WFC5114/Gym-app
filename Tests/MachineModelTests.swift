@@ -364,7 +364,7 @@ final class MachineModelTests: XCTestCase {
             for lean in [10.0, 35, 66, 100, 150] {
                 let f = FigureShape.from(fatPercent: fat, leanKg: lean)
                 for v in [f.shoulders, f.waist, f.depth, f.limb] { XCTAssertTrue(FigureShape.range.contains(v)) }
-                XCTAssertLessThan(f.height, 1.01)
+                XCTAssertLessThan(f.height, 1.04)
                 XCTAssertGreaterThan(f.height, 0.95)
             }
         }
@@ -375,12 +375,13 @@ final class MachineModelTests: XCTestCase {
             for lean in [35.0, 66, 100] {
                 let f = FigureShape.from(fatPercent: fat, leanKg: lean)
                 let arm = f.arms[1]
-                // Inner edge of the right arm where it passes the top of the belly.
+                // Inner edge of the right arm where it passes the torso's lower sides and the belly's widest point.
                 let a = arm.roll
                 let inner = SIMD2<Float>(arm.center.x - cos(a) * arm.size.x / 2, arm.center.y - sin(a) * arm.size.x / 2)
-                let t = (inner.y - (f.belly.center.y + f.belly.size.y / 2 - 0.015)) / cos(a)
-                let x = inner.x + sin(a) * t
-                XCTAssertGreaterThanOrEqual(x, f.belly.size.x / 2, "fat \(fat) lean \(lean)")
+                for (half, y) in [(f.torso.size.x / 2, Float(0.47)), (f.belly.size.x / 2, f.belly.center.y)] {
+                    let x = inner.x + sin(a) * (inner.y - y) / cos(a)
+                    XCTAssertGreaterThanOrEqual(x, half, "fat \(fat) lean \(lean) at y \(y)")
+                }
                 XCTAssertEqual(f.arms[0].center.x, -arm.center.x, accuracy: 0.0001)
                 XCTAssertGreaterThanOrEqual(f.legs[1].center.x - f.legs[1].size.x / 2, 0)
             }

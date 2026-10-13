@@ -133,12 +133,13 @@ struct GhostOutline: View {
 
     var body: some View {
         let g = geometry
-        let rects = shape.torsoOutline(yaw: yaw).map { r in
+        let shapes = shape.torsoOutline(yaw: yaw)
+        func face(_ r: CGRect) -> CGRect {
             CGRect(origin: g.point(x: r.minX, y: r.maxY), size: CGSize(width: r.width * g.unit, height: r.height * g.unit))
         }
-        let chest = rects[0]
-        let outline = Path(roundedRect: chest, cornerRadius: g.unit * 0.06)
-            .union(Path(roundedRect: rects[1], cornerRadius: g.unit * 0.08))
+        let chest = face(shapes.torso)
+        let outline = Path(roundedRect: chest, cornerRadius: min(chest.width, g.unit * 0.16) * 0.42)
+            .union(Path(ellipseIn: face(shapes.belly)))
         let labelStart = CGPoint(x: g.feet.x + g.unit * 0.24, y: chest.minY - 26)
         ZStack(alignment: .topLeading) {
             outline.stroke(Ink.text(0.75), style: StrokeStyle(lineWidth: 1.5, dash: [5, 5]))

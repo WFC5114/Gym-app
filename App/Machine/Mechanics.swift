@@ -402,33 +402,57 @@ struct FigureShape: Equatable {
                            limb: clamp((1 + soft * 0.5) * (1 + muscle * 1.4)))
     }
 
-    /// A rounded block of the figure; `roll` turns it about z through its centre.
+    /// One piece of the figure. `size` is its full extent on each axis; `roll`
+    /// turns it about z through its centre.
     struct Part: Equatable {
+        enum Kind: Equatable {
+            /// Rounded box; corner radius is `rounding` × its smaller side across.
+            case block(rounding: Float)
+            /// Ellipsoid filling `size`.
+            case ball
+            /// Upright cylinder filling `size`.
+            case rod
+        }
         var center: SIMD3<Float>
         var size: SIMD3<Float>
         var roll: Float = 0
+        var kind: Kind = .block(rounding: 0.48)
     }
 
-    var chest: Part { Part(center: [0, 0.70, 0], size: [0.31 * shoulders, 0.20, 0.16 * depth]) }
-    var belly: Part { Part(center: [0, 0.545, 0], size: [0.26 * waist, 0.22, 0.17 * depth]) }
+    /// One smooth torso from hips to shoulders; its width follows the shoulders.
+    var torso: Part {
+        Part(center: [0, 0.62, 0], size: [0.29 * shoulders, 0.38, 0.16 * depth], kind: .block(rounding: 0.42))
+    }
+    var torsoTop: Float { torso.center.y + torso.size.y / 2 }
 
-    /// Legs, left then right.
+    /// The belly: an ellipsoid inside the torso that pushes out past its sides
+    /// and front as body fat rises.
+    var belly: Part {
+        Part(center: [0, 0.53, 0], size: [0.26 * waist, 0.24 * (0.8 + 0.2 * waist), 0.20 * depth], kind: .ball)
+    }
+
+    var neck: Part {
+        Part(center: [0, torsoTop + 0.02, 0], size: [0.075, 0.07, 0.075], kind: .rod)
+    }
+
+    /// Legs, left then right, tops hidden inside the torso.
     var legs: [Part] {
-        let size = SIMD3<Float>(0.10 * limb, 0.47, 0.11 * limb)
+        let size = SIMD3<Float>(0.10 * limb, 0.45, 0.11 * limb)
         let x = max(0.06 * waist, size.x / 2 + 0.004)
-        return [Float(-1), 1].map { Part(center: [$0 * x, 0.235, 0], size: size) }
+        return [Float(-1), 1].map { Part(center: [$0 * x, 0.225, 0], size: size) }
     }
 
     /// Arms, left then right, hanging from the shoulders and swung out far
-    /// enough to clear the belly.
+    /// enough to clear the torso and belly.
     var arms: [Part] {
         let size = SIMD3<Float>(0.08 * limb, 0.33, 0.085 * limb)
-        let shoulderX = chest.size.x / 2 + size.x / 2 + 0.006
+        let shoulderX = torso.size.x / 2 + size.x / 2 + 0.006
         let shoulderY: Float = 0.79
-        // Clear the belly near its top, where the arm is still closest in.
-        let drop = shoulderY - (belly.center.y + belly.size.y / 2 - 0.015)
-        let clearance = belly.size.x / 2 + 0.01 - (shoulderX - size.x / 2)
-        let angle = max(0.08, atan(clearance / drop))
+        // Where the inner edge comes closest: the torso's lower sides and the belly's widest point.
+        let checks: [(half: Float, y: Float)] = [(torso.size.x / 2, 0.47), (belly.size.x / 2, belly.center.y)]
+        let angle = checks.reduce(Float(0.08)) { a, c in
+            max(a, atan((c.half + 0.012 - (shoulderX - size.x / 2)) / (shoulderY - c.y)))
+        }
         return [Float(-1), 1].map { side in
             let c = SIMD3<Float>(side * (shoulderX + sin(angle) * size.y / 2), shoulderY - cos(angle) * size.y / 2, 0)
             return Part(center: c, size: size, roll: side * angle)
@@ -436,17 +460,26 @@ struct FigureShape: Equatable {
     }
 
     static let headRadius: Float = 0.085
-    var headCenter: SIMD3<Float> { [0, chest.center.y + chest.size.y / 2 + 0.012 + Self.headRadius, 0] }
+    var headCenter: SIMD3<Float> { [0, torsoTop + 0.045 + Self.headRadius, 0] }
+    var head: Part { Part(center: headCenter, size: SIMD3(repeating: Self.headRadius * 2), kind: .ball) }
     var height: Float { headCenter.y + Self.headRadius }
 
-    /// Chest and belly as seen by the orthographic camera when the figure is
-    /// turned by `yaw`, in figure units (y up), for the type layer's ghost outline.
-    func torsoOutline(yaw: Float) -> [CGRect] {
-        [chest, belly].map { p in
-            let half = p.size.x / 2 * abs(cos(yaw)) + p.size.z / 2 * abs(sin(yaw))
-            return CGRect(x: CGFloat(-half), y: CGFloat(p.center.y - p.size.y / 2),
-                          width: CGFloat(half * 2), height: CGFloat(p.size.y))
+    /// Every piece, in a fixed order the scene relies on.
+    var parts: [Part] { [torso, belly, neck, head] + legs + arms }
+
+    /// Torso (rounded rect) and belly (ellipse bounds) as the orthographic
+    /// camera sees them with the figure turned by `yaw`, in figure units (y up),
+    /// for the type layer's ghost outline.
+    func torsoOutline(yaw: Float) -> (torso: CGRect, belly: CGRect) {
+        let c = abs(cos(yaw)), s = abs(sin(yaw))
+        let t = torso, b = belly
+        // A box's silhouette adds its depth; an ellipse's grows as an ellipse does.
+        let tHalf = t.size.x / 2 * c + t.size.z / 2 * s
+        let bHalf = ((b.size.x / 2 * c) * (b.size.x / 2 * c) + (b.size.z / 2 * s) * (b.size.z / 2 * s)).squareRoot()
+        func rect(_ half: Float, _ p: Part) -> CGRect {
+            CGRect(x: CGFloat(-half), y: CGFloat(p.center.y - p.size.y / 2), width: CGFloat(half * 2), height: CGFloat(p.size.y))
         }
+        return (rect(tHalf, t), rect(bHalf, b))
     }
 }
 
@@ -456,7 +489,7 @@ struct FigureGeometry {
 
     var mech: CGRect { layout.mechanismRect }
     /// Points per figure unit.
-    var unit: CGFloat { mech.height * 0.74 }
+    var unit: CGFloat { mech.height * 0.80 }
     /// The feet, in face-local points; the turntable sits just under them.
     var feet: CGPoint { CGPoint(x: layout.faceWidth / 2, y: mech.maxY - 40) }
     /// The figure stands this far proud of the face.

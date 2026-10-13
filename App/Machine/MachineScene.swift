@@ -41,10 +41,9 @@ final class MachineScene {
     // BODY: the figurine stands on a turntable; its root sits at the feet.
     private let figureRoot = Entity()
     private let figureTurn = Entity()
-    /// Chest, belly, legs (left, right), arms (left, right), each built at the
-    /// neutral shape's size and scaled to the current one.
+    /// `FigureShape.parts` in order, each built at the neutral shape's size and
+    /// scaled to the current one.
     private var figureParts: [(entity: ModelEntity, base: SIMD3<Float>)] = []
-    private var figureHead: ModelEntity?
 
     /// Depths above the face surface, in points.
     enum Depth {
@@ -243,18 +242,23 @@ final class MachineScene {
             disc.orientation = simd_quatf(angle: 0.3, axis: SIMD3(1, 0, 0))
             disc.position = SIMD3(0, -0.025, 0)
             figureRoot.addChild(disc)
-            let neutral = FigureShape.neutral
-            for part in [neutral.chest, neutral.belly] + neutral.legs + neutral.arms {
+            for part in FigureShape.neutral.parts {
                 let s = part.size
-                let radius = min(s.x, s.z) * (part.size.y > 0.3 ? 0.48 : 0.36)
-                let e = ModelEntity(mesh: .generateBox(width: s.x, height: s.y, depth: s.z, cornerRadius: radius),
-                                    materials: [materials.weight])
+                let mesh: MeshResource
+                var base = SIMD3<Float>(repeating: 1)
+                switch part.kind {
+                case .block(let rounding):
+                    mesh = .generateBox(width: s.x, height: s.y, depth: s.z, cornerRadius: min(s.x, s.z) * rounding)
+                    base = s
+                case .ball:
+                    mesh = .generateSphere(radius: 0.5)
+                case .rod:
+                    mesh = .generateCylinder(height: 1, radius: 0.5)
+                }
+                let e = ModelEntity(mesh: mesh, materials: [materials.weight])
                 figureTurn.addChild(e)
-                figureParts.append((e, s))
+                figureParts.append((e, base))
             }
-            let head = ModelEntity(mesh: .generateSphere(radius: FigureShape.headRadius), materials: [materials.weight])
-            figureTurn.addChild(head)
-            figureHead = head
         }
         let g = FigureGeometry(layout: layout)
         figureRoot.position = World.point(g.feet, z: FigureGeometry.depth, in: layout)
@@ -432,12 +436,10 @@ final class MachineScene {
     private func applyBody(_ model: MachineModel, layout: MachineLayout) {
         let shape = model.figure
         figureTurn.orientation = simd_quatf(angle: model.figureYaw, axis: SIMD3(0, 1, 0))
-        let parts = [shape.chest, shape.belly] + shape.legs + shape.arms
-        for (slot, part) in zip(figureParts, parts) {
+        for (slot, part) in zip(figureParts, shape.parts) {
             slot.entity.position = part.center
             slot.entity.scale = part.size / slot.base
             slot.entity.orientation = simd_quatf(angle: part.roll, axis: SIMD3(0, 0, 1))
         }
-        figureHead?.position = shape.headCenter
     }
 }
