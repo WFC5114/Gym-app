@@ -14,6 +14,12 @@ struct Skin: Identifiable, Equatable {
     let soundKit: String
     /// What unlocks the skin, or nil when it is available from the start.
     let unlock: String?
+    /// Inlaid colour plate per face (DIET, TRAIN, BODY); nil keeps the bare chassis.
+    var faceColors: [UInt32]? = nil
+    /// Hero numerals, weights and slabs.
+    var objectColor: UInt32 = 0xEDEDED
+    /// Satin and clearcoat on objects instead of matte graphite.
+    var glossy = false
 
     static let mono = Skin(
         id: "mono", name: "MONO",
@@ -33,7 +39,28 @@ struct Skin: Identifiable, Equatable {
         roughness: 0.15, metalness: 0.85, soundKit: "Synth-Volt",
         unlock: "100% protein target 14 days in a row"
     )
-    static let all: [Skin] = [.mono, .concrete, .signal]
+    /// Default (Wei, 13 Oct 2026): colour and light like a toy, each face its own
+    /// colour so the prism reads at a glance while it turns. Objects are warm
+    /// cream with satin clearcoat; white type stays readable on all three faces.
+    static let flare = Skin(
+        id: "flare", name: "FLARE",
+        base: Color(hex: 0x000000), accent: Color(hex: 0xFFFFFF), mid: Color(hex: 0xFF5A1F),
+        roughness: 0.55, metalness: 0.0, soundKit: "Anvil",
+        unlock: nil,
+        faceColors: [0xE8461E, 0x2340E0, 0x7B3FE4],
+        objectColor: 0xFFF4E0,
+        glossy: true
+    )
+    static let all: [Skin] = [.flare, .mono, .concrete, .signal]
+
+    /// `-skin <id>` on launch picks a skin (fixtures and comparisons); otherwise FLARE.
+    static var launch: Skin {
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "-skin"), i + 1 < args.count, let skin = all.first(where: { $0.id == args[i + 1] }) {
+            return skin
+        }
+        return .flare
+    }
 }
 
 extension Color {
@@ -48,7 +75,7 @@ extension Color {
 
 /// The GYM design system for the Laboratory Measuring Deck.
 enum Brutal {
-    static var skin: Skin = .mono
+    static var skin: Skin = .launch
 
     /// Background of the machine and the void around it.
     static var paper: Color { skin.base }

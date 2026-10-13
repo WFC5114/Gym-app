@@ -4,8 +4,10 @@ Wei's binding design spec (revised 2026-10-12, replacing the earlier collection 
 
 Revision 3 (2026-10-12): `docs/ART_DIRECTION.md` (Wei's Revision 2 art direction and implementation prompt) is the working implementation contract, and Wei's decisions at the end of it override both documents. `docs/DESIGN_REVIEW.md` records how the team applied it, the adopted proposals and the acceptance checklist.
 
+Revision 4 (2026-10-13): Wei said the build still felt "very off" next to the Not Boring apps and chose **colour**: the default skin is now **FLARE** (saturated colour plate per face, lit, satin and clearcoat objects); matte black lives on as the MONO skin. Not Boring is the feel benchmark, learned only from their public write-ups and screenshots (no decompiling): juice stacked on every commit (windup, hit rays, camera kick, number punch, layered sound and matched haptic), lit 3D numerals, layered recorded plus synthesised sound. The gap analysis lives in the project files (`notes/not-boring-gap.md`).
+
 ## Core thesis
-The whole app is **one machine**: a heavy, brutalist, matte-black calibration rig floating in black space (#000000). Every user action is filtered through that machine. No fragmented widgets, no tab bars, no hamburger menus, no pushed view controllers.
+The whole app is **one machine**: a heavy calibration rig floating in black space (#000000), its faces skinned (FLARE colour by default, MONO matte black). Every user action is filtered through that machine. No fragmented widgets, no tab bars, no hamburger menus, no pushed view controllers.
 
 ## 1. Spatial architecture
 - The machine is an **equilateral triangular prism** centred in negative space.
@@ -63,7 +65,8 @@ A skin is not an image swap. It is a config: palette, PBR material, physics para
 
 | Skin | Unlock | Palette (base / accent / mid) | Material | Sound kit |
 | --- | --- | --- | --- | --- |
-| MONO (default) | Available from the start | #000000 / #FFFFFF / #333333 | Matte graphite: roughness 0.9, metalness 0.0, no highlights | Anvil: dry mechanical hits, vault gears, dead sub-bass |
+| FLARE (default) | Available from the start | Face plates DIET #E8461E, TRAIN #2340E0, BODY #7B3FE4; objects #FFF4E0; void #000000 | Satin plates (roughness 0.62), cream objects with clearcoat, chrome springs, amber sand | Anvil plus recorded CC0 impact layers |
+| MONO | Available from the start | #000000 / #FFFFFF / #333333 | Matte graphite: roughness 0.9, metalness 0.0, no highlights | Anvil: dry mechanical hits, vault gears, dead sub-bass |
 | CONCRETE | 7-day continuous logging streak | #4A4A4A / #F5F5F7 / #8E8E93 | Porous cement, procedural micro-pitting noise, roughness 0.95 | Quarry: stone grinding, gravel scrapes, seismic cracks |
 | SIGNAL | 100% protein target 14 days in a row | #0F0F11 / #FF3B30 / #FF9500 | Coated zinc enamel: roughness 0.15, metalness 0.85 | Synth-Volt: relays, analog synth clicks, filter sweeps |
 
@@ -84,7 +87,8 @@ Rest periods (planned, coach advice, each added block of time, actual rest, how 
 - **RealityKit + Metal, not SceneKit.** The spec names SceneKit, but Apple deprecated it in iOS 26. RealityKit gives the same model: one 3D view, entities with PBR materials, custom Metal surface/geometry shaders, 3D text meshes (`MeshResource.generateText`) and an orthographic camera (`OrthographicCameraComponent`).
 - One root view hosts the RealityKit scene. Text and controls are native SwiftUI layers placed in each face's coordinates and projected with the same orthographic maths, so they turn with the prism and keep VoiceOver, Dynamic Type and keyboard input (proposal P6 in `docs/DESIGN_REVIEW.md`).
 - **No animation curves.** Positions are integrated every frame with damped spring formulas (our own `Spring` solver), never `withAnimation` easing.
-- **Core Haptics** custom patterns (`CHHapticEngine`), **AVAudioEngine** synthesis and sample banks per skin, synced to spring peaks.
+- **Core Haptics** custom patterns (`CHHapticEngine`), **AVAudioEngine** synthesis layered with recorded CC0 impact samples (`App/Sounds`, provenance in `LICENSE-SOUNDS.txt`), five variants per sound, synced to spring peaks.
+- **Hero numerals** are extruded RealityKit text meshes standing on the face (DIET so far); the SwiftUI text stays invisible for layout, hit testing and VoiceOver.
 - **Up to 120 Hz** on ProMotion while something moves; slower while only sand runs; paused when idle. ProMotion is adaptive, so no fixed rate is promised. Frame pacing must be measured on the phone.
 - **InBody** data arrives through Apple Health, since the InBody app syncs scans there and there is no public InBody cloud API.
 

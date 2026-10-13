@@ -16,6 +16,8 @@ struct MaterialKit {
     var body: PhysicallyBasedMaterial
     /// Hero numerals: bright and satin so the extrusion's faces separate by tone.
     var numeral: PhysicallyBasedMaterial
+    /// The skin's colour plate per face, or empty for the bare chassis.
+    var facePlates: [PhysicallyBasedMaterial]
 
     static func make(skin: Skin, grain: TextureResource?) -> MaterialKit {
         func matte(_ white: CGFloat, roughness: Float, metallic: Float = 0, grainScale: Float = 1) -> PhysicallyBasedMaterial {
@@ -31,6 +33,28 @@ struct MaterialKit {
             return m
         }
         let r = Float(skin.roughness)
+        func object(_ hex: UInt32, dim: CGFloat = 1) -> PhysicallyBasedMaterial {
+            var m = PhysicallyBasedMaterial()
+            let c = UIColor(red: CGFloat((hex >> 16) & 0xFF) / 255 * dim, green: CGFloat((hex >> 8) & 0xFF) / 255 * dim,
+                            blue: CGFloat(hex & 0xFF) / 255 * dim, alpha: 1)
+            m.baseColor = .init(tint: c)
+            m.roughness = .init(floatLiteral: 0.38)
+            m.metallic = .init(floatLiteral: 0)
+            m.specular = .init(floatLiteral: 0.5)
+            m.clearcoat = .init(floatLiteral: 0.6)
+            m.clearcoatRoughness = .init(floatLiteral: 0.25)
+            return m
+        }
+        func plate(_ hex: UInt32) -> PhysicallyBasedMaterial {
+            var m = object(hex)
+            m.roughness = .init(floatLiteral: 0.62)
+            m.clearcoat = .init(floatLiteral: 0.25)
+            if let grain {
+                m.normal = .init(texture: .init(grain))
+                m.textureCoordinateTransform = .init(scale: SIMD2(repeating: 3))
+            }
+            return m
+        }
         var glass = PhysicallyBasedMaterial()
         // Frosted, not polished: the captures showed hot specular spots on a 0.35 glass.
         glass.baseColor = .init(tint: UIColor(white: 0.7, alpha: 1))
@@ -39,6 +63,24 @@ struct MaterialKit {
         glass.specular = .init(floatLiteral: 0.08)
         glass.blending = .transparent(opacity: .init(floatLiteral: 0.1))
         glass.faceCulling = .none
+        if skin.glossy {
+            var spring = matte(0.75, roughness: 0.22, metallic: 1)
+            spring.specular = .init(floatLiteral: 0.6)
+            var numeral = object(skin.objectColor)
+            numeral.roughness = .init(floatLiteral: 0.3)
+            return MaterialKit(
+                chassis: matte(0.07, roughness: 0.7, grainScale: 3),
+                plate: object(0x2A2A2E),
+                spring: spring,
+                weight: object(skin.objectColor),
+                unknownWeight: object(skin.objectColor, dim: 0.6),
+                glass: glass,
+                sand: object(0xFFC94A),
+                body: object(skin.objectColor, dim: 0.85),
+                numeral: numeral,
+                facePlates: (skin.faceColors ?? []).map(plate)
+            )
+        }
         return MaterialKit(
             chassis: matte(0.05, roughness: r, grainScale: 3),
             plate: matte(0.09, roughness: r, grainScale: 4),
@@ -57,7 +99,8 @@ struct MaterialKit {
                 m.clearcoat = .init(floatLiteral: 0.5)
                 m.clearcoatRoughness = .init(floatLiteral: 0.3)
                 return m
-            }()
+            }(),
+            facePlates: []
         )
     }
 

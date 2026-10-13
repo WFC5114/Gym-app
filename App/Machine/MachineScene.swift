@@ -10,7 +10,7 @@ final class MachineScene {
     let prismRoot = Entity()
     let camera = Entity()
     var faces: [Entity] = []
-    var materials = MaterialKit.make(skin: .mono, grain: nil)
+    var materials = MaterialKit.make(skin: Brutal.skin, grain: nil)
     private var builtLayout: MachineLayout?
     private var prismModel: ModelEntity?
     private var subscription: EventSubscription?
@@ -30,6 +30,7 @@ final class MachineScene {
     private var coilMesh: MeshResource?
 
     private var dietNumerals: Numerals3D?
+    private var facePlates: [ModelEntity] = []
 
     // TRAIN
     private let glassGroup = Entity()
@@ -57,7 +58,7 @@ final class MachineScene {
         if let grainImage = MaterialKit.grainImage(),
            let grain = try? await TextureResource(image: grainImage, withName: "grain",
                                                    options: .init(semantic: .normal, mipmapsMode: .allocateAndGenerateAll)) {
-            materials = MaterialKit.make(skin: .mono, grain: grain)
+            materials = MaterialKit.make(skin: Brutal.skin, grain: grain)
         }
         if let envImage = MaterialKit.environmentImage(),
            let env = try? await EnvironmentResource(equirectangular: envImage, withName: "studio") {
@@ -121,10 +122,21 @@ final class MachineScene {
             prismModel = entity
         }
         let a = World.len(layout.apothem)
+        for plate in facePlates { plate.removeFromParent() }
+        facePlates = []
         for (i, face) in faces.enumerated() {
             let theta = Float(i) * 2 * .pi / 3
             face.position = SIMD3(a * sin(theta), 0, a * cos(theta))
             face.orientation = simd_quatf(angle: theta, axis: SIMD3(0, 1, 0))
+            // The skin's colour inlay, set just proud of the chassis inside its bevel.
+            if i < materials.facePlates.count {
+                let inset: CGFloat = 7
+                let plate = box(CGSize(width: layout.faceWidth - inset * 2, height: layout.faceHeight - inset * 2),
+                                depth: 1.2, radius: 6, material: materials.facePlates[i])
+                plate.position = World.point(CGPoint(x: layout.faceWidth / 2, y: layout.faceHeight / 2), z: 0.4, in: layout)
+                face.addChild(plate)
+                facePlates.append(plate)
+            }
         }
         buildDiet(layout: layout, model: model)
         if dietNumerals == nil {

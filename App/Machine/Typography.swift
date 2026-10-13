@@ -54,6 +54,9 @@ struct Engraved: View {
             .font(TypeKit.label(size * scale))
             .tracking(tracking)
             .foregroundStyle(color)
+            // A one-point engraved shadow: invisible on black, keeps small type
+            // legible on the colour plates.
+            .shadow(color: .black.opacity(0.35), radius: 0, x: 0, y: 1)
             .lineLimit(1)
             .fixedSize()
     }

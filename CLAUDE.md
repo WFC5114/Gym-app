@@ -11,7 +11,8 @@ Product owner: Wei (GitHub `WFC5114`). Wei approves scope, designs and releases.
 - Data stays on device. No network calls except food databases (Open Food Facts, USDA) and, only if Wei adds a key, the Claude API.
 
 ## Design rules (binding: read `docs/DESIGN_LANGUAGE.md` before any UI work)
-- The app is ONE machine, the Laboratory Measuring Deck: a matte-black triangular prism on #000000 with DIET, TRAIN and BODY faces. No tab bars, menus or pushed screens.
+- The app is ONE machine, the Laboratory Measuring Deck: a triangular prism on #000000 with DIET, TRAIN and BODY faces. No tab bars, menus or pushed screens.
+- Feel benchmark: the Not Boring apps, learned only from public material (never decompiled). Juice on every commit, lit 3D numerals, layered recorded + synthesised sound.
 - Swipe edge to edge to rotate the prism 120° (8% overshoot). Orthographic camera.
 - Working contract: `docs/ART_DIRECTION.md` (Wei's Revision 2 prompt; Wei's decisions at its end override it). How it was applied, adopted proposals and the PASS/FAIL/NOT TESTED checklist: `docs/DESIGN_REVIEW.md`.
 - DIET: real food logging (Wei). LOG FOOD opens an in-face intake inset (search, barcode, serving) that forms a mass block; drag it onto the hydraulic deck (spring 3.5/450/22), which compresses in the face plane. 50/100/250/500 kcal weights are quick-add with unknown macros. Contact commits exactly once; edit, delete and undo.
@@ -20,7 +21,7 @@ Product owner: Wei (GitHub `WFC5114`). Wei approves scope, designs and releases.
 - Damped springs only (mass/stiffness/damping). No easing curves.
 - Every event has a specified sound (AVAudioEngine) and Core Haptics profile (see the sensory table). No presets or system beeps.
 - Widgets and the Dynamic Island are typographic: text on black, light-to-heavy "strike" on change; island is a flat gauge.
-- Skins (MONO default, CONCRETE, SIGNAL) bundle palette, material, physics and sound kit. Defined in `Shared/Brutal.swift`.
+- Skins (FLARE colour default per Wei 13 Oct, MONO matte black, CONCRETE, SIGNAL) bundle palette, material, physics and sound kit. Defined in `Shared/Brutal.swift`; `-skin <id>` on launch overrides.
 - RealityKit + Metal (SceneKit is deprecated); text and controls are SwiftUI layers projected with the same orthographic maths. Honour Reduce Motion, silent switch, sound and haptics toggles, VoiceOver, Dynamic Type, 44 pt targets.
 - Fixture data, sample data and untested behaviour are always labelled as such.
 - Rest and cardio sessions are stored and feed the AI review.
