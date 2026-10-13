@@ -206,6 +206,11 @@ final class MachineModel {
     var bodyCaption: String { bodyUsesSample ? "SAMPLE DATA" : "APPLE HEALTH" }
     var scrubSpring = SpringState(position: 0, target: 0)
     var bodyNumbers = SpringState(position: 0, target: 0)
+    /// The figurine's fat and lean follow the scrubbed day on a spring.
+    var figureFat = SpringState(position: 16, target: 16)
+    var figureLean = SpringState(position: 66, target: 66)
+    /// Turntable swing (radians) from scrubbing; it swings back to rest.
+    var figureSpin = SpringState(position: 0, target: 0)
 
     // Shared camera shake (points), applied to the whole machine.
     var shake = SpringState(position: 0, target: 0)
@@ -243,6 +248,7 @@ final class MachineModel {
         heroKcal = SpringState(position: left, target: left)
         scrubSpring = SpringState(position: Double(bodyHistory.count - 1), target: Double(bodyHistory.count - 1))
         bodyNumbers = scrubSpring
+        syncFigureImmediately()
         syncGlassImmediately()
         syncPiecesImmediately()
     }
@@ -353,6 +359,7 @@ final class MachineModel {
             || pieces.values.contains { !$0.isSettled } || !glassAngle.isSettled(tolerance: 0.0005) || !glassHeight.isSettled(tolerance: 0.1)
             || !sandA.isSettled(tolerance: 0.0005) || !sandB.isSettled(tolerance: 0.0005) || activeRest != nil
             || !scrubSpring.isSettled(tolerance: 0.001) || !bodyNumbers.isSettled(tolerance: 0.001) || !shake.isSettled(tolerance: 0.02)
+            || !figureFat.isSettled(tolerance: 0.005) || !figureLean.isSettled(tolerance: 0.005) || !figureSpin.isSettled(tolerance: 0.001)
             || !bursts.isEmpty || !heroPunch.isSettled(tolerance: 0.001) || !heroKcal.isSettled(tolerance: 0.5)
             || !charge.isSettled(tolerance: 0.002)
     }
@@ -367,6 +374,7 @@ final class MachineModel {
         scrubSpring.advance(dt, config: .follow)
         bodyNumbers.target = scrubSpring.position.rounded()
         bodyNumbers.advance(dt, config: bodyCfg)
+        stepFigure(dt)
         shake.advance(dt, config: .piston)
         stepJuice(dt)
     }
@@ -984,6 +992,52 @@ final class MachineModel {
         bodyUsesSample = false
         scrubSpring = SpringState(position: Double(history.count - 1), target: Double(history.count - 1))
         bodyNumbers = scrubSpring
+        syncFigureImmediately()
+    }
+
+    /// The figurine as it is drawn this frame.
+    var figure: FigureShape { FigureShape.from(fatPercent: figureFat.position, leanKg: figureLean.position) }
+    /// Turn about the vertical axis this frame: the resting three-quarter view plus the swing.
+    var figureYaw: Float { FigureGeometry.restYaw + Float(figureSpin.position) }
+
+    /// The comparison outline: 8 weeks before the scrubbed day, or the earliest
+    /// day there is. Nil when that is less than a week back or nothing changed.
+    var ghostFigure: (shape: FigureShape, daysBack: Int)? {
+        let index = min(Int(bodyNumbers.target.rounded()), bodyHistory.count - 1)
+        let back = max(index - 56, 0)
+        guard index - back >= 7 else { return nil }
+        let then = BodyObservation.carried(bodyHistory, upTo: back)
+        guard then.fat != nil || then.lean != nil else { return nil }
+        let shape = FigureShape.from(fatPercent: then.fat, leanKg: then.lean)
+        let now = BodyObservation.carried(bodyHistory, upTo: index)
+        guard shape != FigureShape.from(fatPercent: now.fat, leanKg: now.lean) else { return nil }
+        return (shape, index - back)
+    }
+
+    private func figureTargets() -> (fat: Double, lean: Double) {
+        let carried = BodyObservation.carried(bodyHistory, upTo: Int(bodyNumbers.target.rounded()))
+        return (carried.fat ?? 16, carried.lean ?? 66)
+    }
+
+    func syncFigureImmediately() {
+        let t = figureTargets()
+        figureFat = SpringState(position: t.fat, target: t.fat)
+        figureLean = SpringState(position: t.lean, target: t.lean)
+        figureSpin = SpringState(position: 0, target: 0)
+    }
+
+    private func stepFigure(_ dt: Double) {
+        let t = figureTargets()
+        figureFat.target = t.fat
+        figureLean.target = t.lean
+        let cfg = reduceMotion ? SpringConfig.calm : .bodyNumbers
+        figureFat.advance(dt, config: cfg)
+        figureLean.advance(dt, config: cfg)
+        // Dragging the ruler drags the turntable round; letting go, it swings back
+        // to its resting turn with one soft overshoot.
+        let swing = reduceMotion ? 0 : min(max(-scrubSpring.velocity * 0.015, -FigureGeometry.maxSwing), FigureGeometry.maxSwing)
+        figureSpin.target = swing
+        figureSpin.advance(dt, config: reduceMotion ? .calm : .tumble)
     }
 
     var bodyObservation: BodyObservation? {

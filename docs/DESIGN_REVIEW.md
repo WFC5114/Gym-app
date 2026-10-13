@@ -36,7 +36,7 @@ Reviewed at commit `56a316c` on `m0-foundation`, before branch `2-deck-slice`.
 | M7 | Fixture states, render captures, gesture video | `App/Machine/Fixtures.swift`, `UITests/`, `scripts/capture.sh` |
 | M8 | Typographic widgets with a light-to-heavy strike; flat island gauge | **Still missing.** Deferred until Wei passes the DIET gate |
 | M9 | Heart-rate influence on TRAIN; cardio on TRAIN | **Still missing.** Deferred (§6 asks for it; Wei's hourglass decision changes the visual it would act on) |
-| M10 | BODY low-poly mesh and vernier ruler | First pass: `Geometry.body(fatPercent:leanKg:)`, `App/Machine/BodyFace.swift`. Labelled `SCHEMATIC · NOT A BODY SCAN` |
+| M10 | BODY figurine and vernier ruler | Figurine (Wei's pick, 13 Oct) replaced the low-poly mesh: `FigureShape` in `App/Machine/Mechanics.swift`, scene `buildBody`/`applyBody`, ghost outline in `App/Machine/BodyFace.swift`. Labelled `SCHEMATIC · NOT A BODY SCAN` |
 
 ## 2. Proposals adopted (with why)
 

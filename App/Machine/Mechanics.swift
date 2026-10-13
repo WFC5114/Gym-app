@@ -378,6 +378,100 @@ struct HourglassGeometry {
     static let aspect: CGFloat = 0.56
 }
 
+/// BODY's figurine in figure units: feet at y 0, the top of the head near 1,
+/// x across, z toward the viewer. A schematic, not a body scan: fat fills out
+/// the waist and limbs, lean mass broadens the shoulders and limbs.
+struct FigureShape: Equatable {
+    var shoulders: Float
+    var waist: Float
+    var depth: Float
+    var limb: Float
+
+    static let neutral = FigureShape.from(fatPercent: nil, leanKg: nil)
+    static let range: ClosedRange<Float> = 0.55...2.0
+
+    static func from(fatPercent: Double?, leanKg: Double?) -> FigureShape {
+        let fat = Float(min(max(fatPercent ?? 16, 5), 45))
+        let lean = Float(min(max(leanKg ?? 66, 35), 100))
+        let soft = (fat - 16) * 0.045
+        let muscle = (lean - 66) * 0.015
+        func clamp(_ v: Float) -> Float { min(max(v, range.lowerBound), range.upperBound) }
+        return FigureShape(shoulders: clamp((1 + muscle) * (1 + soft * 0.4)),
+                           waist: clamp((1 + soft) * (1 + muscle * 0.3)),
+                           depth: clamp(1 + soft * 0.9 + muscle * 0.3),
+                           limb: clamp((1 + soft * 0.5) * (1 + muscle * 1.4)))
+    }
+
+    /// A rounded block of the figure; `roll` turns it about z through its centre.
+    struct Part: Equatable {
+        var center: SIMD3<Float>
+        var size: SIMD3<Float>
+        var roll: Float = 0
+    }
+
+    var chest: Part { Part(center: [0, 0.70, 0], size: [0.31 * shoulders, 0.20, 0.16 * depth]) }
+    var belly: Part { Part(center: [0, 0.545, 0], size: [0.26 * waist, 0.22, 0.17 * depth]) }
+
+    /// Legs, left then right.
+    var legs: [Part] {
+        let size = SIMD3<Float>(0.10 * limb, 0.47, 0.11 * limb)
+        let x = max(0.06 * waist, size.x / 2 + 0.004)
+        return [Float(-1), 1].map { Part(center: [$0 * x, 0.235, 0], size: size) }
+    }
+
+    /// Arms, left then right, hanging from the shoulders and swung out far
+    /// enough to clear the belly.
+    var arms: [Part] {
+        let size = SIMD3<Float>(0.08 * limb, 0.33, 0.085 * limb)
+        let shoulderX = chest.size.x / 2 + size.x / 2 + 0.006
+        let shoulderY: Float = 0.79
+        // Clear the belly near its top, where the arm is still closest in.
+        let drop = shoulderY - (belly.center.y + belly.size.y / 2 - 0.015)
+        let clearance = belly.size.x / 2 + 0.01 - (shoulderX - size.x / 2)
+        let angle = max(0.08, atan(clearance / drop))
+        return [Float(-1), 1].map { side in
+            let c = SIMD3<Float>(side * (shoulderX + sin(angle) * size.y / 2), shoulderY - cos(angle) * size.y / 2, 0)
+            return Part(center: c, size: size, roll: side * angle)
+        }
+    }
+
+    static let headRadius: Float = 0.085
+    var headCenter: SIMD3<Float> { [0, chest.center.y + chest.size.y / 2 + 0.012 + Self.headRadius, 0] }
+    var height: Float { headCenter.y + Self.headRadius }
+
+    /// Chest and belly as seen by the orthographic camera when the figure is
+    /// turned by `yaw`, in figure units (y up), for the type layer's ghost outline.
+    func torsoOutline(yaw: Float) -> [CGRect] {
+        [chest, belly].map { p in
+            let half = p.size.x / 2 * abs(cos(yaw)) + p.size.z / 2 * abs(sin(yaw))
+            return CGRect(x: CGFloat(-half), y: CGFloat(p.center.y - p.size.y / 2),
+                          width: CGFloat(half * 2), height: CGFloat(p.size.y))
+        }
+    }
+}
+
+/// Where the figurine stands on the BODY face.
+struct FigureGeometry {
+    var layout: MachineLayout
+
+    var mech: CGRect { layout.mechanismRect }
+    /// Points per figure unit.
+    var unit: CGFloat { mech.height * 0.74 }
+    /// The feet, in face-local points; the turntable sits just under them.
+    var feet: CGPoint { CGPoint(x: layout.faceWidth / 2, y: mech.maxY - 40) }
+    /// The figure stands this far proud of the face.
+    static let depth: CGFloat = 90
+    /// Resting three-quarter turn, so the orthographic camera sees its depth.
+    static let restYaw: Float = 0.38
+    /// How far scrubbing can swing it off the resting turn.
+    static let maxSwing: Double = 0.6
+
+    /// A figure-unit point (y up) in face-local points (y down).
+    func point(x: CGFloat, y: CGFloat) -> CGPoint {
+        CGPoint(x: feet.x + x * unit, y: feet.y - y * unit)
+    }
+}
+
 /// Formats for the type layer.
 enum Readout {
     static func kcal(_ value: Double) -> String {

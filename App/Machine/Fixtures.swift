@@ -181,6 +181,15 @@ enum Fixtures {
             model.syncGlassImmediately()
         case "body-idle":
             model.yaw = SpringState(position: 240, target: 240)
+        case "body-scrub":
+            // Mid-drag back to four weeks ago: the figure has morphed to that day's
+            // scan and the turntable is swung round by the drag.
+            model.yaw = SpringState(position: 240, target: 240)
+            let day = Double(model.bodyHistory.count - 1 - 28)
+            model.scrubSpring = SpringState(position: day, target: day)
+            model.bodyNumbers = model.scrubSpring
+            model.syncFigureImmediately()
+            model.figureSpin = SpringState(position: 0.45, target: 0.45)
         default:
             break
         }

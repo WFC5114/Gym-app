@@ -219,45 +219,4 @@ enum Geometry {
         }
         return try b.mesh(named: "sand")
     }
-
-    // MARK: Body
-
-    /// Abstract faceted figure: a schematic measurement form, not an avatar.
-    /// Fat inflates it on X/Z; lean mass widens the upper rings and narrows the waist.
-    static func body(fatPercent: Double?, leanKg: Double?, sides: Int = 9) throws -> MeshResource {
-        // (height, radius) rings from feet to shoulders, height 1.
-        let profile: [(Float, Float)] = [(-0.5, 0.10), (-0.36, 0.16), (-0.18, 0.21), (-0.02, 0.27), (0.08, 0.25),
-                                         (0.2, 0.24), (0.32, 0.31), (0.42, 0.34), (0.5, 0.13)]
-        let fat = Float(fatPercent ?? 16)
-        let lean = Float(leanKg ?? 66)
-        let inflate = 1 + (fat - 16) * 0.025
-        let muscle = (lean - 66) * 0.012
-        var b = Builder()
-        var rings: [[SIMD3<Float>]] = []
-        for (index, (y, r)) in profile.enumerated() {
-            var radius = r * inflate
-            if index >= 6 && index <= 7 { radius *= 1 + muscle }
-            if index == 4 || index == 5 { radius *= 1 - muscle * 0.5 }
-            let twist = Float(index % 2) * .pi / Float(sides)
-            rings.append((0..<sides).map { k in
-                let phi = Float(k) / Float(sides) * 2 * .pi + twist
-                return SIMD3(radius * cos(phi), y, radius * 0.72 * sin(phi))
-            })
-        }
-        let inside = SIMD3<Float>(0, 0, 0)
-        for i in 0..<(rings.count - 1) {
-            for k in 0..<sides {
-                let a = rings[i][k], bb = rings[i][(k + 1) % sides]
-                let c = rings[i + 1][(k + 1) % sides], d = rings[i + 1][k]
-                b.triangle(a, bb, c, inside: SIMD3(0, (a.y + c.y) / 2, 0))
-                b.triangle(a, c, d, inside: SIMD3(0, (a.y + c.y) / 2, 0))
-            }
-        }
-        let top = SIMD3<Float>(0, 0.5, 0), bottom = SIMD3<Float>(0, -0.5, 0)
-        for k in 0..<sides {
-            b.triangle(top, rings.last![k], rings.last![(k + 1) % sides], inside: inside)
-            b.triangle(bottom, rings[0][k], rings[0][(k + 1) % sides], inside: inside)
-        }
-        return try b.mesh(named: "body")
-    }
 }

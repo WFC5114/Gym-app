@@ -38,10 +38,13 @@ final class MachineScene {
     private var sandConeB: ModelEntity?
     private var stream: ModelEntity?
 
-    // BODY
-    private var bodyEntity: ModelEntity?
-    private var bodyKey: Int?
-    private var bodyPlinth: ModelEntity?
+    // BODY: the figurine stands on a turntable; its root sits at the feet.
+    private let figureRoot = Entity()
+    private let figureTurn = Entity()
+    /// Chest, belly, legs (left, right), arms (left, right), each built at the
+    /// neutral shape's size and scaled to the current one.
+    private var figureParts: [(entity: ModelEntity, base: SIMD3<Float>)] = []
+    private var figureHead: ModelEntity?
 
     /// Depths above the face surface, in points.
     enum Depth {
@@ -232,13 +235,30 @@ final class MachineScene {
     }
 
     private func buildBody(layout: MachineLayout) {
-        bodyPlinth?.removeFromParent()
-        let mech = layout.mechanismRect
-        let plinth = box(CGSize(width: layout.contentWidth * 0.6, height: 16), depth: 60, radius: 3, material: materials.plate)
-        plinth.position = World.point(CGPoint(x: layout.faceWidth / 2, y: mech.maxY - 8), z: 30, in: layout)
-        faces[2].addChild(plinth)
-        bodyPlinth = plinth
-        bodyKey = nil
+        if figureParts.isEmpty {
+            faces[2].addChild(figureRoot)
+            figureRoot.addChild(figureTurn)
+            // Tipped toward the camera so the orthographic view sees its top.
+            let disc = ModelEntity(mesh: .generateCylinder(height: 0.04, radius: 0.27), materials: [materials.plate])
+            disc.orientation = simd_quatf(angle: 0.3, axis: SIMD3(1, 0, 0))
+            disc.position = SIMD3(0, -0.025, 0)
+            figureRoot.addChild(disc)
+            let neutral = FigureShape.neutral
+            for part in [neutral.chest, neutral.belly] + neutral.legs + neutral.arms {
+                let s = part.size
+                let radius = min(s.x, s.z) * (part.size.y > 0.3 ? 0.48 : 0.36)
+                let e = ModelEntity(mesh: .generateBox(width: s.x, height: s.y, depth: s.z, cornerRadius: radius),
+                                    materials: [materials.weight])
+                figureTurn.addChild(e)
+                figureParts.append((e, s))
+            }
+            let head = ModelEntity(mesh: .generateSphere(radius: FigureShape.headRadius), materials: [materials.weight])
+            figureTurn.addChild(head)
+            figureHead = head
+        }
+        let g = FigureGeometry(layout: layout)
+        figureRoot.position = World.point(g.feet, z: FigureGeometry.depth, in: layout)
+        figureRoot.scale = SIMD3(repeating: World.len(g.unit))
     }
 
     // MARK: Per frame
@@ -410,21 +430,14 @@ final class MachineScene {
     }
 
     private func applyBody(_ model: MachineModel, layout: MachineLayout) {
-        let index = Int(model.bodyNumbers.target.rounded())
-        guard index != bodyKey else { return }
-        bodyKey = index
-        let carried = BodyObservation.carried(model.bodyHistory, upTo: index)
-        guard let mesh = try? Geometry.body(fatPercent: carried.fat, leanKg: carried.lean) else { return }
-        if let bodyEntity {
-            bodyEntity.model?.mesh = mesh
-        } else {
-            let e = ModelEntity(mesh: mesh, materials: [materials.body])
-            faces[2].addChild(e)
-            bodyEntity = e
+        let shape = model.figure
+        figureTurn.orientation = simd_quatf(angle: model.figureYaw, axis: SIMD3(0, 1, 0))
+        let parts = [shape.chest, shape.belly] + shape.legs + shape.arms
+        for (slot, part) in zip(figureParts, parts) {
+            slot.entity.position = part.center
+            slot.entity.scale = part.size / slot.base
+            slot.entity.orientation = simd_quatf(angle: part.roll, axis: SIMD3(0, 0, 1))
         }
-        let mech = layout.mechanismRect
-        let h = mech.height * 0.8
-        bodyEntity?.scale = SIMD3(repeating: World.len(h))
-        bodyEntity?.position = World.point(CGPoint(x: layout.faceWidth / 2, y: mech.maxY - 16 - h / 2), z: h * 0.4, in: layout)
+        figureHead?.position = shape.headCenter
     }
 }

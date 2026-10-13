@@ -37,10 +37,12 @@ Nutrition is a tall glass jar fed by **real food logging** (Wei, 12 Oct): every 
 - **Coach:** recommends rest **per body part** (legs longer than chest or back, arms and core shorter, compound longer than isolation) and **adapts each day** from the rests Wei extended or cut short, today's HRV and resting heart rate, and last night's sleep. Missing Health data is said plainly. The reasons are printed under the advice; USE applies it.
 - **Heart rate and cardio** (planned, not built): heart-rate zones will influence the glass and recoil; cardio will reuse the same glass and face.
 
-### Face C: BODY, the Deforming Geometric Mesh
-- **Layout:** current mass on top (78.4 KG, −0.4 / WK). Centre: an abstract low-poly mesh of your physical volume, matte grey, labelled **SCHEMATIC · NOT A BODY SCAN**. Bottom: an expansive horizontal **vernier scale** (ruler scrubber), with taller marks on InBody scan days. Missing values say NO DATA, never zero.
-- **Time travel:** dragging across the ruler scrubs through Apple Health and InBody dates.
-- **Deformation:** vertices morph in real time. **Body fat %** inflates the shell on X and Z (heavily damped). **Lean / skeletal muscle mass** pushes upper-torso vertices (shoulders, back, chest) out along their normals and contracts the midsection. Numbers spring with **mass 1.2, stiffness 180, damping 28**.
+### Face C: BODY, the Figurine
+Wei picked the Figurine on 13 Oct 2026 (replaces the deforming low-poly mesh).
+- **Layout:** current mass on top (78.4 KG, −0.4 / WK). Centre: a glossy figurine of rounded blocks (chest, belly, arms, legs, head) in the skin's object colour, standing on a dark turntable tipped toward the camera, labelled **SCHEMATIC · NOT A BODY SCAN**. Bottom: an expansive horizontal **vernier scale** (ruler scrubber), with taller marks on InBody scan days. Missing values say NO DATA, never zero.
+- **Shape:** **body fat %** fills out the waist, depth and limbs; **lean mass** broadens the shoulders and limbs. Values are clamped (fat 5–45 %, lean 35–100 kg) and the arms swing out to clear the belly. Shape values spring with **mass 1.2, stiffness 180, damping 28**.
+- **Comparison:** a dashed outline of the torso 8 weeks before the scrubbed day (or the earliest day there is, labelled with the real gap), hidden when that is under a week back or nothing changed.
+- **Time travel:** dragging across the ruler scrubs through Apple Health and InBody dates; the figure morphs to each day and the turntable swings with the drag (up to 0.6 rad), then springs back to its three-quarter rest (tumble spring 1.0/220/15). Reduce Motion: no swing.
 
 ## 3. Sensory engine
 Visual frame, audio and haptic are designed together and timed to the millisecond.
@@ -49,7 +51,7 @@ Visual frame, audio and haptic are designed together and timed to the millisecon
 | --- | --- | --- | --- |
 | Drop weight (food log) | Block hits the pile and tumbles into place; neighbours knock; the jar sinks; hit rays fly up | Low organic impact (mallet on granite plus recorded plate layers) with a glass tap, and a rising chime per food logged today | Dense train of low events, intensity 0.85, sharpness 0.20, scaled to meal weight |
 | Set done | Hourglass flips and seats; brief camera shake | Sharp metallic ring of a barbell slamming a steel rack (compressed air + titanium snap) | One max shock transient, intensity 1.0, sharpness 0.95 |
-| Scrub ruler | Vernier steps; mesh morph targets | High-res rotary encoder clicks; pitch rises linearly with thumb speed | Rapid light ticks, intensity 0.25, sharpness 0.80; hard spike on InBody days |
+| Scrub ruler | Vernier steps; figurine morphs and the turntable swings | High-res rotary encoder clicks; pitch rises linearly with thumb speed | Rapid light ticks, intensity 0.25, sharpness 0.80; hard spike on InBody days |
 | Rotate prism | 120° yaw, 8% overshoot (9.6°), snap; one face per swipe at most | Low grind of a vault door or monolith sliding on concrete | Continuous pattern swelling at 60°, crisp seating pulse at 120° |
 
 | Rest done | Sand runs out; GO | Glass tap | Two soft transients |
@@ -77,8 +79,8 @@ A skin is not an image swap. It is a config: palette, PBR material, physics para
 | --- | --- |
 | Dietary energy consumed vs target | How full the jar is (blocks sized by energy) |
 | Dietary protein / carbs / fat | Block colour by the dominant macro |
-| Lean body mass / skeletal muscle | Mesh vertex displacement (upper torso out, waist in) |
-| Body fat % | Mesh volume inflation on X/Z |
+| Lean body mass / skeletal muscle | Figurine shoulders and limbs broaden |
+| Body fat % | Figurine waist, depth and limbs fill out |
 | Active energy burned | Planned: adjusts the kcal target (the TARGET etch) |
 | Heart rate (in a workout, when the Watch supplies it) | Planned: hourglass and recoil response |
 | HRV, resting heart rate, sleep | Coach rest advice per body part |

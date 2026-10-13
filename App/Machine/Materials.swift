@@ -13,7 +13,6 @@ struct MaterialKit {
     var unknownWeight: PhysicallyBasedMaterial
     var glass: PhysicallyBasedMaterial
     var sand: PhysicallyBasedMaterial
-    var body: PhysicallyBasedMaterial
     /// Hero numerals: bright and satin so the extrusion's faces separate by tone.
     var numeral: PhysicallyBasedMaterial
     /// The skin's colour plate per face, or empty for the bare chassis.
@@ -79,7 +78,6 @@ struct MaterialKit {
                 unknownWeight: object(0xFFD77A),
                 glass: glass,
                 sand: object(0xFFC94A),
-                body: object(skin.objectColor, dim: 0.85),
                 numeral: numeral,
                 facePlates: (skin.faceColors ?? []).map(plate),
                 // Golden carbs, roasted protein, pale fat, the skin's cream for mixed, amber quick-adds.
@@ -94,7 +92,6 @@ struct MaterialKit {
             unknownWeight: matte(0.46, roughness: 0.9, grainScale: 6),
             glass: glass,
             sand: matte(0.66, roughness: 1.0, grainScale: 20),
-            body: matte(0.12, roughness: 0.8),
             numeral: {
                 var m = PhysicallyBasedMaterial()
                 m.baseColor = .init(tint: UIColor(white: 0.93, alpha: 1))

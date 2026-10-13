@@ -337,4 +337,98 @@ final class MachineModelTests: XCTestCase {
         XCTAssertTrue(model.aIsUp)
         XCTAssertEqual(model.store.data.sets.count, 2)
     }
+
+    // MARK: BODY
+
+    func testMoreFatFillsOutTheFigure() {
+        let lean = FigureShape.from(fatPercent: 12, leanKg: 66)
+        let soft = FigureShape.from(fatPercent: 28, leanKg: 66)
+        XCTAssertGreaterThan(soft.waist, lean.waist)
+        XCTAssertGreaterThan(soft.depth, lean.depth)
+        XCTAssertGreaterThan(soft.limb, lean.limb)
+        XCTAssertGreaterThan(soft.waist - lean.waist, soft.shoulders - lean.shoulders, "fat shows at the waist first")
+    }
+
+    func testMoreLeanMassBroadensShouldersAndLimbs() {
+        let small = FigureShape.from(fatPercent: 16, leanKg: 55)
+        let big = FigureShape.from(fatPercent: 16, leanKg: 80)
+        XCTAssertGreaterThan(big.shoulders, small.shoulders)
+        XCTAssertGreaterThan(big.limb, small.limb)
+        XCTAssertGreaterThan(big.shoulders - small.shoulders, big.waist - small.waist, "muscle shows at the shoulders first")
+    }
+
+    func testFigureStaysInRangeForExtremeReadings() {
+        XCTAssertEqual(FigureShape.from(fatPercent: 80, leanKg: 200), FigureShape.from(fatPercent: 45, leanKg: 100))
+        XCTAssertEqual(FigureShape.from(fatPercent: nil, leanKg: nil), FigureShape.neutral)
+        for fat in [0.0, 5, 16, 30, 45, 90] {
+            for lean in [10.0, 35, 66, 100, 150] {
+                let f = FigureShape.from(fatPercent: fat, leanKg: lean)
+                for v in [f.shoulders, f.waist, f.depth, f.limb] { XCTAssertTrue(FigureShape.range.contains(v)) }
+                XCTAssertLessThan(f.height, 1.01)
+                XCTAssertGreaterThan(f.height, 0.95)
+            }
+        }
+    }
+
+    func testArmsHangClearOfTheBellyAndLegsStayApart() {
+        for fat in [5.0, 16, 30, 45] {
+            for lean in [35.0, 66, 100] {
+                let f = FigureShape.from(fatPercent: fat, leanKg: lean)
+                let arm = f.arms[1]
+                // Inner edge of the right arm where it passes the top of the belly.
+                let a = arm.roll
+                let inner = SIMD2<Float>(arm.center.x - cos(a) * arm.size.x / 2, arm.center.y - sin(a) * arm.size.x / 2)
+                let t = (inner.y - (f.belly.center.y + f.belly.size.y / 2 - 0.015)) / cos(a)
+                let x = inner.x + sin(a) * t
+                XCTAssertGreaterThanOrEqual(x, f.belly.size.x / 2, "fat \(fat) lean \(lean)")
+                XCTAssertEqual(f.arms[0].center.x, -arm.center.x, accuracy: 0.0001)
+                XCTAssertGreaterThanOrEqual(f.legs[1].center.x - f.legs[1].size.x / 2, 0)
+            }
+        }
+    }
+
+    func testFigureFollowsTheScrubbedDayOnASpring() {
+        let model = makeModel()
+        let today = BodyObservation.carried(model.bodyHistory, upTo: model.bodyHistory.count - 1)
+        XCTAssertEqual(model.figureFat.position, today.fat!, accuracy: 0.001)
+        model.scrubBody(toFraction: 0)
+        run(model, seconds: 0.1)
+        let first = BodyObservation.carried(model.bodyHistory, upTo: 0)
+        XCTAssertGreaterThan(model.figureFat.position, today.fat!, "on its way back")
+        XCTAssertLessThan(model.figureFat.position, first.fat!, "not there instantly")
+        run(model, seconds: 4)
+        XCTAssertEqual(model.figureFat.position, first.fat!, accuracy: 0.01)
+        XCTAssertEqual(model.figureLean.position, first.lean!, accuracy: 0.01)
+    }
+
+    func testScrubbingSwingsTheTurntableThenItSettlesBack() {
+        let model = makeModel()
+        model.scrubBody(toFraction: 0)
+        var widest = 0.0
+        for _ in 0..<60 { model.step(1.0 / 240); widest = max(widest, abs(model.figureSpin.position)) }
+        XCTAssertGreaterThan(widest, 0.1)
+        XCTAssertLessThanOrEqual(widest, FigureGeometry.maxSwing * 1.25, "one soft overshoot at most")
+        run(model, seconds: 5)
+        XCTAssertEqual(model.figureSpin.position, 0, accuracy: 0.001)
+        XCTAssertFalse(model.needsFrames)
+    }
+
+    func testReduceMotionDoesNotSwingTheFigure() {
+        let model = makeModel()
+        model.reduceMotion = true
+        model.scrubBody(toFraction: 0)
+        for _ in 0..<120 { model.step(1.0 / 240); XCTAssertEqual(model.figureSpin.position, 0, accuracy: 0.0001) }
+    }
+
+    func testGhostShowsTheBodyEightWeeksEarlier() {
+        let model = makeModel()
+        let ghost = model.ghostFigure
+        XCTAssertEqual(ghost?.daysBack, 56)
+        let then = BodyObservation.carried(model.bodyHistory, upTo: 0)
+        XCTAssertEqual(ghost?.shape, FigureShape.from(fatPercent: then.fat, leanKg: then.lean))
+        XCTAssertGreaterThan(ghost!.shape.waist, model.figure.waist, "the sample lost fat, so the outline is wider")
+        model.scrubBody(toFraction: 3.0 / 56)
+        run(model, seconds: 2)
+        XCTAssertNil(model.ghostFigure, "less than a week of history behind day 3")
+    }
 }

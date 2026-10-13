@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// BODY: weight on top, the schematic form in the middle, the vernier ruler at
-/// the bottom. Scrubbing moves date, values and form together.
+/// BODY: weight on top, the figurine on its turntable in the middle, the vernier
+/// ruler at the bottom. Scrubbing moves date, values and figure together.
 struct BodyFace: View {
     let model: MachineModel
     let layout: MachineLayout
@@ -38,6 +38,11 @@ struct BodyFace: View {
 
             Engraved(text: "SCHEMATIC · NOT A BODY SCAN", size: 8, color: Ink.text(0.4))
                 .position(x: layout.faceWidth / 2, y: layout.mechanismRect.minY + 10)
+
+            if let ghost = model.ghostFigure {
+                GhostOutline(shape: ghost.shape, daysBack: ghost.daysBack, yaw: model.figureYaw,
+                             geometry: FigureGeometry(layout: layout))
+            }
 
             HStack(spacing: 22) {
                 reading("FAT", carried.fat.map { String(format: "%.1f %%", $0) })
@@ -115,5 +120,44 @@ struct VernierRuler: View {
             }
             .accessibilityIdentifier("body.ruler")
         }
+    }
+}
+
+/// Dashed outline of the torso some weeks before the scrubbed day, turned with
+/// the figurine, with an engraved label on a leader line.
+struct GhostOutline: View {
+    let shape: FigureShape
+    let daysBack: Int
+    let yaw: Float
+    let geometry: FigureGeometry
+
+    var body: some View {
+        let g = geometry
+        let rects = shape.torsoOutline(yaw: yaw).map { r in
+            CGRect(origin: g.point(x: r.minX, y: r.maxY), size: CGSize(width: r.width * g.unit, height: r.height * g.unit))
+        }
+        let chest = rects[0]
+        let outline = Path(roundedRect: chest, cornerRadius: g.unit * 0.06)
+            .union(Path(roundedRect: rects[1], cornerRadius: g.unit * 0.08))
+        let labelStart = CGPoint(x: g.feet.x + g.unit * 0.24, y: chest.minY - 26)
+        ZStack(alignment: .topLeading) {
+            outline.stroke(Ink.text(0.75), style: StrokeStyle(lineWidth: 1.5, dash: [5, 5]))
+            Path { p in
+                p.move(to: CGPoint(x: labelStart.x - 4, y: labelStart.y))
+                p.addLine(to: CGPoint(x: chest.maxX - 6, y: chest.minY + 4))
+            }
+            .stroke(Ink.text(0.6), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            Engraved(text: label, size: 8.5, color: Ink.text(0.9))
+                .fixedSize()
+                .frame(width: 160, alignment: .leading)
+                .position(x: labelStart.x + 80, y: labelStart.y)
+        }
+        .allowsHitTesting(false)
+        .accessibilityElement()
+        .accessibilityLabel("Dashed outline: torso \(label.lowercased())")
+    }
+
+    private var label: String {
+        daysBack == 7 ? "1 WEEK EARLIER" : daysBack % 7 == 0 ? "\(daysBack / 7) WEEKS EARLIER" : "\(daysBack) DAYS EARLIER"
     }
 }
