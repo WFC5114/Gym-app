@@ -197,7 +197,7 @@ m_orange = mat('orange', 0xFF6A1A, rough=0.3, coat=0.8, coat_rough=0.08)
 m_dark = mat('dark', 0x161A2E, rough=0.45, coat=0.4)
 
 # ---------- face, hero, keys ----------
-MIN = concept in 'DEF'  # Wei, 13 Oct: elegant but minimal
+MIN = concept in 'DEFG'  # Wei, 13 Oct: elegant but minimal
 if MIN:
     m_face = mat('faceMin', 0x2340E0, rough=0.62, coat=0.08, coat_rough=0.4)
     m_tone = mat('tone', 0x1D36C4, rough=0.55, coat=0.15)
@@ -215,7 +215,7 @@ else:
     rounded_box('keyDone', (3.68, 0.44, 0.80), 0.2, m_cream, P(220, 866, -0.22).to_tuple())
 
 # ---------- the hourglass ----------
-CY_PT = {'A': 545, 'B': 528, 'C': 520, 'D': 540, 'E': 540, 'F': 545}[concept]
+CY_PT = {'A': 545, 'B': 528, 'C': 520, 'D': 540, 'E': 540, 'F': 545, 'G': 540}[concept]
 CX, CZ = P(220, CY_PT).x, P(220, CY_PT).z
 before = set(bpy.data.objects)
 Y = -0.95  # stands proud of the face
@@ -302,6 +302,39 @@ elif concept == 'F':
     for s in (1, -1):
         cylinder('disc', 0.52, 0.06, m_matte, (CX, Y, CZ + s * 1.15), bevel=0.02)
     cylinder('rod', 0.018, 2.3, m_champ, (CX, Y + 0.47, CZ), seg=24)
+
+elif concept == 'G':
+    # Desk hourglass (Wei's reference photos, 13 Oct): square dark-wood plates,
+    # four matte black posts with brass collars, round clear bulbs, fine white sand.
+    m_wood = mat('walnut', 0x3A2418, rough=0.55, coat=0.08, coat_rough=0.4)
+    nt = m_wood.node_tree
+    wave = nt.nodes.new('ShaderNodeTexWave')
+    wave.inputs['Scale'].default_value = 1.6
+    wave.inputs['Distortion'].default_value = 4.0
+    wave.inputs['Detail'].default_value = 3.0
+    ramp = nt.nodes.new('ShaderNodeValToRGB')
+    ramp.color_ramp.elements[0].color = hexrgb(0x1E120C)
+    ramp.color_ramp.elements[1].color = hexrgb(0x3A2316)
+    nt.links.new(wave.outputs['Fac'], ramp.inputs['Fac'])
+    nt.links.new(ramp.outputs['Color'], nt.nodes['Principled BSDF'].inputs['Base Color'])
+    m_black = mat('blackMatte', 0x0E0F12, rough=0.72, coat=0.0)
+    m_sandG = mat('sandFine', 0xC9C1B4, rough=0.9, bump=0.5, bump_scale=320)
+    loc = (CX, Y, CZ)
+    glass([(0, 0.04), (0.06, 0.07), (0.15, 0.27), (0.3, 0.44), (0.5, 0.52), (0.7, 0.5), (0.85, 0.42), (0.95, 0.3), (1.0, 0.2)],
+          0.03, loc, top_level=0.55, fill_z=-0.78, apex_z=-0.52, floor_z=-0.97, sand=m_sandG)
+    side, thick = 1.22, 0.13
+    post_xy = 0.5
+    for s in (1, -1):
+        cylinder('collar', 0.24, 0.05, m_black, (CX, Y, CZ + s * 1.02), bevel=0.01)
+        rounded_box('plate', (side, side, thick), 0.03, m_wood, (CX, Y, CZ + s * (1.045 + thick / 2)))
+    span = 2 * 1.045
+    for px in (-post_xy, post_xy):
+        for py in (-post_xy, post_xy):
+            cylinder('post', 0.032, span, m_black, (CX + px, Y + py, CZ), seg=32)
+            for s in (1, -1):
+                cylinder('sleeve', 0.042, 0.13, m_brass, (CX + px, Y + py, CZ + s * (1.045 - 0.065)), seg=32)
+                # Dome nuts on top, round feet underneath.
+                sphere('nut', 0.055, m_black, (CX + px, Y + py, CZ + s * (1.045 + thick + 0.01)), seg=32)
 
 elif concept == 'A':
     # Classic lab hourglass: thick glass, cream turned caps, three brass posts.
@@ -396,11 +429,19 @@ elif concept == 'C':
     cylinder('stem', 0.09, 0.3, m_chrome, (CX, Y, CZ - Rr - 0.15), seg=48)
     cylinder('foot', 0.72, 0.16, m_cream, (CX, Y, CZ - Rr - 0.34), bevel=0.05)
 
-# Grow the mechanism about its centre (the glass is 1.25x the first test).
+# Grow the mechanism about its centre (the glass is 1.25x the first test). The
+# desk hourglass is also turned and tipped toward the camera so all four posts
+# and the tops of its plates read in the orthographic view.
 K = 1.25
-for o in set(bpy.data.objects) - before:
-    o.location = Vector((CX, Y, CZ)) + (o.location - Vector((CX, Y, CZ))) * K
-    o.scale = o.scale * K
+pivot = bpy.data.objects.new('pivot', None)
+col.objects.link(pivot)
+pivot.location = (CX, Y, CZ)
+for o in set(bpy.data.objects) - before - {pivot}:
+    o.parent = pivot
+    o.location = o.location - Vector((CX, Y, CZ))
+pivot.scale = (K, K, K)
+pivot.rotation_mode = 'ZYX'
+pivot.rotation_euler = (math.radians(10), 0, math.radians(28)) if concept == 'G' else (0, 0, 0)
 
 # ---------- light and camera ----------
 world = bpy.data.worlds.new('w')
