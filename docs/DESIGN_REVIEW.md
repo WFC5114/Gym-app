@@ -68,7 +68,7 @@ Environment for simulator rows: GitHub Actions `macos-26`, newest iPhone Pro Max
 
 | Gate | Status | Evidence / how it is checked |
 |---|---|---|
-| Compiles for iOS 26 SDK on CI | PASS | CI runs for `49a0fa0` and `f855baf` (run 38326217214), Xcode 26.6 |
+| Compiles for iOS 26 SDK on CI | PASS | CI runs for `49a0fa0`, `f855baf` (run 38326217214) and `c838ef1` (run 38328566822), Xcode 26.6 |
 | Unit tests: exactly-once commit, cancel logs nothing, re-grab logs nothing, undo, deck bounds, stack scaling, rest additions, rest across relaunch, coach per body part, food parsing | PASS | 57 unit tests green on `f855baf`, including the 15 in `MachineModelTests` |
 | Idle frame has one number, one mechanism, one primary action | PASS (simulator) | `diet-idle.png` |
 | Black mechanism readable without gloss or neon | PASS (simulator) | `diet-idle.png`, `train-ready.png` |
@@ -77,7 +77,7 @@ Environment for simulator rows: GitHub Actions `macos-26`, newest iPhone Pro Max
 | Contact: deck compressed, slab morphing, new value shown | PASS (simulator) | `diet-contact.png` |
 | Loaded settle: resting position lower than before | PASS (simulator) | `diet-settled.png` against `diet-idle.png` |
 | Drag, cancel, drop, re-grab and undo work by touch | PASS for drag, drop, cancel (simulator); re-grab and undo unit-tested only | `GestureTests` on `f855baf`: drop 250 logs once, cancel 100 logs nothing, then TRAIN, SET DONE, +0:30, BODY and back to DIET |
-| Food intake inset fits the face and closes obviously | FAIL on `f855baf`, fix pending capture | `diet-intake.png`: the inset edge cut the hero number in half. The next commit starts the inset under the face header so it covers the hero completely |
+| Food intake inset fits the face and closes obviously | PASS (simulator) on `c838ef1` | `diet-intake.png`: on `f855baf` the inset edge cut the hero number in half; `c838ef1` (run 38328566822) starts the inset under the face header and covers the hero completely |
 | Over-target day: exact negative number, mechanism bounded, stack scaled | PASS (simulator) | `diet-over-target.png` |
 | Empty day | PASS (simulator) | `diet-empty.png` |
 | Hourglass: ready, resting, time added (taller glass, addition printed) | PASS (simulator) | `train-ready.png`, `train-rest.png`, `train-rest-added.png` |
