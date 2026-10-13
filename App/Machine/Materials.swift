@@ -156,6 +156,11 @@ struct MaterialKit {
 
     /// Environment for soft fill light: dim from above, black at the horizon and
     /// below, so the orthographic background (which looks along -Z) stays #000.
+    /// The baked softbox studio (design/assets/studio_env.py), bundled as a PNG.
+    static func studioImage() -> CGImage? {
+        UIImage(named: "studio-env")?.cgImage
+    }
+
     static func environmentImage(width: Int = 256, height: Int = 128) -> CGImage? {
         var pixels = [UInt8](repeating: 0, count: width * height * 4)
         for y in 0..<height {

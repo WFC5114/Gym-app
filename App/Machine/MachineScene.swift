@@ -8,6 +8,8 @@ import SwiftUI
 final class MachineScene {
     let root = Entity()
     let prismRoot = Entity()
+    /// Holds the studio image-based light every mechanism on the prism receives.
+    private let studioLight = Entity()
     let camera = Entity()
     var faces: [Entity] = []
     var materials = MaterialKit.make(skin: Brutal.skin, grain: nil)
@@ -65,6 +67,15 @@ final class MachineScene {
         if let envImage = MaterialKit.environmentImage(),
            let env = try? await EnvironmentResource(equirectangular: envImage, withName: "studio") {
             content.environment = .skybox(env)
+        }
+        // Reflections come from the studio the Blender mockups are lit by
+        // (design/assets/studio_env.py). It lights the prism only; the skybox
+        // above stays black where the orthographic camera looks, so the void stays #000.
+        if let studio = MaterialKit.studioImage(),
+           let env = try? await EnvironmentResource(equirectangular: studio, withName: "studio-softboxes") {
+            studioLight.components.set(ImageBasedLightComponent(source: .single(env), intensityExponent: 0.3))
+            root.addChild(studioLight)
+            prismRoot.components.set(ImageBasedLightReceiverComponent(imageBasedLight: studioLight))
         }
 
         var ortho = OrthographicCameraComponent()
