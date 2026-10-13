@@ -49,10 +49,7 @@ struct MaterialKit {
             var m = object(hex)
             m.roughness = .init(floatLiteral: 0.62)
             m.clearcoat = .init(floatLiteral: 0.25)
-            if let grain {
-                m.normal = .init(texture: .init(grain))
-                m.textureCoordinateTransform = .init(scale: SIMD2(repeating: 3))
-            }
+            // No grain: on saturated colour the normal map read as crumpled paper.
             return m
         }
         var glass = PhysicallyBasedMaterial()

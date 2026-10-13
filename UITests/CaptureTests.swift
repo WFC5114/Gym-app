@@ -41,10 +41,16 @@ final class CaptureTests: XCTestCase {
         ])
     }
 
+    // Comparisons for Wei: a bigger hero number, and the same frame in MONO.
+    @MainActor func test14_dietHeroLarge() { capture("diet-idle", as: "diet-hero-large", extraArguments: ["-heroFraction", "0.62"]) }
+    @MainActor func test15_dietIdleMono() { capture("diet-idle", as: "diet-idle-mono", extraArguments: ["-skin", "mono"]) }
+
     @MainActor
-    private func capture(_ fixture: String, extraArguments: [String] = []) {
+    private func capture(_ fixture: String, as name: String? = nil, extraArguments: [String] = []) {
+        let fixtureName = fixture
+        let fixture = name ?? fixture
         let app = XCUIApplication()
-        app.launchArguments = ["-fixture", fixture] + extraArguments
+        app.launchArguments = ["-fixture", fixtureName] + extraArguments
         app.launch()
 
         let ready = app.descendants(matching: .any)["machine.ready"].firstMatch
