@@ -134,12 +134,9 @@ struct GhostOutline: View {
     var body: some View {
         let g = geometry
         let shapes = shape.torsoOutline(yaw: yaw)
-        func face(_ r: CGRect) -> CGRect {
-            CGRect(origin: g.point(x: r.minX, y: r.maxY), size: CGSize(width: r.width * g.unit, height: r.height * g.unit))
-        }
-        let chest = face(shapes.torso)
+        let chest = onFace(shapes.torso)
         let outline = Path(roundedRect: chest, cornerRadius: min(chest.width, g.unit * 0.16) * 0.42)
-            .union(Path(ellipseIn: face(shapes.belly)))
+            .union(Path(ellipseIn: onFace(shapes.belly)))
         let labelStart = CGPoint(x: g.feet.x + g.unit * 0.24, y: chest.minY - 26)
         ZStack(alignment: .topLeading) {
             outline.stroke(Ink.text(0.75), style: StrokeStyle(lineWidth: 1.5, dash: [5, 5]))
@@ -156,6 +153,12 @@ struct GhostOutline: View {
         .allowsHitTesting(false)
         .accessibilityElement()
         .accessibilityLabel("Dashed outline: torso \(label.lowercased())")
+    }
+
+    /// A figure-unit rect (y up) in face-local points.
+    private func onFace(_ r: CGRect) -> CGRect {
+        CGRect(origin: geometry.point(x: r.minX, y: r.maxY),
+               size: CGSize(width: r.width * geometry.unit, height: r.height * geometry.unit))
     }
 
     private var label: String {
