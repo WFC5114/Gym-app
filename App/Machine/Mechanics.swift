@@ -114,9 +114,20 @@ struct HourglassGeometry {
     var layout: MachineLayout
 
     var mech: CGRect { layout.mechanismRect }
-    var center: CGPoint { CGPoint(x: layout.faceWidth / 2, y: mech.midY) }
-    var minHeight: CGFloat { mech.height * 0.42 }
-    var maxHeight: CGFloat { mech.height * 0.94 }
+    /// Space kept clear above the tallest glass for the coach's note.
+    static let coachClearance: CGFloat = 128
+    var minHeight: CGFloat { mech.height * 0.38 }
+    /// Space under the glass for its engraved rest length.
+    static let labelClearance: CGFloat = 34
+    var maxHeight: CGFloat { max(mech.height - Self.coachClearance - Self.labelClearance, minHeight) }
+
+    /// The glass stands near the bottom of the mechanism and grows upward.
+    func center(forHeight h: CGFloat) -> CGPoint {
+        CGPoint(x: layout.faceWidth / 2, y: mech.maxY - Self.labelClearance - h / 2)
+    }
+
+    /// Centre of the engraved rest length under the glass.
+    var labelY: CGFloat { mech.maxY - Self.labelClearance / 2 + 2 }
     static let sizeRange = 30.0...360.0
 
     /// Height for a total rest length: 30 s is the smallest glass, 6 min the largest.

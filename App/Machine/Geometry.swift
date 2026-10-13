@@ -206,7 +206,7 @@ enum Geometry {
 
     /// A sand cone with its apex at the origin, opening along -Y (pointing up
     /// from the apex when flipped). Height 1, base radius 1.
-    static func sandCone(sides: Int = 32) throws -> MeshResource {
+    static func sandCone(sides: Int = 96) throws -> MeshResource {
         var b = Builder()
         let apex = SIMD3<Float>(0, 0, 0)
         let inside = SIMD3<Float>(0, -0.7, 0)

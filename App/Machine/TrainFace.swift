@@ -27,7 +27,7 @@ struct TrainFace: View {
                 Engraved(text: RestCoach.format(Int(model.glassSeconds)), size: 12, color: .white.opacity(0.85))
                 Engraved(text: model.activeRest == nil ? "NEXT REST" : "THIS REST", size: 8, color: .white.opacity(0.45))
             }
-            .position(x: glass.center.x, y: min(glass.center.y + glassHeight / 2 + 22, layout.mechanismRect.maxY + 6))
+            .position(x: glass.center(forHeight: glassHeight).x, y: glass.labelY)
             .accessibilityHidden(true)
 
             CoachNote(model: model)

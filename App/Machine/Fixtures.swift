@@ -94,10 +94,15 @@ enum Fixtures {
         }
     }
 
-    /// Demo data moved to today so it shows in a live run.
+    /// Demo data moved to today so it shows in a live run, squeezed into the
+    /// part of today that has passed (a run just after midnight still shows the day).
     private static func shifted(_ entries: [FoodEntry]) -> [FoodEntry] {
-        let offset = Date().timeIntervalSince(date)
-        return entries.map { var e = $0; e.loggedAt = e.loggedAt.addingTimeInterval(offset); return e }
+        let now = Date()
+        let start = Calendar.current.startOfDay(for: now)
+        let elapsed = max(now.timeIntervalSince(start) - 60, 60)
+        let span = max(entries.map { date.timeIntervalSince($0.loggedAt) }.max() ?? 1, 1)
+        let squeeze = min(1, elapsed / span)
+        return entries.map { var e = $0; e.loggedAt = now.addingTimeInterval(-date.timeIntervalSince($0.loggedAt) * squeeze - 30); return e }
     }
 
     static func fixture(_ name: String) -> MachineModel {

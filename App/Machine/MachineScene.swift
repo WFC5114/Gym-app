@@ -221,7 +221,7 @@ final class MachineScene {
 
     private func positionHourglass(layout: MachineLayout) {
         let g = HourglassGeometry(layout: layout)
-        glassGroup.position = World.point(g.center, z: 60, in: layout)
+        glassGroup.position = World.point(g.center(forHeight: g.maxHeight), z: 60, in: layout)
     }
 
     private func buildBody(layout: MachineLayout) {
@@ -254,6 +254,14 @@ final class MachineScene {
         camera.position = SIMD3(-shake * 0.6, World.len(layout.faceCenterY - layout.size.height / 2) + shake, 20)
 
         prismRoot.orientation = simd_quatf(angle: Float(-model.yaw.position * .pi / 180), axis: SIMD3(0, 1, 0))
+        // Mechanisms stand proud of their faces, so on the faces turned away they
+        // would poke past the front face's silhouette. Fade them in as they turn toward the camera.
+        for (i, face) in faces.enumerated() {
+            let facing = cos(MachineLayout.faceAngle(index: i, yaw: model.yaw.position) * .pi / 180)
+            let opacity = Float(min(max((facing + 0.25) / 0.25, 0), 1))
+            face.isEnabled = opacity > 0.001
+            face.components.set(OpacityComponent(opacity: opacity))
+        }
 
         applyDiet(model, layout: layout)
         applyTrain(model, layout: layout)
@@ -354,7 +362,7 @@ final class MachineScene {
         let height = World.len(heightPoints)
         glassGroup.scale = SIMD3(repeating: height)
         // Stand the glass proud of the face so its back half never enters the chassis.
-        glassGroup.position = World.point(HourglassGeometry(layout: layout).center, z: heightPoints * 0.3 + 8, in: layout)
+        glassGroup.position = World.point(HourglassGeometry(layout: layout).center(forHeight: heightPoints), z: heightPoints * 0.3 + 8, in: layout)
         glassSpin.orientation = simd_quatf(angle: Float(model.glassAngle.position), axis: SIMD3(0, 0, 1))
 
         // Each bulb's sand: apex toward the neck. The world-top bulb drains from
