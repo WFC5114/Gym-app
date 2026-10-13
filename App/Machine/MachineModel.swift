@@ -95,8 +95,9 @@ final class MachineModel {
     var reduceMotion = false
     var layout = MachineLayout.reference
     /// Hero numerals: the reference "8,888" spans this share of the screen width
-    /// (art direction §4 starts at 40%; `-heroFraction` compares alternatives).
-    var heroFraction: CGFloat = 0.40
+    /// (62% after the 13 Oct comparison; art direction §4 started at 40%;
+    /// `-heroFraction` compares alternatives).
+    var heroFraction: CGFloat = 0.62
     /// Shown under the face title so sample numbers are never mistaken for real ones.
     var dataCaption = "TODAY"
     /// Set for `-fixture` launches; `posed` once the fixture's pose is applied.

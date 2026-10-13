@@ -41,8 +41,7 @@ final class CaptureTests: XCTestCase {
         ])
     }
 
-    // Comparisons for Wei: a bigger hero number, and the same frame in MONO.
-    @MainActor func test14_dietHeroLarge() { capture("diet-idle", as: "diet-hero-large", extraArguments: ["-heroFraction", "0.62"]) }
+    // Comparison for Wei: the same frame in MONO.
     @MainActor func test15_dietIdleMono() { capture("diet-idle", as: "diet-idle-mono", extraArguments: ["-skin", "mono"]) }
 
     @MainActor
