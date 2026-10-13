@@ -41,8 +41,14 @@ struct DietFace: View {
             PieceLabels(model: model)
 
             if model.isPileScaled {
-                Engraved(text: "BLOCKS SHRUNK TO FIT", size: 8, color: .white.opacity(0.6))
-                    .position(x: g.outer.midX, y: g.mech.minY - 4)
+                // Beside the jar, clear of the hero's macro line.
+                VStack(alignment: .leading, spacing: 2) {
+                    Engraved(text: "BLOCKS", size: 8, color: .white.opacity(0.7))
+                    Engraved(text: "SHRUNK", size: 8, color: .white.opacity(0.7))
+                    Engraved(text: "TO FIT", size: 8, color: .white.opacity(0.7))
+                }
+                .position(x: g.outer.maxX + 34, y: g.targetLineY)
+                .accessibilityElement(children: .combine)
             }
 
             // Rail: quick-add blocks, or the formed food block.
