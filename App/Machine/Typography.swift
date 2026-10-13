@@ -42,10 +42,22 @@ enum TypeKit {
 }
 
 /// Engraved monospaced label used everywhere on the faces.
+/// Small type on the faces. On black, dim labels step back by opacity; on the
+/// colour plates a dim white sinks into the colour (0.45 white on DIET orange
+/// was about 1.8:1), so every label keeps at least 0.88 there and the hierarchy
+/// comes from size and weight instead.
+enum Ink {
+    static var onColour: Bool { Brutal.skin.faceColors != nil }
+
+    static func text(_ opacity: Double) -> Color {
+        .white.opacity(onColour ? max(opacity, 0.88) : opacity)
+    }
+}
+
 struct Engraved: View {
     var text: String
     var size: CGFloat = 10.5
-    var color: Color = .white.opacity(0.62)
+    var color: Color = Ink.text(0.62)
     var tracking: CGFloat = 1.6
     @Environment(\.labelScale) private var scale
 
@@ -56,7 +68,7 @@ struct Engraved: View {
             .foregroundStyle(color)
             // A one-point engraved shadow: invisible on black, keeps small type
             // legible on the colour plates.
-            .shadow(color: .black.opacity(0.35), radius: 0, x: 0, y: 1)
+            .shadow(color: .black.opacity(Ink.onColour ? 0.45 : 0.35), radius: 0, x: 0, y: 1)
             .lineLimit(1)
             .fixedSize()
     }

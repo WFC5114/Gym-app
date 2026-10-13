@@ -24,8 +24,8 @@ struct TrainFace: View {
 
             // Engraved rest length under the glass.
             VStack(spacing: 2) {
-                Engraved(text: RestCoach.format(Int(model.glassSeconds)), size: 12, color: .white.opacity(0.85))
-                Engraved(text: model.activeRest == nil ? "NEXT REST" : "THIS REST", size: 8, color: .white.opacity(0.45))
+                Engraved(text: RestCoach.format(Int(model.glassSeconds)), size: 12, color: Ink.text(0.85))
+                Engraved(text: model.activeRest == nil ? "NEXT REST" : "THIS REST", size: 8, color: Ink.text(0.45))
             }
             .position(x: glass.center(forHeight: glassHeight).x, y: glass.labelY)
             .accessibilityHidden(true)
@@ -57,7 +57,7 @@ struct TrainHero: View {
                     let remaining = rest.remaining(at: now)
                     let text = Readout.clock(remaining)
                     hero(text, reference: "8:88")
-                    Engraved(text: "REST AFTER SET \(rest.afterSet) · \(rest.exercise.uppercased())", size: 10.5, color: .white.opacity(0.85))
+                    Engraved(text: "REST AFTER SET \(rest.afterSet) · \(rest.exercise.uppercased())", size: 10.5, color: Ink.text(0.85))
                     if rest.addedSeconds > 0 {
                         Engraved(text: "SET \(RestCoach.format(rest.plannedSeconds)) + \(RestCoach.format(rest.addedSeconds)) ADDED", size: 10)
                     } else {
@@ -65,11 +65,11 @@ struct TrainHero: View {
                     }
                 } else if let ended = model.restJustEnded {
                     hero("GO", reference: "8:88")
-                    Engraved(text: "RESTED \(RestCoach.format(ended.actualSeconds ?? ended.totalSeconds)) · SET \(model.nextSetNumber) NEXT", size: 10.5, color: .white.opacity(0.85))
+                    Engraved(text: "RESTED \(RestCoach.format(ended.actualSeconds ?? ended.totalSeconds)) · SET \(model.nextSetNumber) NEXT", size: 10.5, color: Ink.text(0.85))
                     Engraved(text: "\(Readout.load(model.loadKg)) KG × \(model.reps) · \(model.exercise.name.uppercased())", size: 10)
                 } else {
                     hero("\(Readout.load(model.loadKg))×\(model.reps)", reference: "88×8")
-                    Engraved(text: "KG × REPS · SET \(model.nextSetNumber)", size: 10.5, color: .white.opacity(0.85))
+                    Engraved(text: "KG × REPS · SET \(model.nextSetNumber)", size: 10.5, color: Ink.text(0.85))
                     Engraved(text: model.exercise.name.uppercased() + " · " + model.exercise.bodyPart.label, size: 10)
                 }
             }
@@ -101,12 +101,12 @@ struct CoachNote: View {
     var body: some View {
         let advice = model.advice
         VStack(alignment: .leading, spacing: 4) {
-            Engraved(text: "COACH", size: 8.5, color: .white.opacity(0.45))
-            Engraved(text: "\(advice.bodyPart.label) \(RestCoach.format(advice.seconds))", size: 12, color: .white.opacity(0.9), tracking: 0.8)
+            Engraved(text: "COACH", size: 8.5, color: Ink.text(0.45))
+            Engraved(text: "\(advice.bodyPart.label) \(RestCoach.format(advice.seconds))", size: 12, color: Ink.text(0.9), tracking: 0.8)
             ForEach(Array(advice.reasons.prefix(2).enumerated()), id: \.offset) { _, reason in
                 Text(reason)
                     .font(TypeKit.label(8, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.45))
+                    .foregroundStyle(Ink.text(0.45))
                     .fixedSize(horizontal: false, vertical: true)
             }
             if model.activeRest == nil && model.plannedRest != advice.seconds {
@@ -140,7 +140,7 @@ struct TrainControls: View {
                         .accessibilityLabel("Shorter rest")
                         .accessibilityIdentifier("train.restShorter")
                     VStack(spacing: 2) {
-                        Engraved(text: "REST", size: 8, color: .white.opacity(0.45))
+                        Engraved(text: "REST", size: 8, color: Ink.text(0.45))
                         Engraved(text: RestCoach.format(model.plannedRest), size: 13, color: .white, tracking: 0.8)
                     }
                     .frame(minWidth: 70)

@@ -43,9 +43,9 @@ struct DietFace: View {
             if model.isPileScaled {
                 // Beside the jar, clear of the hero's macro line.
                 VStack(alignment: .leading, spacing: 2) {
-                    Engraved(text: "BLOCKS", size: 8, color: .white.opacity(0.7))
-                    Engraved(text: "SHRUNK", size: 8, color: .white.opacity(0.7))
-                    Engraved(text: "TO FIT", size: 8, color: .white.opacity(0.7))
+                    Engraved(text: "BLOCKS", size: 8, color: Ink.text(0.7))
+                    Engraved(text: "SHRUNK", size: 8, color: Ink.text(0.7))
+                    Engraved(text: "TO FIT", size: 8, color: Ink.text(0.7))
                 }
                 .position(x: g.outer.maxX + 34, y: g.targetLineY)
                 .accessibilityElement(children: .combine)
@@ -96,7 +96,7 @@ struct DietHero: View {
                     .scaleEffect(1 + 0.07 * model.heroPunch.position, anchor: .bottomLeading)
                     // Lit 3D glyphs take its place; it keeps the layout and reports its frame.
                     .glyphs3D(model: model, face: .diet, text: text, size: size)
-                Engraved(text: remaining >= 0 ? "KCAL LEFT" : "KCAL OVER TARGET", size: 11, color: .white.opacity(0.85))
+                Engraved(text: remaining >= 0 ? "KCAL LEFT" : "KCAL OVER TARGET", size: 11, color: Ink.text(0.85))
                 Engraved(text: "\(Readout.kcal(totals.kcal)) OF \(Readout.kcal(targets.kcal)) EATEN", size: 10)
                 HStack(spacing: 14) {
                     macro("PROTEIN", totals.protein, targets.protein)
@@ -106,7 +106,7 @@ struct DietHero: View {
                 .padding(.top, 4)
                 if totals.entriesWithUnknownMacros > 0 {
                     Engraved(text: "+\(totals.entriesWithUnknownMacros) QUICK-ADD\(totals.entriesWithUnknownMacros == 1 ? "" : "S") WITHOUT MACROS",
-                             size: 8.5, color: .white.opacity(0.45))
+                             size: 8.5, color: Ink.text(0.45))
                 }
             }
         }
@@ -120,8 +120,8 @@ struct DietHero: View {
     /// "PROTEIN 118/180 G": amount eaten against target, so the tag is never ambiguous.
     private func macro(_ name: String, _ eaten: Double, _ target: Double) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            Engraved(text: name, size: 8.5, color: .white.opacity(0.45))
-            Engraved(text: "\(Int(eaten.rounded()))/\(Int(target)) G", size: 11, color: .white.opacity(0.9), tracking: 0.6)
+            Engraved(text: name, size: 8.5, color: Ink.text(0.45))
+            Engraved(text: "\(Int(eaten.rounded()))/\(Int(target)) G", size: 11, color: Ink.text(0.9), tracking: 0.6)
         }
     }
 }
@@ -135,7 +135,7 @@ struct LandingGuide: View {
         ZStack {
             Rectangle()
                 .strokeBorder(Color.white.opacity(active ? 0.55 : 0.2), style: StrokeStyle(lineWidth: 1, dash: [3, 5]))
-            Engraved(text: active ? "LET GO TO DROP IT IN" : "DROP IT IN THE JAR", size: 9, color: .white.opacity(active ? 0.9 : 0.6))
+            Engraved(text: active ? "LET GO TO DROP IT IN" : "DROP IT IN THE JAR", size: 9, color: Ink.text(active ? 0.9 : 0.6))
                 .position(x: rect.width / 2, y: 52)
         }
         .frame(width: rect.width, height: rect.height)
@@ -181,7 +181,7 @@ struct JarGlass: View {
                 ctx.stroke(line, with: .color(.white.opacity(0.9)), lineWidth: 2)
             }
             VStack(alignment: .trailing, spacing: 2) {
-                Engraved(text: "TARGET", size: 8.5, color: .white.opacity(0.9))
+                Engraved(text: "TARGET", size: 8.5, color: Ink.text(0.9))
                 Engraved(text: Readout.kcal(targetKcal), size: 11, color: .white, tracking: 0.4)
             }
             .fixedSize()

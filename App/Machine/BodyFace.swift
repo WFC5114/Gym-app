@@ -27,16 +27,16 @@ struct BodyFace: View {
                         .foregroundStyle(.white)
                         .fixedSize()
                         .glyphs3D(model: model, face: .body, text: text, size: size)
-                    Engraved(text: "KG", size: 14, color: .white.opacity(0.85))
+                    Engraved(text: "KG", size: 14, color: Ink.text(0.85))
                 }
-                Engraved(text: weeklyDelta(index: index), size: 10.5, color: .white.opacity(0.85))
+                Engraved(text: weeklyDelta(index: index), size: 10.5, color: Ink.text(0.85))
                 Engraved(text: dateLine(obs), size: 10)
             }
             .frame(width: layout.heroRect.width, alignment: .leading)
             .position(x: layout.heroRect.midX, y: layout.heroRect.minY + 58 + layout.heroRect.height * 0.36)
             .accessibilityElement(children: .combine)
 
-            Engraved(text: "SCHEMATIC · NOT A BODY SCAN", size: 8, color: .white.opacity(0.4))
+            Engraved(text: "SCHEMATIC · NOT A BODY SCAN", size: 8, color: Ink.text(0.4))
                 .position(x: layout.faceWidth / 2, y: layout.mechanismRect.minY + 10)
 
             HStack(spacing: 22) {
@@ -55,8 +55,8 @@ struct BodyFace: View {
 
     private func reading(_ title: String, _ value: String?) -> some View {
         VStack(spacing: 2) {
-            Engraved(text: title, size: 8, color: .white.opacity(0.45))
-            Engraved(text: value ?? "NO DATA", size: 11, color: .white.opacity(value == nil ? 0.4 : 0.9), tracking: 0.6)
+            Engraved(text: title, size: 8, color: Ink.text(0.45))
+            Engraved(text: value ?? "NO DATA", size: 11, color: Ink.text(value == nil ? 0.4 : 0.9), tracking: 0.6)
         }
     }
 

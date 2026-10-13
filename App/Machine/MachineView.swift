@@ -194,18 +194,18 @@ struct FaceHeader: View {
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 3) {
-                Engraved(text: face.letter + " · " + face.title, size: 11, color: .white.opacity(0.85))
-                Engraved(text: caption, size: 9, color: .white.opacity(0.4))
+                Engraved(text: face.letter + " · " + face.title, size: 11, color: Ink.text(0.85))
+                Engraved(text: caption, size: 9, color: Ink.text(0.4))
             }
             Spacer(minLength: 4)
             Button { model.rotate(by: -1) } label: {
-                Engraved(text: "‹ " + face.previous().title, size: 10.5, color: .white.opacity(0.7))
+                Engraved(text: "‹ " + face.previous().title, size: 10.5, color: Ink.text(0.7))
                     .frame(minWidth: 44, minHeight: 44)
             }
             .accessibilityLabel("Turn to \(face.previous().title.lowercased())")
             .accessibilityIdentifier("face.previous")
             Button { model.rotate(by: 1) } label: {
-                Engraved(text: face.next().title + " ›", size: 10.5, color: .white.opacity(0.7))
+                Engraved(text: face.next().title + " ›", size: 10.5, color: Ink.text(0.7))
                     .frame(minWidth: 44, minHeight: 44)
             }
             .accessibilityLabel("Turn to \(face.next().title.lowercased())")
