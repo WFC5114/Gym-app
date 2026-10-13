@@ -18,6 +18,12 @@ struct MaterialKit {
     var numeral: PhysicallyBasedMaterial
     /// The skin's colour plate per face, or empty for the bare chassis.
     var facePlates: [PhysicallyBasedMaterial]
+    /// Food blocks by `FoodTint` (carbs, protein, fat, mixed, quick-add).
+    var foods: [PhysicallyBasedMaterial]
+
+    func food(_ tint: FoodTint) -> PhysicallyBasedMaterial {
+        tint.rawValue < foods.count ? foods[tint.rawValue] : weight
+    }
 
     static func make(skin: Skin, grain: TextureResource?) -> MaterialKit {
         func matte(_ white: CGFloat, roughness: Float, metallic: Float = 0, grainScale: Float = 1) -> PhysicallyBasedMaterial {
@@ -70,12 +76,14 @@ struct MaterialKit {
                 plate: object(0x2A2A2E),
                 spring: spring,
                 weight: object(skin.objectColor),
-                unknownWeight: object(skin.objectColor, dim: 0.6),
+                unknownWeight: object(0xFFD77A),
                 glass: glass,
                 sand: object(0xFFC94A),
                 body: object(skin.objectColor, dim: 0.85),
                 numeral: numeral,
-                facePlates: (skin.faceColors ?? []).map(plate)
+                facePlates: (skin.faceColors ?? []).map(plate),
+                // Golden carbs, roasted protein, pale fat, the skin's cream for mixed, amber quick-adds.
+                foods: [object(0xE9B44C), object(0xC9874A), object(0xF6E7C8), object(skin.objectColor), object(0xFFD77A)]
             )
         }
         return MaterialKit(
@@ -97,7 +105,10 @@ struct MaterialKit {
                 m.clearcoatRoughness = .init(floatLiteral: 0.3)
                 return m
             }(),
-            facePlates: []
+            facePlates: [],
+            foods: [matte(0.78, roughness: 0.85, grainScale: 6), matte(0.62, roughness: 0.85, grainScale: 6),
+                    matte(0.94, roughness: 0.85, grainScale: 6), matte(0.86, roughness: 0.85, grainScale: 6),
+                    matte(0.46, roughness: 0.9, grainScale: 6)]
         )
     }
 

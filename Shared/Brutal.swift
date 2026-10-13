@@ -99,5 +99,5 @@ enum Brutal {
     /// SwiftUI fallbacks for flat UI. The 3D machine integrates `SpringState` per frame instead.
     static let snap = Animation.interpolatingSpring(mass: SpringConfig.piston.mass, stiffness: SpringConfig.piston.stiffness, damping: SpringConfig.piston.damping)
     static let settle = Animation.interpolatingSpring(mass: SpringConfig.bodyNumbers.mass, stiffness: SpringConfig.bodyNumbers.stiffness, damping: SpringConfig.bodyNumbers.damping)
-    static let heavy = Animation.interpolatingSpring(mass: SpringConfig.deck.mass, stiffness: SpringConfig.deck.stiffness, damping: SpringConfig.deck.damping)
+    static let heavy = Animation.interpolatingSpring(mass: SpringConfig.jar.mass, stiffness: SpringConfig.jar.stiffness, damping: SpringConfig.jar.damping)
 }

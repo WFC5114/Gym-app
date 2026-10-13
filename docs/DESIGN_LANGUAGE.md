@@ -17,14 +17,16 @@ The whole app is **one machine**: a heavy calibration rig floating in black spac
 
 ## 2. Faces
 
-### Face A: DIET, the Hydraulic Counterweight Deck
-Nutrition is a balance-scale machine fed by **real food logging** (Wei, 12 Oct): every food is weighed, confirmed and loaded onto the deck as a mass block.
-- **Layout:** the upper 30% shows one number, kcal left (or over target, with the exact negative value), in a heavy geometric display face (Unbounded Black) sized so "8,888" spans about 40% of screen width. Below it, exact grams eaten against target: `PROTEIN 118 / 180 G`, carbs, fat. The middle 50% is a horizontal metal plate (the Deck) on two visible springs, with the day's food stacked on it as slabs. The lower 20% is the loading rail and the LOG FOOD / UNDO controls.
-- **Logging food:** LOG FOOD opens an intake inset inside the face (search recent, built-in and Open Food Facts foods; scan or type a barcode; choose grams or a serving; FORM BLOCK). The confirmed food appears on the rail as a block sized by its energy; drag it onto the deck, or tap LOAD. Tapping the hero opens the day's ledger: change grams, delete, undo. Every inset has an obvious close.
-- **Quick add:** the rail's four calibrated weights, **50, 100, 250, 500 kcal**, log energy only. Their protein, carbs and fat are recorded as unknown, never estimated.
-- **Interaction:** touch lifts the block at once and it follows the finger with a slight tilt from its speed; the landing region shows while dragging; releasing outside springs it home and logs nothing; a falling block can be caught again; contact commits exactly once (the entry id is fixed before the drop), compresses the deck, plays the impact and morphs the block into its slab. A second drop can interrupt the settle.
-- **Physics:** the deck compresses **in the face plane** (down the screen), not along the camera's Z axis, which is invisible head-on with an orthographic camera. Deck spring **mass 3.5, stiffness 450, damping 22**; momentum from the block's speed and energy.
-- **Resting height:** compression = (kcal eaten ÷ target) × travel, bounded at 120% of target. The number always shows the exact value. If the stack would leave the mechanism, all slabs scale down together and the face says STACK SCALED.
+### Face A: DIET, the Measuring Jar (Wei, 13 Oct; replaces the deck and slabs)
+Nutrition is a tall glass jar fed by **real food logging** (Wei, 12 Oct): every food is weighed, confirmed and dropped in as a chunky block. Wei called the scale with slabs "very very ugly and goofy" and picked the Jar from three mockups (Plate, Gauge, Jar).
+- **Layout:** the upper 30% shows one number, kcal left (or over target, with the exact negative value), in Unbounded Black sized so "8,888" spans 62% of the screen width (Wei picked Bigger, 13 Oct). Below it, exact grams eaten against target. The middle 50% is the jar, centred, with TARGET etched on the glass and quarter marks under it. The lower 20% is the loading rail and the LOG FOOD / UNDO controls.
+- **Blocks:** each logged food is one rounded block whose area follows its energy, so bigger meals are bigger blocks; proportions vary per food. Colour says what the food mostly is: golden carbs, roasted protein, pale fat, cream for mixed, amber for quick-adds (MONO uses greys). Name and kcal are printed on the block.
+- **Logging food:** LOG FOOD opens the intake inset (search, barcode, serving, FORM BLOCK). The food waits on the rail; drag it over the jar, where it swells to its jar size, and let go, or tap LOAD. **Tapping a block in the jar opens that food** to change grams, delete or undo. Tapping the hero opens the whole day.
+- **Quick add:** **50, 100, 250, 500 kcal** log energy only; macros are recorded as unknown, never estimated.
+- **Interaction:** touch lifts the block at once and it trails the finger; the landing region shows while dragging; releasing outside springs it home and logs nothing; a falling block can be caught again; contact commits exactly once (the entry id is fixed before the drop).
+- **Physics:** the released block falls with gravity, keeps some of its throw and spins. At contact it hands over to its place in the pile on the tumble spring (**mass 1.0, stiffness 220, damping 15**: one clear bounce), knocks nearby blocks, and the jar sinks under the weight on the heavy spring (**3.5 / 450 / 22**, three bounces). Holding a block over the jar winds it up: the jar pre-sinks and a low hum rises.
+- **The pile:** built in logging order on a height map. Each block settles on the highest point under it and tips toward its centre of mass (up to 15°) until a second contact holds it; an unsupported block slides downhill, and a block that finds a much lower spot close by rolls into it. The same day always piles the same way. Deleting a block lets the ones above settle; undo drops it back in.
+- **Target and overflow:** block areas are scaled so a day at target fills the jar to about the TARGET line. That is approximate because tipped blocks leave gaps; **the number is the exact value**. Past the target the pile rises out of the mouth; if it would leave the mechanism region, every block shrinks together and the face says BLOCKS SHRUNK TO FIT.
 
 ### Face B: TRAIN, the Hourglass (Wei, 12 Oct; replaces the draining fluid)
 - **Layout:** load × reps, set number and exercise on top (tap to change exercise, load and reps). The middle is a matte glass hourglass in a machined frame, with the coach's rest advice beside it. The lower part holds the rest controls and a large SET DONE.
@@ -45,7 +47,7 @@ Visual frame, audio and haptic are designed together and timed to the millisecon
 
 | Event | Motion | Sound (AVAudioEngine) | Haptic (Core Haptics) |
 | --- | --- | --- | --- |
-| Drop weight (food log) | Block hits Deck; Deck collapses down Z; dust particles scatter | Low organic impact: rubber mallet on granite | Dense train of low events, intensity 0.85, sharpness 0.20, scaled to meal weight |
+| Drop weight (food log) | Block hits the pile and tumbles into place; neighbours knock; the jar sinks; hit rays fly up | Low organic impact (mallet on granite plus recorded plate layers) with a glass tap, and a rising chime per food logged today | Dense train of low events, intensity 0.85, sharpness 0.20, scaled to meal weight |
 | Set done | Hourglass flips and seats; brief camera shake | Sharp metallic ring of a barbell slamming a steel rack (compressed air + titanium snap) | One max shock transient, intensity 1.0, sharpness 0.95 |
 | Scrub ruler | Vernier steps; mesh morph targets | High-res rotary encoder clicks; pitch rises linearly with thumb speed | Rapid light ticks, intensity 0.25, sharpness 0.80; hard spike on InBody days |
 | Rotate prism | 120° yaw, 8% overshoot (9.6°), snap; one face per swipe at most | Low grind of a vault door or monolith sliding on concrete | Continuous pattern swelling at 60°, crisp seating pulse at 120° |
@@ -73,11 +75,11 @@ A skin is not an image swap. It is a config: palette, PBR material, physics para
 ## 6. Data drives the machine
 | Input (HealthKit) | Machine mutation |
 | --- | --- |
-| Dietary energy consumed vs target | Deck resting height |
-| Dietary protein / carbs / fat | Mass block extrusion depth |
+| Dietary energy consumed vs target | How full the jar is (blocks sized by energy) |
+| Dietary protein / carbs / fat | Block colour by the dominant macro |
 | Lean body mass / skeletal muscle | Mesh vertex displacement (upper torso out, waist in) |
 | Body fat % | Mesh volume inflation on X/Z |
-| Active energy burned | Deck target weight (adjusts kcal target) |
+| Active energy burned | Planned: adjusts the kcal target (the TARGET etch) |
 | Heart rate (in a workout, when the Watch supplies it) | Planned: hourglass and recoil response |
 | HRV, resting heart rate, sleep | Coach rest advice per body part |
 

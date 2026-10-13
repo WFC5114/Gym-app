@@ -29,10 +29,10 @@ final class GestureTests: XCTestCase {
         pause(1.0)
         attachScreenshot(named: "gesture-01-ready")
 
-        // Step 2: lift the 250 kcal weight and set it down on the deck.
+        // Step 2: lift the 250 kcal block and drop it in the jar.
         let block250 = element("rail.block.250", in: app)
-        let landing = element("deck.landing", in: app)
-        if require(block250, "rail.block.250"), require(landing, "deck.landing") {
+        let landing = element("jar.landing", in: app)
+        if require(block250, "rail.block.250"), require(landing, "jar.landing") {
             let start = block250.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             let end = landing.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
             start.press(forDuration: 0.5, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: 0.3)
@@ -40,14 +40,14 @@ final class GestureTests: XCTestCase {
         pause(2.0)
         attachScreenshot(named: "gesture-02-drop-250")
 
-        // Step 3: lift the 100 kcal weight and release it far from the deck (cancel).
+        // Step 3: lift the 100 kcal block and release it far from the jar (cancel).
         let block100 = element("rail.block.100", in: app)
         if require(block100, "rail.block.100") {
             let start = block100.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
-            // Release on the half of the screen the deck is not on.
+            // Release on the half of the screen the jar is not on.
             let screen = app.frame
-            let deckMidY = landing.exists ? landing.frame.midY : screen.maxY
-            let farDy: CGFloat = deckMidY > screen.midY ? 0.12 : 0.88
+            let jarMidY = landing.exists ? landing.frame.midY : screen.maxY
+            let farDy: CGFloat = jarMidY > screen.midY ? 0.12 : 0.88
             let far = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: farDy))
             start.press(forDuration: 0.5, thenDragTo: far, withVelocity: .slow, thenHoldForDuration: 0.3)
         }

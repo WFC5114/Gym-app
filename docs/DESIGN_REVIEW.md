@@ -62,6 +62,8 @@ Reviewed at commit `56a316c` on `m0-foundation`, before branch `2-deck-slice`.
 
 ## 3. Visual acceptance checklist (§11, §16, §17)
 
+**13 Oct: the DIET jar replaced the deck and slabs (Wei's pick).** Rows below that mention the deck, slabs or stack describe the old DIET face. Until the jar has its own CI captures, treat every DIET row as NOT TESTED for the jar; the unit tests for the jar (pile bounds, determinism, shrink to fit, tumble into place, delete and undo, tap to edit) are new in `MachineModelTests`.
+
 PASS (simulator) means Claude reviewed the CI frames by eye; it is not a pixel or bounds assertion and not the phone. Frames live in the CI artifacts of each run (copied to the project files under `captures/pr5/<sha>/`).
 
 Environment for simulator rows: GitHub Actions `macos-26`, newest iPhone Pro Max simulator plus a small iPhone simulator, fixture time 12 Oct 2026 13:05, labelled FIXTURE DATA. Device rows need Wei's iPhone 18 Pro Max on iOS 27.

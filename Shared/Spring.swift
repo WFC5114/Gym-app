@@ -10,8 +10,8 @@ struct SpringConfig: Equatable {
     /// Below 1 the spring overshoots and bounces; 1 is critically damped.
     var dampingRatio: Double { damping / (2 * (mass * stiffness).squareRoot()) }
 
-    /// DIET deck slam: ultra-heavy and underdamped, three decaying bounces.
-    static let deck = SpringConfig(mass: 3.5, stiffness: 450, damping: 22)
+    /// DIET jar taking a block's weight: ultra-heavy and underdamped, three decaying bounces.
+    static let jar = SpringConfig(mass: 3.5, stiffness: 450, damping: 22)
     /// TRAIN piston firing into its upper limit.
     static let piston = SpringConfig(mass: 1.0, stiffness: 800, damping: 35)
     /// BODY numbers following the scrubber.
@@ -24,6 +24,8 @@ struct SpringConfig: Equatable {
     static let follow = SpringConfig(mass: 1.0, stiffness: 400, damping: 40)
     /// Hero number punch on impact: light and springy, two quick bounces.
     static let punch = SpringConfig(mass: 0.6, stiffness: 520, damping: 9)
+    /// A food block tumbling into its place in the jar: one clear bounce, then still.
+    static let tumble = SpringConfig(mass: 1.0, stiffness: 220, damping: 15)
     /// Hit rays flying out from a contact: critically damped, they shoot and stop.
     static let burst = SpringConfig(mass: 1.0, stiffness: 160, damping: 25.3)
 }
@@ -64,14 +66,7 @@ enum PrismFace: Int, CaseIterable {
     func previous() -> PrismFace { PrismFace(rawValue: (rawValue + 2) % 3)! }
 }
 
-/// The DIET deck's resting depth: it sits lower as the day fills.
-enum Deck {
-    static let maxCompression: Double = 1
-
-    static func restingDepth(eaten: Double, target: Double) -> Double {
-        guard target > 0 else { return 0 }
-        return min(max(eaten / target, 0), 1.2) * maxCompression
-    }
-
+/// Quick-add energy blocks on the DIET rail (calories without macros).
+enum QuickAdd {
     static let weights: [Int] = [50, 100, 250, 500]
 }

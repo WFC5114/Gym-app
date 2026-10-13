@@ -16,6 +16,7 @@ struct InsetLayer: View {
                     case .search: FoodSearchInset(model: model)
                     case .serving(let item): ServingInset(model: model, item: item)
                     case .ledger: LedgerInset(model: model)
+                    case .entry(let id): EntryInset(model: model, id: id)
                     case .exercise: ExerciseInset(model: model)
                     case .closed: EmptyView()
                     }
@@ -369,6 +370,31 @@ struct LedgerInset: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// One logged food, opened by tapping its block in the jar.
+struct EntryInset: View {
+    let model: MachineModel
+    let id: UUID
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            InsetHeader(title: "FOOD", close: { model.closeInset() })
+            if let entry = model.today.first(where: { $0.id == id }) {
+                LedgerRow(model: model, entry: entry)
+            } else {
+                Engraved(text: "DELETED. UNDO BRINGS IT BACK.", size: 10)
+            }
+            Button("UNDO LAST CHANGE") { model.undoFood() }
+                .buttonStyle(MachineButtonStyle())
+                .frame(height: 46)
+                .disabled(!model.store.canUndoFood)
+            Button("ALL OF TODAY") { model.openInset(.ledger) }
+                .buttonStyle(MachineButtonStyle())
+                .frame(height: 46)
+            Spacer(minLength: 0)
+        }
     }
 }
 

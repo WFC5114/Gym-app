@@ -17,17 +17,14 @@ final class MachineScene {
 
     // DIET
     private let dietGroup = Entity()
-    private var plinth: ModelEntity?
-    private var plate: ModelEntity?
-    private var posts: [ModelEntity] = []
-    private var springs: [ModelEntity] = []
+    /// The jar and everything in it bob together.
+    private let jarGroup = Entity()
     private var railBlocks: [Int: ModelEntity] = [:]
     private var railBase: ModelEntity?
     private var blockEntities: [UUID: ModelEntity] = [:]
     private var pendingEntity: ModelEntity?
     private var pendingKey: UUID?
-    private var slabEntities: [UUID: (entity: ModelEntity, size: CGSize)] = [:]
-    private var coilMesh: MeshResource?
+    private var pieceEntities: [UUID: (entity: ModelEntity, size: CGSize, tint: FoodTint)] = [:]
 
     private var numerals: [PrismFace: Numerals3D] = [:]
     private var facePlates: [ModelEntity] = []
@@ -48,9 +45,12 @@ final class MachineScene {
 
     /// Depths above the face surface, in points.
     enum Depth {
-        static let plate: CGFloat = 34
         static let block: CGFloat = 40
         static let lift: CGFloat = 46
+        /// The jar is deep enough for a block with room either side.
+        static let jar: CGFloat = 84
+        /// Blocks in the jar sit at its middle depth.
+        static var inJar: CGFloat { jar / 2 + 2 }
     }
 
     func make(content: inout RealityViewCameraContent, model: MachineModel) async {
@@ -98,7 +98,6 @@ final class MachineScene {
         glassGroup.addChild(glassSpin)
         content.add(root)
 
-        coilMesh = try? Geometry.coil(radius: 0.18, wire: 0.035, turns: 5.5)
         buildHourglass()
         rebuild(for: model.layout, model: model)
 
@@ -158,42 +157,24 @@ final class MachineScene {
 
     private func buildDiet(layout: MachineLayout, model: MachineModel) {
         for child in Array(dietGroup.children) { child.removeFromParent() }
+        for child in Array(jarGroup.children) { child.removeFromParent() }
         railBlocks = [:]
         blockEntities = [:]
-        slabEntities = [:]
+        pieceEntities = [:]
         pendingEntity = nil
         pendingKey = nil
-        let g = model.deckGeometry
+        let g = model.jarGeometry
         let rail = model.rail
+        dietGroup.addChild(jarGroup)
 
-        let plinth = box(g.plinthRect.size, depth: 30, radius: 3, material: materials.plate)
-        plinth.position = World.point(CGPoint(x: g.plinthRect.midX, y: g.plinthRect.midY), z: 15, in: layout)
-        dietGroup.addChild(plinth)
-        self.plinth = plinth
-
-        let plate = box(CGSize(width: g.deckWidth, height: g.plateThickness), depth: Depth.plate, radius: 3, material: materials.plate)
-        dietGroup.addChild(plate)
-        self.plate = plate
-
-        // Two guide posts frame the deck's travel.
-        posts = []
-        let postTop = g.mech.minY + 6
-        let postBottom = g.plinthRect.minY
-        for x in [g.centerX - g.deckWidth / 2 - 9, g.centerX + g.deckWidth / 2 + 9] {
-            let post = box(CGSize(width: 6, height: postBottom - postTop), depth: 18, radius: 1.5, material: materials.plate)
-            post.position = World.point(CGPoint(x: x, y: (postTop + postBottom) / 2), z: 9, in: layout)
-            dietGroup.addChild(post)
-            posts.append(post)
-        }
-
-        springs = []
-        if let coilMesh {
-            for _ in g.springXOffsets {
-                let spring = ModelEntity(mesh: coilMesh, materials: [materials.spring])
-                dietGroup.addChild(spring)
-                springs.append(spring)
-            }
-        }
+        // The jar: a deep glass body with a bright lip at the mouth. The type
+        // layer adds the etched marks and the glass highlights on top.
+        let glass = box(g.outer.size, depth: Depth.jar, radius: JarGeometry.cornerRadius, material: materials.glass)
+        glass.position = World.point(CGPoint(x: g.outer.midX, y: g.outer.midY), z: Depth.jar / 2 + 2, in: layout)
+        jarGroup.addChild(glass)
+        let lip = box(CGSize(width: g.outer.width + 8, height: 9), depth: Depth.jar + 8, radius: 4, material: materials.spring)
+        lip.position = World.point(CGPoint(x: g.outer.midX, y: g.outer.minY + 2), z: Depth.jar / 2 + 2, in: layout)
+        jarGroup.addChild(lip)
 
         // The loading rail: a ledge under the quick-add blocks.
         let ledge = box(CGSize(width: rail.controls.width, height: 6), depth: 26, radius: 1.5, material: materials.plate)
@@ -201,13 +182,18 @@ final class MachineScene {
         dietGroup.addChild(ledge)
         railBase = ledge
 
-        for kcal in Deck.weights {
+        for kcal in QuickAdd.weights {
             let size = rail.quickBlockSize(kcal: kcal)
-            let block = box(size, depth: Depth.block, radius: 4, material: materials.weight)
+            let block = box(size, depth: Depth.block, radius: 6, material: materials.food(.quick))
             block.position = World.point(rail.quickBlockHome(kcal: kcal), z: Depth.block / 2 + 6, in: layout)
             dietGroup.addChild(block)
             railBlocks[kcal] = block
         }
+    }
+
+    /// Chunky rounded food block.
+    private func foodBlock(_ size: CGSize, tint: FoodTint) -> ModelEntity {
+        box(size, depth: Depth.block, radius: min(10, size.height * 0.3, size.width * 0.3), material: materials.food(tint))
     }
 
     private func buildHourglass() {
@@ -299,43 +285,30 @@ final class MachineScene {
     }
 
     private func applyDiet(_ model: MachineModel, layout: MachineLayout) {
-        let g = model.deckGeometry
-        let d = CGFloat(model.deck.position)
-        let plateTop = g.plateTop(displacement: d)
-        plate?.position = World.point(CGPoint(x: g.centerX, y: plateTop + g.plateThickness / 2), z: Depth.plate / 2 + 4, in: layout)
-        let springTop = plateTop + g.plateThickness
-        let springBottom = g.plinthRect.minY
-        let length = max(springBottom - springTop, 8)
-        for (i, spring) in springs.enumerated() {
-            let x = g.centerX + g.springXOffsets[i]
-            spring.position = World.point(CGPoint(x: x, y: (springTop + springBottom) / 2), z: 22, in: layout)
-            spring.scale = SIMD3(1, World.len(length), 1)
-        }
+        // The glass bobs with its load; pieces carry the bob in their own positions.
+        jarGroup.position = SIMD3(0, -World.len(CGFloat(model.jarBob.position)), 0)
 
-        // Slabs on the deck, one per logged entry.
-        let slabs = model.slabRects()
+        // One block per logged food, in its place in the pile.
         var seen = Set<UUID>()
-        for item in slabs {
-            let entry = item.entry, rect = item.rect
-            seen.insert(entry.id)
-            let finalHeight = g.slabHeights(kcals: [entry.nutrients.kcal]).heights.first ?? rect.height
-            let finalSize = CGSize(width: g.slabWidth, height: finalHeight)
-            var slot = slabEntities[entry.id]
-            if slot == nil || abs(slot!.size.height - finalSize.height) > 0.5 {
+        for (index, piece) in model.jarPieces().enumerated() {
+            seen.insert(piece.id)
+            var slot = pieceEntities[piece.id]
+            if slot == nil || abs(slot!.size.width - piece.size.width) > 0.5 || abs(slot!.size.height - piece.size.height) > 0.5 || slot!.tint != piece.tint {
                 slot?.entity.removeFromParent()
-                let material = entry.nutrients.hasMacros ? materials.weight : materials.unknownWeight
-                let entity = box(finalSize, depth: Depth.block, radius: min(3, finalSize.height / 3), material: material)
+                let entity = foodBlock(piece.size, tint: piece.tint)
                 dietGroup.addChild(entity)
-                slot = (entity, finalSize)
-                slabEntities[entry.id] = slot
+                slot = (entity, piece.size, piece.tint)
+                pieceEntities[piece.id] = slot
             }
             guard let slot else { continue }
-            slot.entity.position = World.point(CGPoint(x: rect.midX, y: rect.midY), z: Depth.block / 2 + 4, in: layout)
-            slot.entity.scale = SIMD3(Float(rect.width / max(slot.size.width, 1)), Float(rect.height / max(slot.size.height, 1)), 1)
+            // Neighbours sit at slightly different depths so touching corners never flicker.
+            let z = Depth.inJar + CGFloat(index % 3 - 1) * 5
+            slot.entity.position = World.point(piece.center, z: z, in: layout)
+            slot.entity.orientation = simd_quatf(angle: Float(-piece.angle), axis: SIMD3(0, 0, 1))
         }
-        for (id, slot) in slabEntities where !seen.contains(id) {
+        for (id, slot) in pieceEntities where !seen.contains(id) {
             slot.entity.removeFromParent()
-            slabEntities[id] = nil
+            pieceEntities[id] = nil
         }
 
         // Flying blocks.
@@ -346,15 +319,19 @@ final class MachineScene {
             if case .quick(let kcal) = block.kind { busyQuick.insert(kcal) }
             var entity = blockEntities[block.id]
             if entity == nil {
-                let e = box(block.size, depth: Depth.block, radius: 4, material: materials.weight)
+                let e = foodBlock(block.jarSize, tint: Self.tint(of: block))
                 dietGroup.addChild(e)
                 blockEntities[block.id] = e
                 entity = e
             }
             let lift = CGFloat(block.lift.position)
-            entity?.position = World.point(block.position, z: Depth.block / 2 + 6 + lift * Depth.lift, in: layout)
+            let drawn = block.drawnSize
+            let inJar = block.phase == .falling || block.phase == .held
+            let baseZ = inJar ? Depth.inJar : Depth.block / 2 + 6
+            entity?.position = World.point(block.position, z: baseZ + lift * Depth.lift, in: layout)
             entity?.orientation = simd_quatf(angle: Float(-block.tilt.position), axis: SIMD3(0, 0, 1))
-            entity?.scale = SIMD3(repeating: Float(1 + 0.05 * lift))
+            let grow = Float(1 + 0.05 * lift)
+            entity?.scale = SIMD3(Float(drawn.width / max(block.jarSize.width, 1)) * grow, Float(drawn.height / max(block.jarSize.height, 1)) * grow, grow)
         }
         for (id, entity) in blockEntities where !flying.contains(id) {
             entity.removeFromParent()
@@ -370,7 +347,7 @@ final class MachineScene {
             if pendingKey != pending.entryID {
                 pendingEntity?.removeFromParent()
                 let size = model.rail.foodBlockSize(kcal: pending.nutrients.kcal)
-                let e = box(size, depth: Depth.block, radius: 4, material: materials.weight)
+                let e = foodBlock(size, tint: FoodTint.of(pending.nutrients))
                 dietGroup.addChild(e)
                 pendingEntity = e
                 pendingKey = pending.entryID
@@ -384,6 +361,13 @@ final class MachineScene {
                 pendingEntity = nil
                 pendingKey = nil
             }
+        }
+    }
+
+    private static func tint(of block: FlyingBlock) -> FoodTint {
+        switch block.kind {
+        case .quick: return .quick
+        case .food(let f): return FoodTint.of(f.nutrients)
         }
     }
 

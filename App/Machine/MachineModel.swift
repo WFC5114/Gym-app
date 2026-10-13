@@ -21,7 +21,12 @@ struct FlyingBlock: Identifiable, Equatable {
 
     let id: UUID
     var kind: Kind
+    /// Size on the rail.
     var size: CGSize
+    /// Size it takes in the jar; it grows to this over the jar.
+    var jarSize: CGSize
+    /// Stable shape seed, handed on to the logged entry's block.
+    var seed: UInt64
     var home: CGPoint
     var position: CGPoint
     var phase: Phase = .resting
@@ -31,10 +36,23 @@ struct FlyingBlock: Identifiable, Equatable {
     var lift = SpringState(position: 0, target: 0)
     var returnX = SpringState(position: 0, target: 0)
     var returnY = SpringState(position: 0, target: 0)
+    /// 0 on the rail, 1 at its jar size.
+    var sizeMix = SpringState(position: 0, target: 0)
+    /// Spin while falling, radians per second.
+    var spin: Double = 0
+    /// Where it was let go over the jar.
+    var dropX: CGFloat?
     var lastSample: (point: CGPoint, time: CFTimeInterval)?
 
     static func == (a: FlyingBlock, b: FlyingBlock) -> Bool {
         a.id == b.id && a.position == b.position && a.phase == b.phase && a.tilt == b.tilt && a.lift == b.lift
+            && a.sizeMix == b.sizeMix
+    }
+
+    /// The size drawn now, between its rail and jar sizes.
+    var drawnSize: CGSize {
+        let t = CGFloat(min(max(sizeMix.position, 0), 1.2))
+        return CGSize(width: size.width + (jarSize.width - size.width) * t, height: size.height + (jarSize.height - size.height) * t)
     }
 
     var kcal: Double {
@@ -50,16 +68,51 @@ struct FlyingBlock: Identifiable, Equatable {
     }
 }
 
-struct SlabItem: Identifiable {
+/// A logged food's block in the jar, springing toward its place in the pile.
+struct PieceMotion: Equatable {
+    var x: SpringState
+    var y: SpringState
+    var angle: SpringState
+
+    init(center: CGPoint, angle: Double) {
+        x = SpringState(position: Double(center.x), target: Double(center.x))
+        y = SpringState(position: Double(center.y), target: Double(center.y))
+        self.angle = SpringState(position: angle, target: angle)
+    }
+
+    mutating func advance(_ dt: Double, toward pose: JarPose, config: SpringConfig) {
+        x.target = Double(pose.center.x)
+        y.target = Double(pose.center.y)
+        angle.target = pose.angle
+        x.advance(dt, config: config)
+        y.advance(dt, config: config)
+        angle.advance(dt, config: config)
+    }
+
+    var isSettled: Bool { x.isSettled(tolerance: 0.1) && y.isSettled(tolerance: 0.1) && angle.isSettled(tolerance: 0.001) }
+}
+
+/// What the scene and the labels draw for one logged food.
+struct JarPiece: Identifiable {
     var entry: FoodEntry
-    var rect: CGRect
+    var center: CGPoint
+    var angle: Double
+    var size: CGSize
+    var tint: FoodTint
     var id: UUID { entry.id }
 }
 
-/// A slab landing on the stack morphs from the block's shape into its layer.
-struct SlabMorph: Equatable {
-    var from: CGRect
-    var progress = SpringState(position: 0, target: 1)
+/// How a block dropped by hand this session was let go, so its entry piles the
+/// same way it fell.
+struct DropInfo: Hashable {
+    var x: CGFloat
+    var seed: UInt64
+}
+
+/// What a laid-out pile depends on besides its items.
+struct JarGeometryKey: Equatable {
+    var layout: MachineLayout
+    var targetKcal: Double
 }
 
 /// Hit rays thrown out from a contact point. Each burst has its own seed, so
@@ -80,6 +133,8 @@ enum Inset: Equatable {
     case search
     case serving(FoodItem)
     case ledger
+    /// One logged food, opened by tapping its block.
+    case entry(UUID)
     case exercise
 }
 
@@ -117,9 +172,14 @@ final class MachineModel {
     var face: PrismFace { PrismFace(rawValue: ((faceIndex % 3) + 3) % 3) ?? .diet }
 
     // DIET
-    var deck = SpringState(position: 0, target: 0)
+    /// The jar sinks a little under each block and bounces back.
+    var jarBob = SpringState(position: 0, target: 0)
     var blocks: [FlyingBlock] = []
-    var morphs: [UUID: SlabMorph] = [:]
+    var pieces: [UUID: PieceMotion] = [:]
+    @ObservationIgnored private var piecesLayout: MachineLayout?
+    @ObservationIgnored var dropInfo: [UUID: DropInfo] = [:]
+    @ObservationIgnored private var pileCache: (items: [JarItem], geometry: JarGeometryKey, pile: JarPile)?
+    @ObservationIgnored private var blockSeed: UInt64 = 0x51_7CC1_B727_220A
     var pending: PendingFood?
     var inset: Inset = .closed
     var lastLanded: UUID?
@@ -155,7 +215,7 @@ final class MachineModel {
     var heroPunch = SpringState(position: 0, target: 0)
     /// The DIET number counts to its new value instead of jumping.
     var heroKcal = SpringState(position: 0, target: 0)
-    /// 0...1: how strongly a held block over the deck is loading it.
+    /// 0...1: how strongly a held block over the jar is winding it up.
     var charge = SpringState(position: 0, target: 0)
     @ObservationIgnored private var burstSeed: UInt64 = 0x2545_F491_4F6C_DD1D
     /// Hero numbers are drawn as lit 3D glyphs; the SwiftUI text stays for
@@ -179,13 +239,12 @@ final class MachineModel {
         self.reps = memory?.reps ?? 8
         self.advice = RestCoach.recommend(for: ex, setNumber: 1, history: store.data.rests, readiness: .unknown, now: now())
         self.plannedRest = memory?.restSeconds ?? advice.seconds
-        let geometry = DeckGeometry(layout: layout, targetKcal: store.data.targets.kcal)
-        deck = SpringState(position: geometry.restingDisplacement(eaten: totals.kcal), target: geometry.restingDisplacement(eaten: totals.kcal))
         let left = totals.remainingKcal(target: targets)
         heroKcal = SpringState(position: left, target: left)
         scrubSpring = SpringState(position: Double(bodyHistory.count - 1), target: Double(bodyHistory.count - 1))
         bodyNumbers = scrubSpring
         syncGlassImmediately()
+        syncPiecesImmediately()
     }
 
     // MARK: Derived
@@ -193,50 +252,67 @@ final class MachineModel {
     var targets: NutritionTargets { store.data.targets }
     var today: [FoodEntry] { store.foods(on: now()) }
     var totals: DayTotals { DayTotals(entries: today) }
-    var deckGeometry: DeckGeometry { DeckGeometry(layout: layout, targetKcal: targets.kcal) }
+    var jarGeometry: JarGeometry { JarGeometry(layout: layout, targetKcal: targets.kcal) }
     var rail: RailGeometry { RailGeometry(layout: layout) }
     var glassGeometry: HourglassGeometry { HourglassGeometry(layout: layout) }
     var activeRest: RestPeriod? { store.activeRest }
 
-    /// Slab rectangles for today's entries, bottom to top, in face-local points.
-    func slabRects() -> [SlabItem] {
-        let g = deckGeometry
+    func jarItems(_ entries: [FoodEntry]) -> [JarItem] {
+        entries.map { (entry: FoodEntry) -> JarItem in
+            let drop = dropInfo[entry.id]
+            return JarItem(kcal: entry.nutrients.kcal, seed: drop?.seed ?? JarGeometry.seed(for: entry), dropX: drop?.x)
+        }
+    }
+
+    /// Today's pile, laid out once per change.
+    var pile: JarPile { pile(for: jarItems(today)) }
+
+    func pile(for items: [JarItem]) -> JarPile {
+        let key = JarGeometryKey(layout: layout, targetKcal: targets.kcal)
+        if let cache = pileCache, cache.items == items, cache.geometry == key { return cache.pile }
+        let result = jarGeometry.pile(items)
+        pileCache = (items, key, result)
+        return result
+    }
+
+    var isPileScaled: Bool { pile.scaled }
+
+    var landingRect: CGRect { jarGeometry.landingRect(pileTop: pile.top) }
+
+    /// Every logged block as drawn now: its spring position (or its place in
+    /// the pile when it has none yet), carried up and down by the jar's bob.
+    func jarPieces() -> [JarPiece] {
         let entries = today
-        let (heights, _) = g.slabHeights(kcals: entries.map(\.nutrients.kcal))
-        var y = g.plateTop(displacement: CGFloat(deck.position))
-        var out: [SlabItem] = []
-        for (entry, h) in zip(entries, heights) {
-            let final = CGRect(x: g.centerX - g.slabWidth / 2, y: y - h, width: g.slabWidth, height: h)
-            y -= h
-            if let morph = morphs[entry.id] {
-                out.append(SlabItem(entry: entry, rect: Self.lerp(morph.from, final, CGFloat(morph.progress.position))))
-            } else {
-                out.append(SlabItem(entry: entry, rect: final))
+        let poses = pile.poses
+        let useMotion = piecesLayout == layout
+        let bob = CGFloat(jarBob.position)
+        var out: [JarPiece] = []
+        for (entry, pose) in zip(entries, poses) {
+            var center = pose.center
+            var angle = pose.angle
+            if useMotion, let m = pieces[entry.id] {
+                center = CGPoint(x: m.x.position, y: m.y.position)
+                angle = m.angle.position
             }
+            center.y += bob
+            out.append(JarPiece(entry: entry, center: center, angle: angle, size: pose.size, tint: FoodTint.of(entry.nutrients)))
         }
         return out
     }
 
-    var stackTop: CGFloat {
-        let g = deckGeometry
-        let heights = g.slabHeights(kcals: today.map(\.nutrients.kcal)).heights
-        return g.plateTop(displacement: CGFloat(deck.position)) - heights.reduce(0, +)
+    /// Puts every block straight in its place (launch, fixtures, layout changes).
+    func syncPiecesImmediately() {
+        var next: [UUID: PieceMotion] = [:]
+        for (entry, pose) in zip(today, pile.poses) { next[entry.id] = PieceMotion(center: pose.center, angle: pose.angle) }
+        pieces = next
+        piecesLayout = layout
     }
-
-    var isStackScaled: Bool { deckGeometry.slabHeights(kcals: today.map(\.nutrients.kcal)).scaled }
-
-    var landingRect: CGRect { deckGeometry.landingRect(stackTop: stackTop) }
 
     var isAnyBlockOverLanding: Bool {
         blocks.contains { $0.phase == .held && landingRect.contains($0.position) }
     }
 
     var isDragging: Bool { blocks.contains { $0.phase == .held } }
-
-    static func lerp(_ a: CGRect, _ b: CGRect, _ t: CGFloat) -> CGRect {
-        CGRect(x: a.minX + (b.minX - a.minX) * t, y: a.minY + (b.minY - a.minY) * t,
-               width: a.width + (b.width - a.width) * t, height: a.height + (b.height - a.height) * t)
-    }
 
     // MARK: Frame loop
 
@@ -265,16 +341,16 @@ final class MachineModel {
         } else {
             // Only sand moving: a slower cadence is plenty and saves energy.
             let calm = !isRotating && yaw.isSettled(tolerance: 0.01) && blocks.allSatisfy { $0.phase == .resting }
-                && deck.isSettled(tolerance: 0.05) && glassAngle.isSettled(tolerance: 0.001) && shake.isSettled(tolerance: 0.05)
+                && jarBob.isSettled(tolerance: 0.05) && glassAngle.isSettled(tolerance: 0.001) && shake.isSettled(tolerance: 0.05)
             link.preferredFrameRateRange = calm ? CAFrameRateRange(minimum: 15, maximum: 30, preferred: 30)
                                                 : CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
         }
     }
 
     var needsFrames: Bool {
-        isRotating || !yaw.isSettled(tolerance: 0.005) || !deck.isSettled(tolerance: 0.02)
+        isRotating || !yaw.isSettled(tolerance: 0.005) || !jarBob.isSettled(tolerance: 0.02)
             || blocks.contains { $0.phase != .resting || !$0.lift.isSettled(tolerance: 0.002) || !$0.tilt.isSettled(tolerance: 0.001) }
-            || !morphs.isEmpty || !glassAngle.isSettled(tolerance: 0.0005) || !glassHeight.isSettled(tolerance: 0.1)
+            || pieces.values.contains { !$0.isSettled } || !glassAngle.isSettled(tolerance: 0.0005) || !glassHeight.isSettled(tolerance: 0.1)
             || !sandA.isSettled(tolerance: 0.0005) || !sandB.isSettled(tolerance: 0.0005) || activeRest != nil
             || !scrubSpring.isSettled(tolerance: 0.001) || !bodyNumbers.isSettled(tolerance: 0.001) || !shake.isSettled(tolerance: 0.02)
             || !bursts.isEmpty || !heroPunch.isSettled(tolerance: 0.001) || !heroKcal.isSettled(tolerance: 0.5)
@@ -301,8 +377,13 @@ final class MachineModel {
         heroKcal.advance(dt, config: reduceMotion ? .calm : .bodyNumbers)
         for i in bursts.indices { bursts[i].progress.advance(dt, config: .burst) }
         bursts.removeAll { $0.progress.isSettled(tolerance: 0.004) }
-        let over = blocks.first { $0.phase == .held && landingRect.contains($0.position) }
+        let landing = landingRect
+        let over = blocks.first { $0.phase == .held && landing.contains($0.position) }
         charge.target = over == nil ? 0 : min(over!.kcal / 500, 1) * 0.6 + 0.4
+        // Over the jar a block swells to the size it will take inside.
+        for i in blocks.indices where blocks[i].phase == .held {
+            blocks[i].sizeMix.target = landing.contains(blocks[i].position) ? 1 : 0
+        }
         charge.advance(dt, config: .follow)
         SoundEngine.shared.setCharge(Float(charge.position))
     }
@@ -421,9 +502,7 @@ final class MachineModel {
         guard inset == .closed else { return nil }
         let isThisSlot: (FlyingBlock) -> Bool = { if case .quick(kcal) = $0.kind { return true }; return false }
         if blocks.contains(where: isThisSlot) { return regrab(matching: isThisSlot, at: point, time: time) }
-        let size = rail.quickBlockSize(kcal: kcal)
-        let home = rail.quickBlockHome(kcal: kcal)
-        var b = FlyingBlock(id: UUID(), kind: .quick(kcal), size: size, home: home, position: home)
+        var b = makeBlock(.quick(kcal), at: nil)
         startHold(&b, at: point, time: time)
         blocks.append(b)
         wake()
@@ -434,13 +513,26 @@ final class MachineModel {
     func grabPending(at point: CGPoint, time: CFTimeInterval) -> UUID? {
         guard let pending else { return nil }
         if let id = regrab(matching: { $0.entryID == pending.entryID }, at: point, time: time) { return id }
-        let kcal = pending.nutrients.kcal
-        var b = FlyingBlock(id: UUID(), kind: .food(pending), size: rail.foodBlockSize(kcal: kcal),
-                            home: rail.foodBlockHome(kcal: kcal), position: rail.foodBlockHome(kcal: kcal))
+        var b = makeBlock(.food(pending), at: nil)
         startHold(&b, at: point, time: time)
         blocks.append(b)
         wake()
         return b.id
+    }
+
+    /// A block at its rail home (or `position`), with its jar size and shape seed.
+    func makeBlock(_ kind: FlyingBlock.Kind, at position: CGPoint?) -> FlyingBlock {
+        blockSeed = JarGeometry.mix(blockSeed &+ 0x9E37_79B9_7F4A_7C15)
+        let size: CGSize, home: CGPoint, kcal: Double
+        switch kind {
+        case .quick(let k):
+            size = rail.quickBlockSize(kcal: k); home = rail.quickBlockHome(kcal: k); kcal = Double(k)
+        case .food(let f):
+            kcal = f.nutrients.kcal
+            size = rail.foodBlockSize(kcal: kcal); home = rail.foodBlockHome(kcal: kcal)
+        }
+        let jarSize = jarGeometry.blockSize(kcal: kcal, seed: blockSeed, scale: pile.scale)
+        return FlyingBlock(id: UUID(), kind: kind, size: size, jarSize: jarSize, seed: blockSeed, home: home, position: position ?? home)
     }
 
     /// Re-grab a block that is falling or springing home, from where it is now.
@@ -483,8 +575,7 @@ final class MachineModel {
         let maxV: CGFloat = 2400
         blocks[i].velocity = CGVector(dx: min(max(blocks[i].velocity.dx, -maxV), maxV), dy: min(max(blocks[i].velocity.dy, -maxV), maxV))
         if landingRect.contains(blocks[i].position) {
-            blocks[i].phase = .falling
-            if reduceMotion { blocks[i].velocity = CGVector(dx: 0, dy: 900) }
+            startFall(i, velocity: blocks[i].velocity)
         } else {
             beginReturn(i)
         }
@@ -499,41 +590,61 @@ final class MachineModel {
         wake()
     }
 
+    /// Into the jar: it takes its jar size, keeps some of the throw and spins.
+    private func startFall(_ i: Int, velocity: CGVector) {
+        let g = jarGeometry
+        let half = blocks[i].jarSize.width / 2
+        let x = min(max(blocks[i].position.x, g.interior.minX + half), g.interior.maxX - half)
+        blocks[i].phase = .falling
+        blocks[i].dropX = x
+        blocks[i].sizeMix.target = 1
+        blocks[i].velocity = velocity
+        let wobble = (JarGeometry.unit(blocks[i].seed >> 24) - 0.5) * 3
+        blocks[i].spin = min(max(Double(velocity.dx) * 0.004, -4), 4) + wobble
+        if reduceMotion {
+            blocks[i].velocity = CGVector(dx: 0, dy: 900)
+            blocks[i].spin = 0
+        }
+    }
+
     private func beginReturn(_ i: Int) {
         blocks[i].phase = .returning
+        blocks[i].sizeMix.target = 0
         blocks[i].returnX = SpringState(position: Double(blocks[i].position.x), velocity: Double(blocks[i].velocity.dx), target: Double(blocks[i].home.x))
         blocks[i].returnY = SpringState(position: Double(blocks[i].position.y), velocity: Double(blocks[i].velocity.dy), target: Double(blocks[i].home.y))
     }
 
-    /// VoiceOver and the LOAD button: the same drop, starting above the deck.
+    /// VoiceOver and the LOAD button: the same drop, starting above the jar.
     func loadPending() {
         guard let pending else { return }
-        let kcal = pending.nutrients.kcal
         if let i = blocks.firstIndex(where: { $0.entryID == pending.entryID }) {
-            blocks[i].phase = .falling
-            blocks[i].position = CGPoint(x: deckGeometry.centerX, y: min(blocks[i].position.y, stackTop - blocks[i].size.height))
-            blocks[i].velocity = CGVector(dx: 0, dy: 400)
+            blocks[i].position.y = min(blocks[i].position.y, dropStartY(height: blocks[i].jarSize.height))
+            blocks[i].position.x = jarGeometry.outer.midX
+            startFall(i, velocity: CGVector(dx: 0, dy: 400))
         } else {
-            let size = rail.foodBlockSize(kcal: kcal)
-            var b = FlyingBlock(id: UUID(), kind: .food(pending), size: size, home: rail.foodBlockHome(kcal: kcal),
-                                position: CGPoint(x: deckGeometry.centerX, y: max(layout.mechanismRect.minY, stackTop - size.height * 2.5)))
-            b.phase = .falling
-            b.velocity = CGVector(dx: 0, dy: 300)
-            blocks.append(b)
+            dropIn(.food(pending))
         }
         if isFixture { finishFallsImmediately() }
         wake()
     }
 
     func loadQuick(kcal: Int) {
-        let size = rail.quickBlockSize(kcal: kcal)
-        var b = FlyingBlock(id: UUID(), kind: .quick(kcal), size: size, home: rail.quickBlockHome(kcal: kcal),
-                            position: CGPoint(x: deckGeometry.centerX, y: max(layout.mechanismRect.minY, stackTop - size.height * 2.5)))
-        b.phase = .falling
-        b.velocity = CGVector(dx: 0, dy: 300)
-        blocks.append(b)
+        dropIn(.quick(kcal))
         if isFixture { finishFallsImmediately() }
         wake()
+    }
+
+    private func dropIn(_ kind: FlyingBlock.Kind) {
+        var b = makeBlock(kind, at: nil)
+        b.position = CGPoint(x: jarGeometry.outer.midX, y: dropStartY(height: b.jarSize.height))
+        b.sizeMix = SpringState(position: 1, target: 1)
+        blocks.append(b)
+        startFall(blocks.count - 1, velocity: CGVector(dx: 0, dy: 300))
+    }
+
+    /// Just above the jar mouth, or above the pile if it has risen out.
+    private func dropStartY(height: CGFloat) -> CGFloat {
+        max(min(jarGeometry.outer.minY, pile.top) - height * 1.5, layout.mechanismRect.minY - 40)
     }
 
     private func clampToFace(_ p: CGPoint, size: CGSize) -> CGPoint {
@@ -543,31 +654,36 @@ final class MachineModel {
     }
 
     private func stepDiet(_ dt: Double) {
-        let g = deckGeometry
-        // Windup: a block held over the deck pre-loads it a little.
-        deck.target = Double(g.restingDisplacement(eaten: totals.kcal)) + charge.position * Double(g.travelPerTarget) * 0.04
-        deck.advance(dt, config: reduceMotion ? .calm : .deck)
+        let g = jarGeometry
+        // Windup: a block held over the jar sinks it a little before contact.
+        jarBob.target = charge.position * 4
+        jarBob.advance(dt, config: reduceMotion ? .calm : .jar)
 
         let gravity: CGFloat = 2600
+        let surface = pile.surface
         var landed: [Int] = []
         for i in blocks.indices {
             blocks[i].lift.advance(dt, config: .piston)
-            blocks[i].tilt.advance(dt, config: .piston)
+            blocks[i].sizeMix.advance(dt, config: .follow)
             switch blocks[i].phase {
             case .resting, .held:
-                break
+                blocks[i].tilt.advance(dt, config: .piston)
             case .falling:
                 blocks[i].velocity.dy += gravity * CGFloat(dt)
                 blocks[i].velocity.dx *= CGFloat(max(0, 1 - 6 * dt))
                 blocks[i].position.x += blocks[i].velocity.dx * CGFloat(dt)
                 blocks[i].position.y += blocks[i].velocity.dy * CGFloat(dt)
-                // Stay over the deck while falling.
-                let half = (g.deckWidth - blocks[i].size.width) / 2
-                blocks[i].position.x = min(max(blocks[i].position.x, g.centerX - max(half, 0)), g.centerX + max(half, 0))
-                if blocks[i].position.y + blocks[i].size.height / 2 >= stackTop, blocks[i].velocity.dy > 0 {
+                blocks[i].tilt.position += blocks[i].spin * dt
+                blocks[i].tilt.target = blocks[i].tilt.position
+                // The glass walls keep it inside.
+                let half = blocks[i].drawnSize.width / 2
+                blocks[i].position.x = min(max(blocks[i].position.x, g.interior.minX + half), max(g.interior.maxX - half, g.interior.minX + half))
+                let bottom = blocks[i].position.y + blocks[i].drawnSize.height / 2
+                if blocks[i].velocity.dy > 0, bottom >= g.surfaceTop(surface, x: blocks[i].position.x, width: blocks[i].drawnSize.width) + CGFloat(jarBob.position) {
                     landed.append(i)
                 }
             case .returning:
+                blocks[i].tilt.advance(dt, config: .piston)
                 blocks[i].returnX.advance(dt, config: prismConfig)
                 blocks[i].returnY.advance(dt, config: prismConfig)
                 blocks[i].position = CGPoint(x: blocks[i].returnX.position, y: blocks[i].returnY.position)
@@ -583,14 +699,28 @@ final class MachineModel {
             if case .quick = b.kind { return b.phase == .resting && b.lift.isSettled(tolerance: 0.002) }
             return false
         }
-
-        for key in Array(morphs.keys) {
-            morphs[key]?.progress.advance(dt, config: reduceMotion ? .calm : .deck)
-            if morphs[key]?.progress.isSettled(tolerance: 0.002) == true { morphs[key] = nil }
-        }
+        stepPieces(dt)
     }
 
-    /// Contact: commit once, compress the deck, fire the impact.
+    /// Each logged block springs toward its place in the pile. A block that
+    /// reappears (undoing a delete) drops back in from the mouth.
+    private func stepPieces(_ dt: Double) {
+        if piecesLayout != layout { syncPiecesImmediately(); return }
+        let entries = today
+        let poses = pile.poses
+        let config: SpringConfig = reduceMotion ? .calm : .tumble
+        var live = Set<UUID>()
+        for (entry, pose) in zip(entries, poses) {
+            live.insert(entry.id)
+            if pieces[entry.id] == nil {
+                pieces[entry.id] = PieceMotion(center: CGPoint(x: pose.center.x, y: jarGeometry.outer.minY - pose.size.height), angle: 0)
+            }
+            pieces[entry.id]?.advance(dt, toward: pose, config: config)
+        }
+        if pieces.count != live.count { pieces = pieces.filter { live.contains($0.key) } }
+    }
+
+    /// Contact: commit once, hand the block to the pile, fire the impact.
     private func land(_ i: Int) {
         let block = blocks[i]
         let impact = Double(block.velocity.dy)
@@ -602,23 +732,41 @@ final class MachineModel {
         case .food(let food):
             entry = .food(food.item, grams: food.grams, id: food.entryID, at: at)
         }
-        let rect = CGRect(x: block.position.x - block.size.width / 2, y: block.position.y - block.size.height / 2,
-                          width: block.size.width, height: block.size.height)
+        let center = block.position
+        let size = block.drawnSize
         blocks.remove(at: i)
         guard store.commitFood(entry) else { return }
         if case .food = block.kind { pending = nil }
-        morphs[entry.id] = SlabMorph(from: rect)
+        dropInfo[entry.id] = DropInfo(x: block.dropX ?? center.x, seed: block.seed)
         lastLanded = entry.id
-        // Momentum transfer: heavier food and faster drops push the deck further.
-        let share = min(max(block.kcal / 700, 0.05), 0.75)
-        deck.velocity += impact * share
         let strength = Float(min(max(impact / 1600, 0.25), 1))
+        // The block carries on from where it hit; its place in the pile pulls it in with one bounce.
+        var motion = PieceMotion(center: CGPoint(x: center.x, y: center.y - CGFloat(jarBob.position)), angle: block.tilt.position)
+        motion.x.velocity = Double(block.velocity.dx) * 0.3
+        motion.y.velocity = impact * 0.18
+        motion.angle.velocity = block.spin * 0.5
+        pieces[entry.id] = motion
+        // Blocks near the contact get knocked and settle back.
+        let contact = CGPoint(x: center.x, y: center.y + size.height / 2)
+        let reach = Double(size.width) * 1.2 + 40
+        for (id, piece) in pieces where id != entry.id {
+            let dx = piece.x.position - Double(contact.x), dy = piece.y.position - Double(contact.y)
+            let distance = (dx * dx + dy * dy).squareRoot()
+            guard distance < reach else { continue }
+            let k = (1 - distance / reach) * Double(strength)
+            pieces[id]?.angle.velocity += (dx < 0 ? -1.2 : 1.2) * k
+            pieces[id]?.y.velocity += 60 * k
+        }
+        // Heavier food and faster drops sink the jar further.
+        let share = min(max(block.kcal / 700, 0.05), 0.75)
+        jarBob.velocity += impact * share * 0.1
         let weight = Float(min(block.kcal / 600, 1))
         HapticEngine.shared.play(.dropWeight, weight: weight, scale: strength)
         SoundEngine.shared.play(.mallet, intensity: 0.45 + 0.55 * strength, pitch: 1.08 - 0.12 * weight)
+        SoundEngine.shared.play(.glassTap, intensity: 0.25 + 0.35 * strength, pitch: 1.1 - 0.2 * weight)
         // Each food logged today climbs one step up a pentatonic scale.
         SoundEngine.shared.chime(step: today.count - 1, intensity: 0.35 + 0.3 * strength)
-        fireImpact(at: CGPoint(x: rect.midX, y: rect.maxY), strength: Double(strength), face: .diet)
+        fireImpact(at: CGPoint(x: center.x, y: center.y - size.height / 2), strength: Double(strength), face: .diet)
         let after = totals.kcal
         if after >= targets.kcal, after - block.kcal < targets.kcal {
             // Crossing the day's target: a second, bigger burst at the number.
@@ -631,11 +779,12 @@ final class MachineModel {
 
     private func finishFallsImmediately() {
         for _ in 0..<600 where blocks.contains(where: { $0.phase == .falling }) { stepDiet(1.0 / 240) }
+        syncPiecesImmediately()
     }
 
     func undoFood() {
         guard let undone = store.undoFood() else { return }
-        if case .added(let id) = undone { morphs[id] = nil }
+        if case .added(let id) = undone { pieces[id] = nil }
         HapticEngine.shared.tick(intensity: 0.5, sharpness: 0.5)
         publishSnapshot()
         wake()

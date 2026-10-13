@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// DIET: remaining energy on top, the counterweight deck in the middle, the
-/// loading rail and intake control at the bottom.
+/// DIET: remaining energy on top, the glass jar of logged food in the middle,
+/// the loading rail and intake control at the bottom.
 struct DietFace: View {
     let model: MachineModel
     let layout: MachineLayout
@@ -10,8 +10,9 @@ struct DietFace: View {
         let totals = model.totals
         let targets = model.targets
         let remaining = totals.remainingKcal(target: targets)
-        let g = model.deckGeometry
+        let g = model.jarGeometry
         let rail = model.rail
+        let bob = CGFloat(model.jarBob.position)
         ZStack(alignment: .topLeading) {
             // Empty face area: horizontal swipes turn the prism.
             Color.clear.contentShape(Rectangle()).modifier(FaceSwipe(model: model))
@@ -22,13 +23,8 @@ struct DietFace: View {
                 .frame(width: layout.heroRect.width, alignment: .leading)
                 .position(x: layout.heroRect.midX, y: layout.heroRect.minY + 58 + layout.heroRect.height * 0.36)
 
-            // Engraved TARGET mark on the left post.
-            HStack(spacing: 6) {
-                Rectangle().fill(Color.white.opacity(0.55)).frame(width: 14, height: 1.5)
-                Engraved(text: "TARGET \(Readout.kcal(targets.kcal))", size: 8.5, color: .white.opacity(0.55))
-            }
-            .position(x: g.centerX - g.deckWidth / 2 + 46, y: g.targetLineY)
-            .accessibilityHidden(true)
+            JarGlass(geometry: g, targetKcal: targets.kcal)
+                .offset(y: bob)
 
             if model.isDragging {
                 LandingGuide(rect: model.landingRect, active: model.isAnyBlockOverLanding)
@@ -39,21 +35,21 @@ struct DietFace: View {
                 .position(x: model.landingRect.midX, y: model.landingRect.midY)
                 .allowsHitTesting(false)
                 .accessibilityElement()
-                .accessibilityLabel("Deck, \(Readout.kcal(totals.kcal)) kilocalories loaded")
-                .accessibilityIdentifier("deck.landing")
+                .accessibilityLabel("Jar, \(Readout.kcal(totals.kcal)) of \(Readout.kcal(targets.kcal)) kilocalories in it")
+                .accessibilityIdentifier("jar.landing")
 
-            SlabLabels(model: model)
+            PieceLabels(model: model)
 
-            if model.isStackScaled {
-                Engraved(text: "STACK SCALED TO FIT", size: 8, color: .white.opacity(0.5))
-                    .position(x: g.centerX, y: g.mech.minY + 8)
+            if model.isPileScaled {
+                Engraved(text: "BLOCKS SHRUNK TO FIT", size: 8, color: .white.opacity(0.6))
+                    .position(x: g.outer.midX, y: g.mech.minY - 4)
             }
 
             // Rail: quick-add blocks, or the formed food block.
             if let pending = model.pending {
                 PendingBlockHandle(model: model, pending: pending, rail: rail)
             } else {
-                ForEach(Deck.weights, id: \.self) { kcal in
+                ForEach(QuickAdd.weights, id: \.self) { kcal in
                     QuickBlockHandle(model: model, kcal: kcal, rail: rail)
                 }
             }
@@ -133,7 +129,7 @@ struct LandingGuide: View {
         ZStack {
             Rectangle()
                 .strokeBorder(Color.white.opacity(active ? 0.55 : 0.2), style: StrokeStyle(lineWidth: 1, dash: [3, 5]))
-            Engraved(text: active ? "RELEASE TO LOAD" : "DROP ON THE DECK", size: 9, color: .white.opacity(active ? 0.9 : 0.45))
+            Engraved(text: active ? "LET GO TO DROP IT IN" : "DROP IT IN THE JAR", size: 9, color: .white.opacity(active ? 0.9 : 0.6))
                 .position(x: rect.width / 2, y: 18)
         }
         .frame(width: rect.width, height: rect.height)
@@ -143,30 +139,101 @@ struct LandingGuide: View {
     }
 }
 
-/// Names on the slabs that are tall enough to carry one.
-struct SlabLabels: View {
+/// The jar's glass, drawn over the blocks: an outline, two highlights and the
+/// etched measuring marks (quarters of the target, then TARGET).
+struct JarGlass: View {
+    let geometry: JarGeometry
+    let targetKcal: Double
+
+    var body: some View {
+        let g = geometry
+        let o = g.outer
+        ZStack(alignment: .topLeading) {
+            Canvas { ctx, _ in
+                let shape = Path(roundedRect: o, cornerRadius: JarGeometry.cornerRadius, style: .continuous)
+                ctx.stroke(shape, with: .color(.white.opacity(0.55)), lineWidth: 2.5)
+                // Light catching the curved front: a broad strip on the left, a thin one on the right.
+                let left = CGRect(x: o.minX + 9, y: o.minY + 18, width: 12, height: o.height - 44)
+                ctx.fill(Path(roundedRect: left, cornerRadius: 6), with: .linearGradient(
+                    Gradient(colors: [.white.opacity(0.3), .white.opacity(0.06)]),
+                    startPoint: CGPoint(x: left.minX, y: left.midY), endPoint: CGPoint(x: left.maxX, y: left.midY)))
+                let right = CGRect(x: o.maxX - 14, y: o.minY + 24, width: 4, height: o.height - 60)
+                ctx.fill(Path(roundedRect: right, cornerRadius: 2), with: .color(.white.opacity(0.2)))
+                // Measuring marks: quarters of the target.
+                let span = g.floorY - g.targetLineY
+                for q in 1...3 {
+                    let y = g.floorY - span * CGFloat(q) / 4
+                    var tick = Path()
+                    tick.move(to: CGPoint(x: g.interior.minX, y: y))
+                    tick.addLine(to: CGPoint(x: g.interior.minX + 9, y: y))
+                    ctx.stroke(tick, with: .color(.white.opacity(0.45)), lineWidth: 1.5)
+                }
+                var line = Path()
+                line.move(to: CGPoint(x: g.interior.minX, y: g.targetLineY))
+                line.addLine(to: CGPoint(x: g.interior.minX + 22, y: g.targetLineY))
+                ctx.stroke(line, with: .color(.white.opacity(0.9)), lineWidth: 2)
+            }
+            Engraved(text: "TARGET \(Readout.kcal(targetKcal))", size: 8.5, color: .white.opacity(0.9))
+                .fixedSize()
+                .position(x: g.interior.minX + 28 + 34, y: g.targetLineY)
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Each logged block's name and energy, turned with the block. Tapping a
+/// block opens that food to change or delete it.
+struct PieceLabels: View {
     let model: MachineModel
 
     var body: some View {
-        ForEach(model.slabRects()) { item in
-            if item.rect.height >= 13 {
-                HStack(spacing: 6) {
-                    Text(item.entry.name.uppercased())
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    Spacer(minLength: 4)
-                    Text(Readout.kcal(item.entry.nutrients.kcal))
-                }
-                .font(TypeKit.label(min(9.5, item.rect.height * 0.55), weight: .heavy))
-                .tracking(0.8)
-                .foregroundStyle(Color.black.opacity(0.78))
-                .padding(.horizontal, 10)
-                .frame(width: item.rect.width, height: item.rect.height)
-                .position(x: item.rect.midX, y: item.rect.midY)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
+        ForEach(model.jarPieces()) { piece in
+            PieceLabel(piece: piece)
+                .frame(width: piece.size.width, height: piece.size.height)
+                .contentShape(Rectangle())
+                .rotationEffect(.radians(piece.angle))
+                .position(piece.center)
+                .onTapGesture { model.openInset(.entry(piece.id)) }
+                // A swipe that starts on a block still turns the prism.
+                .modifier(FaceSwipe(model: model))
+                .accessibilityElement()
+                .accessibilityLabel("\(piece.entry.name), \(Readout.kcal(piece.entry.nutrients.kcal)) kilocalories")
+                .accessibilityHint("Opens this food to change or delete it")
+                .accessibilityAddTraits(.isButton)
+                .accessibilityIdentifier("jar.piece")
+        }
+    }
+}
+
+struct PieceLabel: View {
+    let piece: JarPiece
+
+    var body: some View {
+        let kcal = Readout.kcal(piece.entry.nutrients.kcal)
+        let size = min(10, piece.size.height * 0.36)
+        Group {
+            if piece.entry.source == .quickAdd {
+                Text(kcal).font(TypeKit.display(min(15, piece.size.height * 0.5))).tracking(-0.5)
+            } else if piece.size.width >= 64 && piece.size.height >= 18 {
+                Text(Self.shortName(piece.entry.name) + " " + kcal)
+                    .font(TypeKit.label(size, weight: .heavy))
+                    .tracking(0.6)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .padding(.horizontal, 6)
+            } else {
+                Text(kcal).font(TypeKit.label(size, weight: .heavy))
             }
         }
+        .foregroundStyle(Color(red: 0.24, green: 0.13, blue: 0.05).opacity(0.85))
+        .minimumScaleFactor(0.7)
+        .allowsHitTesting(false)
+    }
+
+    /// "Chicken breast, cooked" → "CHICKEN BREAST".
+    static func shortName(_ name: String) -> String {
+        (name.split(separator: ",").first.map(String.init) ?? name).uppercased()
     }
 }
 
@@ -177,7 +244,7 @@ struct FlyingBlockLabels: View {
     var body: some View {
         ForEach(model.blocks.filter { $0.phase != .resting || $0.entryID != nil }) { block in
             BlockFace(block: block)
-                .frame(width: block.size.width, height: block.size.height)
+                .frame(width: block.drawnSize.width, height: block.drawnSize.height)
                 .scaleEffect(1 + 0.05 * block.lift.position)
                 .rotationEffect(.radians(block.tilt.position))
                 .position(block.position)
@@ -267,7 +334,7 @@ struct QuickBlockHandle: View {
         let inFlight = model.blocks.contains { if case .quick(kcal) = $0.kind { return true }; return false }
         ZStack {
             if !inFlight {
-                BlockFace(block: FlyingBlock(id: UUID(), kind: .quick(kcal), size: size, home: home, position: home))
+                BlockFace(block: FlyingBlock(id: UUID(), kind: .quick(kcal), size: size, jarSize: size, seed: 0, home: home, position: home))
             }
         }
         .frame(width: size.width, height: max(size.height, 44))
@@ -276,7 +343,7 @@ struct QuickBlockHandle: View {
         .blockDrag(model: model) { point, time in model.grabQuick(kcal: kcal, at: point, time: time) }
         .accessibilityElement()
         .accessibilityLabel("Quick add \(kcal) kilocalories")
-        .accessibilityHint("Drag onto the deck. Records calories without macros.")
+        .accessibilityHint("Drag into the jar. Records calories without macros.")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { model.loadQuick(kcal: kcal) }
         .accessibilityIdentifier("rail.block.\(kcal)")
@@ -295,7 +362,7 @@ struct PendingBlockHandle: View {
         let inFlight = model.blocks.contains { $0.entryID == pending.entryID }
         ZStack {
             if !inFlight {
-                BlockFace(block: FlyingBlock(id: UUID(), kind: .food(pending), size: size, home: home, position: home))
+                BlockFace(block: FlyingBlock(id: UUID(), kind: .food(pending), size: size, jarSize: size, seed: 0, home: home, position: home))
             }
         }
         .frame(width: size.width, height: max(size.height, 44))
@@ -304,7 +371,7 @@ struct PendingBlockHandle: View {
         .blockDrag(model: model) { point, time in model.grabPending(at: point, time: time) }
         .accessibilityElement()
         .accessibilityLabel("\(pending.item.name), \(Readout.grams(pending.grams)) grams, \(Readout.kcal(kcal)) kilocalories")
-        .accessibilityHint("Drag onto the deck to log it")
+        .accessibilityHint("Drag into the jar to log it")
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { model.loadPending() }
         .accessibilityIdentifier("rail.pending")
@@ -340,7 +407,7 @@ struct DietControls: View {
 
 /// Hit rays thrown out from a contact. Angles and lengths come from each
 /// burst's seed, so no two bursts look the same; on DIET they fly up and out
-/// of the deck, never into it. Driven by the burst spring, not a timeline.
+/// of the jar, never down into the pile. Driven by the burst spring, not a timeline.
 struct ImpactRays: View {
     let model: MachineModel
     let face: PrismFace

@@ -131,36 +131,40 @@ enum Fixtures {
 
     /// Poses that need the layout (block positions) are applied once it is known.
     static func pose(_ model: MachineModel, fixture name: String) {
-        let g = model.deckGeometry
+        let g = model.jarGeometry
+        model.syncPiecesImmediately()
         switch name {
         case "diet-held":
-            let rail = model.rail
-            var b = FlyingBlock(id: UUID(), kind: .quick(250), size: rail.quickBlockSize(kcal: 250),
-                                home: rail.quickBlockHome(kcal: 250),
-                                position: CGPoint(x: g.centerX + 30, y: model.landingRect.minY + 90))
+            // A 250 kcal block held over the jar: grown to its jar size, the jar winding up.
+            var b = model.makeBlock(.quick(250), at: CGPoint(x: g.outer.midX + 30, y: model.landingRect.minY + 70))
             b.phase = .held
             b.lift = SpringState(position: 1, target: 1)
             b.tilt = SpringState(position: -0.12, target: -0.12)
+            b.sizeMix = SpringState(position: 1, target: 1)
             model.blocks = [b]
-            // The deck already winding up under the held block.
             model.charge = SpringState(position: 0.7, target: 0.7)
+            model.jarBob = SpringState(position: 2.8, target: 2.8)
         case "diet-contact":
-            // The frame right after a 250 kcal block hit: deck at its deepest, slab mid-morph.
+            // The frame right after a 250 kcal block hit the pile: it is still
+            // tumbling into place, its neighbours knocked, the jar sunk.
             let entry = FoodEntry.quickAdd(kcal: 250, at: date)
             model.store.commitFood(entry)
-            let rail = model.rail
-            let size = rail.quickBlockSize(kcal: 250)
-            let top = model.stackTop
-            model.morphs[entry.id] = SlabMorph(from: CGRect(x: g.centerX - size.width / 2, y: top - size.height, width: size.width, height: size.height),
-                                               progress: SpringState(position: 0.35, target: 1))
-            let rest = Double(g.restingDisplacement(eaten: model.totals.kcal))
-            model.deck = SpringState(position: rest + 34, target: rest)
-            // Hit rays a third of the way out, the number mid-count and mid-punch.
+            model.syncPiecesImmediately()
+            if let pose = zip(model.today, model.pile.poses).first(where: { $0.0.id == entry.id })?.1 {
+                model.pieces[entry.id] = PieceMotion(center: CGPoint(x: pose.center.x - 14, y: pose.center.y - 22), angle: pose.angle + 0.35)
+                model.bursts = [ImpactBurst(origin: CGPoint(x: pose.center.x - 14, y: pose.center.y - 22 - pose.size.height / 2), strength: 0.7,
+                                            seed: 0x9E37_79B9_7F4A_7C15, face: .diet, progress: SpringState(position: 0.32, target: 1))]
+            }
+            for (id, motion) in model.pieces where id != entry.id {
+                var knocked = motion
+                knocked.angle.position += (Int(knocked.x.position) % 2 == 0 ? 0.05 : -0.05)
+                model.pieces[id] = knocked
+            }
+            model.jarBob = SpringState(position: 7, target: 0)
+            // The number mid-count and mid-punch.
             let left = model.totals.remainingKcal(target: model.targets)
             model.heroKcal = SpringState(position: left + 110, target: left)
             model.heroPunch = SpringState(position: 0.7, target: 0)
-            model.bursts = [ImpactBurst(origin: CGPoint(x: g.centerX, y: top), strength: 0.7, seed: 0x9E37_79B9_7F4A_7C15,
-                                        face: .diet, progress: SpringState(position: 0.32, target: 1))]
         case "prism-half":
             model.yaw = SpringState(position: 60, target: 60)
         case "diet-intake":
