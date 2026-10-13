@@ -97,11 +97,13 @@ struct VernierRuler: View {
                     let rect = CGRect(x: x - 0.75, y: size.height - h, width: 1.5, height: h)
                     ctx.fill(Path(rect), with: .color(.white.opacity(obs.isScan ? 0.9 : 0.4)))
                 }
-                // Vernier index: a finer scale riding on the cursor.
+                // Vernier index: a finer scale riding on the cursor, kept below the
+                // top of the scan ticks so it never reaches the readings above.
                 let cx = w * CGFloat(model.scrubSpring.position) / CGFloat(count)
+                let top = size.height * 0.3
                 for k in -5...5 {
                     let x = cx + CGFloat(k) * (w / CGFloat(count)) * 0.9
-                    let rect = CGRect(x: x - 0.5, y: 0, width: 1, height: k == 0 ? size.height * 0.9 : size.height * 0.18)
+                    let rect = CGRect(x: x - 0.5, y: top, width: 1, height: k == 0 ? size.height - top : size.height * 0.14)
                     ctx.fill(Path(rect), with: .color(.white.opacity(k == 0 ? 1 : 0.35)))
                 }
             }
@@ -137,7 +139,7 @@ struct GhostOutline: View {
         let chest = onFace(shapes.torso)
         let outline = Path(roundedRect: chest, cornerRadius: min(chest.width, g.unit * 0.16) * 0.42)
             .union(Path(ellipseIn: onFace(shapes.belly)))
-        let labelStart = CGPoint(x: g.feet.x + g.unit * 0.24, y: chest.minY - 26)
+        let labelStart = CGPoint(x: g.feet.x + g.unit * 0.2, y: chest.minY - 26)
         ZStack(alignment: .topLeading) {
             outline.stroke(Ink.text(0.75), style: StrokeStyle(lineWidth: 1.5, dash: [5, 5]))
             Path { p in

@@ -419,16 +419,18 @@ struct FigureShape: Equatable {
         var kind: Kind = .block(rounding: 0.48)
     }
 
-    /// One smooth torso from hips to shoulders; its width follows the shoulders.
+    /// One smooth torso from hips to shoulders, mostly as wide as the shoulders
+    /// with some of the waist. It deepens slower than the belly so fat shows there.
     var torso: Part {
-        Part(center: [0, 0.62, 0], size: [0.29 * shoulders, 0.38, 0.16 * depth], kind: .block(rounding: 0.42))
+        Part(center: [0, 0.62, 0], size: [0.29 * (shoulders * 0.6 + waist * 0.4), 0.38, 0.16 * (1 + (depth - 1) * 0.4)],
+             kind: .block(rounding: 0.42))
     }
     var torsoTop: Float { torso.center.y + torso.size.y / 2 }
 
-    /// The belly: an ellipsoid inside the torso that pushes out past its sides
-    /// and front as body fat rises.
+    /// The belly: an ellipsoid hidden inside the torso at ordinary body fat that
+    /// pushes out past its front and sides as body fat rises.
     var belly: Part {
-        Part(center: [0, 0.53, 0], size: [0.26 * waist, 0.24 * (0.8 + 0.2 * waist), 0.20 * depth], kind: .ball)
+        Part(center: [0, 0.58, 0], size: [0.26 * waist, 0.26 * (0.8 + 0.2 * waist), 0.144 * depth], kind: .ball)
     }
 
     var neck: Part {
