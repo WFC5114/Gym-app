@@ -83,7 +83,7 @@ Environment for simulator rows: GitHub Actions `macos-26`, newest iPhone Pro Max
 | Food intake inset fits the face and closes obviously | PASS (simulator) on `c838ef1` | `diet-intake.png`: on `f855baf` the inset edge cut the hero number in half; `c838ef1` (run 38328566822) starts the inset under the face header and covers the hero completely |
 | Over-target day: exact negative number, mechanism bounded, stack scaled | PASS (simulator) | `diet-over-target.png` |
 | Empty day | PASS (simulator) | `diet-empty.png` |
-| Hourglass: ready, resting, time added (taller glass, addition printed) | NOT TESTED for the desk hourglass yet (awaiting CI captures) | `train-ready.png`, `train-rest.png`, `train-rest-added.png` |
+| Hourglass: ready, resting, time added (taller glass, addition printed) | PASS (simulator, desk hourglass at 40937d9) | `train-ready.png`, `train-rest.png`, `train-rest-added.png` |
 | BODY labelled schematic; ruler and values in sync | PASS (simulator) for the label and layout; ruler scrubbing not scripted | `body-idle.png` |
 | No clipped text or controls at accessibility XXL | PASS (simulator, idle DIET only) | `a11y-xxl.png` |
 | Small iPhone layout | PASS (iPhone 17e simulator) | `small/contact-sheet.png` |
