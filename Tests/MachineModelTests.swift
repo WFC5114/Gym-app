@@ -338,6 +338,46 @@ final class MachineModelTests: XCTestCase {
         XCTAssertEqual(model.store.data.sets.count, 2)
     }
 
+    // MARK: Desk hourglass
+
+    func testDeskHourglassStandsOneUnitTallAndSymmetric() {
+        typealias H = DeskHourglass
+        XCTAssertEqual(2 * (H.nutY + H.nutRadius), 1, accuracy: 0.02, "nut to foot fills the glass height")
+        XCTAssertLessThan(H.bulbEnd, H.collarY, "the collars cap the open bulb ends")
+        XCTAssertLessThan(H.collarY + H.collarHeight / 2, H.plateInner + 0.001)
+        for y: Float in [0.1, 0.2, 0.3, 0.4] { XCTAssertEqual(H.outerRadius(y), H.outerRadius(-y)) }
+        let widest = H.profile.map(\.y).max()!
+        XCTAssertLessThan(widest, H.postOffset * Float(2).squareRoot() - H.postRadius, "the bulbs clear the corner posts")
+    }
+
+    func testSandStaysInsideTheGlass() {
+        typealias H = DeskHourglass
+        for a: Float in [0.05, 0.5, 1] {
+            for p in H.drainProfile(a) + H.heapProfile(a) {
+                XCTAssertLessThanOrEqual(p.y, H.innerRadius(p.x) + 0.0001)
+                XCTAssertLessThanOrEqual(abs(p.x), H.bulbEnd)
+            }
+        }
+    }
+
+    func testDrainingSandSinksAndThePileRisesBelowTheNeck() {
+        typealias H = DeskHourglass
+        let tops = [0.1, 0.5, 1].map { H.drainProfile(Float($0)).map(\.x).max()! }
+        XCTAssertLessThan(tops[0], tops[1])
+        XCTAssertLessThan(tops[1], tops[2])
+        XCTAssertGreaterThan(tops[0], H.neckY)
+        let apexes = [0.1, 0.5, 1].map { H.heapApex(Float($0)) }
+        XCTAssertLessThan(apexes[0], apexes[1])
+        XCTAssertLessThan(apexes[1], apexes[2])
+        XCTAssertLessThan(apexes[2], -H.neckY, "a full pile still peaks under the neck")
+    }
+
+    func testDrainAndPileHoldTheSameSand() {
+        typealias H = DeskHourglass
+        let top = H.level(from: H.neckY, holding: 0.5 * H.fullVolume, limit: H.fullLevel)
+        XCTAssertEqual(H.volume(from: H.neckY, to: top) / H.fullVolume, 0.5, accuracy: 0.01)
+    }
+
     // MARK: BODY
 
     func testMoreFatFillsOutTheFigure() {

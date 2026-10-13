@@ -161,62 +161,42 @@ enum Geometry {
 
     // MARK: Hourglass
 
-    /// Glass radius at height y for a glass of height 1 (y in -0.42...0.42).
-    static func glassRadius(_ y: Float) -> Float {
-        let t = min(abs(y) / 0.42, 1)
-        if t < 0.6 { return 0.032 + 0.188 * sin(t / 0.6 * .pi / 2) }
-        let k = (t - 0.6) / 0.4
-        return 0.22 - 0.05 * k * k
-    }
-
-    /// The two bulbs as one surface of revolution, height 1, centred on the origin.
-    static func glass(segments: Int = 48, rings: Int = 72) throws -> MeshResource {
+    /// A smooth surface of revolution about y. `profile` is (y, radius) pairs in
+    /// order: a profile running up the axis faces away from it, the same profile
+    /// reversed faces in toward it. Points with radius 0 close the surface on the axis.
+    static func lathe(_ profile: [SIMD2<Float>], segments: Int = 64, name: String) throws -> MeshResource {
         var positions: [SIMD3<Float>] = []
         var normals: [SIMD3<Float>] = []
         var uvs: [SIMD2<Float>] = []
         var indices: [UInt32] = []
-        for i in 0...rings {
-            let y = -0.42 + 0.84 * Float(i) / Float(rings)
-            let r = glassRadius(y)
-            let dy: Float = 0.001
-            let dr = (glassRadius(y + dy) - glassRadius(y - dy)) / (2 * dy)
-            let n2 = simd_normalize(SIMD2<Float>(1, -dr))
+        let n = profile.count
+        for (i, p) in profile.enumerated() {
+            // Outward normal of the profile polyline, averaged across the vertex.
+            let prev = profile[max(i - 1, 0)], next = profile[min(i + 1, n - 1)]
+            let t = next - prev
+            var n2 = SIMD2<Float>(t.x, -t.y)  // (dy, -dr) as (radial, vertical)
+            if simd_length(n2) < 1e-6 { n2 = SIMD2(1, 0) }
+            n2 = simd_normalize(n2)
             for k in 0...segments {
                 let phi = Float(k) / Float(segments) * 2 * .pi
-                positions.append(SIMD3(r * cos(phi), y, r * sin(phi)))
+                positions.append(SIMD3(p.y * cos(phi), p.x, p.y * sin(phi)))
                 normals.append(simd_normalize(SIMD3(n2.x * cos(phi), n2.y, n2.x * sin(phi))))
-                uvs.append(SIMD2(Float(k) / Float(segments), Float(i) / Float(rings)))
+                uvs.append(SIMD2(Float(k) / Float(segments), Float(i) / Float(max(n - 1, 1))))
             }
         }
         let row = segments + 1
-        for i in 0..<rings {
+        for i in 0..<(n - 1) {
             for k in 0..<segments {
                 let a = UInt32(i * row + k), b = UInt32(i * row + k + 1)
                 let c = UInt32((i + 1) * row + k + 1), d = UInt32((i + 1) * row + k)
                 indices += [a, d, c, a, c, b]
             }
         }
-        var desc = MeshDescriptor(name: "glass")
+        var desc = MeshDescriptor(name: name)
         desc.positions = MeshBuffers.Positions(positions)
         desc.normals = MeshBuffers.Normals(normals)
         desc.textureCoordinates = MeshBuffers.TextureCoordinates(uvs)
         desc.primitives = .triangles(indices)
         return try MeshResource.generate(from: [desc])
-    }
-
-    /// A sand cone with its apex at the origin, opening along -Y (pointing up
-    /// from the apex when flipped). Height 1, base radius 1.
-    static func sandCone(sides: Int = 96) throws -> MeshResource {
-        var b = Builder()
-        let apex = SIMD3<Float>(0, 0, 0)
-        let inside = SIMD3<Float>(0, -0.7, 0)
-        for k in 0..<sides {
-            let a0 = Float(k) / Float(sides) * 2 * .pi
-            let a1 = Float(k + 1) / Float(sides) * 2 * .pi
-            let p0 = SIMD3<Float>(cos(a0), -1, sin(a0)), p1 = SIMD3<Float>(cos(a1), -1, sin(a1))
-            b.triangle(apex, p0, p1, inside: inside)
-            b.triangle(SIMD3(0, -1, 0), p0, p1, inside: inside)
-        }
-        return try b.mesh(named: "sand")
     }
 }

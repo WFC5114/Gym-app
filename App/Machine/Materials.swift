@@ -19,12 +19,17 @@ struct MaterialKit {
     var facePlates: [PhysicallyBasedMaterial]
     /// Food blocks by `FoodTint` (carbs, protein, fat, mixed, quick-add).
     var foods: [PhysicallyBasedMaterial]
+    /// The desk hourglass: clear glass, walnut plates, matte black posts and nuts, brass sleeves.
+    var clearGlass: PhysicallyBasedMaterial
+    var walnut: PhysicallyBasedMaterial
+    var blackMatte: PhysicallyBasedMaterial
+    var brass: PhysicallyBasedMaterial
 
     func food(_ tint: FoodTint) -> PhysicallyBasedMaterial {
         tint.rawValue < foods.count ? foods[tint.rawValue] : weight
     }
 
-    static func make(skin: Skin, grain: TextureResource?) -> MaterialKit {
+    static func make(skin: Skin, grain: TextureResource?, woodGrain: TextureResource? = nil) -> MaterialKit {
         func matte(_ white: CGFloat, roughness: Float, metallic: Float = 0, grainScale: Float = 1) -> PhysicallyBasedMaterial {
             var m = PhysicallyBasedMaterial()
             m.baseColor = .init(tint: UIColor(white: white, alpha: 1))
@@ -65,6 +70,35 @@ struct MaterialKit {
         glass.specular = .init(floatLiteral: 0.08)
         glass.blending = .transparent(opacity: .init(floatLiteral: 0.1))
         glass.faceCulling = .none
+        // The desk hourglass is two shells (outer facing out, inner facing in), so
+        // back faces are culled: the near outer wall and the far inner wall show.
+        var clearGlass = PhysicallyBasedMaterial()
+        clearGlass.baseColor = .init(tint: UIColor(white: 0.92, alpha: 1))
+        clearGlass.roughness = .init(floatLiteral: 0.1)
+        clearGlass.metallic = .init(floatLiteral: 0)
+        clearGlass.specular = .init(floatLiteral: 0.7)
+        clearGlass.blending = .transparent(opacity: .init(floatLiteral: 0.12))
+        clearGlass.faceCulling = .back
+        // Walnut from design/assets/wood_texture.py; flat brown if the texture is missing.
+        var walnut = PhysicallyBasedMaterial()
+        if let woodGrain {
+            walnut.baseColor = .init(tint: .white, texture: .init(woodGrain))
+        } else {
+            walnut.baseColor = .init(tint: UIColor(red: 0.17, green: 0.1, blue: 0.065, alpha: 1))
+        }
+        walnut.roughness = .init(floatLiteral: 0.55)
+        walnut.metallic = .init(floatLiteral: 0)
+        walnut.clearcoat = .init(floatLiteral: 0.12)
+        walnut.clearcoatRoughness = .init(floatLiteral: 0.4)
+        var blackMatte = PhysicallyBasedMaterial()
+        blackMatte.baseColor = .init(tint: UIColor(white: 0.055, alpha: 1))
+        blackMatte.roughness = .init(floatLiteral: 0.72)
+        blackMatte.metallic = .init(floatLiteral: 0)
+        blackMatte.specular = .init(floatLiteral: 0.3)
+        var brass = PhysicallyBasedMaterial()
+        brass.baseColor = .init(tint: UIColor(red: 0.88, green: 0.66, blue: 0.29, alpha: 1))
+        brass.roughness = .init(floatLiteral: 0.22)
+        brass.metallic = .init(floatLiteral: 1)
         if skin.glossy {
             var spring = matte(0.75, roughness: 0.22, metallic: 1)
             spring.specular = .init(floatLiteral: 0.6)
@@ -77,11 +111,19 @@ struct MaterialKit {
                 weight: object(skin.objectColor),
                 unknownWeight: object(0xFFD77A),
                 glass: glass,
-                sand: object(0xFFC94A),
+                // Fine pale sand, as in Wei's reference hourglass.
+                sand: {
+                    var m = object(0xE6DED0)
+                    m.roughness = .init(floatLiteral: 0.92)
+                    m.clearcoat = .init(floatLiteral: 0)
+                    m.specular = .init(floatLiteral: 0.2)
+                    return m
+                }(),
                 numeral: numeral,
                 facePlates: (skin.faceColors ?? []).map(plate),
                 // Golden carbs, roasted protein, pale fat, the skin's cream for mixed, amber quick-adds.
-                foods: [object(0xE9B44C), object(0xC9874A), object(0xF6E7C8), object(skin.objectColor), object(0xFFD77A)]
+                foods: [object(0xE9B44C), object(0xC9874A), object(0xF6E7C8), object(skin.objectColor), object(0xFFD77A)],
+                clearGlass: clearGlass, walnut: walnut, blackMatte: blackMatte, brass: brass
             )
         }
         return MaterialKit(
@@ -105,7 +147,8 @@ struct MaterialKit {
             facePlates: [],
             foods: [matte(0.78, roughness: 0.85, grainScale: 6), matte(0.62, roughness: 0.85, grainScale: 6),
                     matte(0.94, roughness: 0.85, grainScale: 6), matte(0.86, roughness: 0.85, grainScale: 6),
-                    matte(0.46, roughness: 0.9, grainScale: 6)]
+                    matte(0.46, roughness: 0.9, grainScale: 6)],
+            clearGlass: clearGlass, walnut: walnut, blackMatte: blackMatte, brass: brass
         )
     }
 
@@ -159,6 +202,11 @@ struct MaterialKit {
     /// The baked softbox studio (design/assets/studio_env.py), bundled as a PNG.
     static func studioImage() -> CGImage? {
         UIImage(named: "studio-env")?.cgImage
+    }
+
+    /// Walnut grain for the hourglass plates (design/assets/wood_texture.py).
+    static func woodImage() -> CGImage? {
+        UIImage(named: "walnut")?.cgImage
     }
 
     static func environmentImage(width: Int = 256, height: Int = 128) -> CGImage? {

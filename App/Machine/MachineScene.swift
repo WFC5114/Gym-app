@@ -34,11 +34,16 @@ final class MachineScene {
     // TRAIN
     private let glassGroup = Entity()
     private let glassSpin = Entity()
-    private var sandA = Entity()
-    private var sandB = Entity()
-    private var sandConeA: ModelEntity?
-    private var sandConeB: ModelEntity?
+    /// Sand in the glass-local top (A) and bottom (B) bulbs. Each shows either the
+    /// draining shape or the pile, from meshes made once per step of sand.
+    private var sandA = ModelEntity()
+    private var sandB = ModelEntity()
+    private var drainMeshes: [MeshResource] = []
+    private var heapMeshes: [MeshResource] = []
+    private var sandShown: [Int] = [-1, -1]
     private var stream: ModelEntity?
+    /// Sand drawn in this many steps; at a 3:00 rest that is one step every 3.75 s.
+    static let sandSteps = 48
 
     // BODY: the figurine stands on a turntable; its root sits at the feet.
     private let figureRoot = Entity()
@@ -59,10 +64,17 @@ final class MachineScene {
 
     func make(content: inout RealityViewCameraContent, model: MachineModel) async {
         content.camera = .virtual
+        var woodGrain: TextureResource?
+        if let woodImage = MaterialKit.woodImage() {
+            woodGrain = try? await TextureResource(image: woodImage, withName: "walnut",
+                                                   options: .init(semantic: .color, mipmapsMode: .allocateAndGenerateAll))
+        }
         if let grainImage = MaterialKit.grainImage(),
            let grain = try? await TextureResource(image: grainImage, withName: "grain",
                                                    options: .init(semantic: .normal, mipmapsMode: .allocateAndGenerateAll)) {
-            materials = MaterialKit.make(skin: Brutal.skin, grain: grain)
+            materials = MaterialKit.make(skin: Brutal.skin, grain: grain, woodGrain: woodGrain)
+        } else {
+            materials = MaterialKit.make(skin: Brutal.skin, grain: nil, woodGrain: woodGrain)
         }
         if let envImage = MaterialKit.environmentImage(),
            let env = try? await EnvironmentResource(equirectangular: envImage, withName: "studio") {
@@ -210,30 +222,62 @@ final class MachineScene {
     }
 
     private func buildHourglass() {
-        guard let glassMesh = try? Geometry.glass(), let coneMesh = try? Geometry.sandCone() else { return }
-        let glass = ModelEntity(mesh: glassMesh, materials: [materials.glass])
-        glassSpin.addChild(glass)
-        // Frame: two end plates and two posts, in glass units (height 1).
-        for y: Float in [0.465, -0.465] {
-            let plate = ModelEntity(mesh: .generateBox(width: 0.6, height: 0.07, depth: 0.5, cornerRadius: 0.012), materials: [materials.plate])
-            plate.position = SIMD3(0, y, 0)
+        typealias H = DeskHourglass
+        // Presentation turn on the group; SET DONE flips `glassSpin` about its own z.
+        glassGroup.orientation = simd_quatf(angle: H.pitch, axis: SIMD3(1, 0, 0)) * simd_quatf(angle: H.yaw, axis: SIMD3(0, 1, 0))
+
+        // Glass: an outer shell facing out and an inner shell facing in.
+        let upper = H.profile
+        let outer = upper.reversed().map { SIMD2(-$0.x, $0.y) } + upper.dropFirst()
+        let inner = outer.map { SIMD2($0.x, max($0.y - H.wall, 0.004)) }
+        if let outerMesh = try? Geometry.lathe(outer, segments: 72, name: "glassOuter"),
+           let innerMesh = try? Geometry.lathe(Array(inner.reversed()), segments: 72, name: "glassInner") {
+            glassSpin.addChild(ModelEntity(mesh: outerMesh, materials: [materials.clearGlass]))
+            glassSpin.addChild(ModelEntity(mesh: innerMesh, materials: [materials.clearGlass]))
+        }
+
+        // Frame: collars and walnut plates at both ends, four posts with brass
+        // sleeves, dome nuts on top and round feet underneath.
+        for s: Float in [1, -1] {
+            let collar = ModelEntity(mesh: .generateCylinder(height: H.collarHeight, radius: H.collarRadius), materials: [materials.blackMatte])
+            collar.position = SIMD3(0, s * H.collarY, 0)
+            glassSpin.addChild(collar)
+            let plate = ModelEntity(mesh: .generateBox(width: H.plateSide, height: H.plateThickness, depth: H.plateSide,
+                                                       cornerRadius: H.plateThickness * 0.22), materials: [materials.walnut])
+            plate.position = SIMD3(0, s * H.plateY, 0)
             glassSpin.addChild(plate)
         }
-        for x: Float in [-0.26, 0.26] {
-            let post = ModelEntity(mesh: .generateCylinder(height: 0.86, radius: 0.016), materials: [materials.spring])
-            post.position = SIMD3(x, 0, 0.12)
-            glassSpin.addChild(post)
+        let post = MeshResource.generateCylinder(height: H.postLength, radius: H.postRadius)
+        let sleeve = MeshResource.generateCylinder(height: H.sleeveHeight, radius: H.sleeveRadius)
+        let nut = MeshResource.generateSphere(radius: H.nutRadius)
+        for x: Float in [-H.postOffset, H.postOffset] {
+            for z: Float in [-H.postOffset, H.postOffset] {
+                let p = ModelEntity(mesh: post, materials: [materials.blackMatte])
+                p.position = SIMD3(x, 0, z)
+                glassSpin.addChild(p)
+                for s: Float in [1, -1] {
+                    let sl = ModelEntity(mesh: sleeve, materials: [materials.brass])
+                    sl.position = SIMD3(x, s * H.sleeveY, z)
+                    glassSpin.addChild(sl)
+                    let n = ModelEntity(mesh: nut, materials: [materials.blackMatte])
+                    n.position = SIMD3(x, s * H.nutY, z)
+                    glassSpin.addChild(n)
+                }
+            }
         }
-        let coneA = ModelEntity(mesh: coneMesh, materials: [materials.sand])
-        let coneB = ModelEntity(mesh: coneMesh, materials: [materials.sand])
-        // A sits in the glass-local top bulb and opens upward, B in the bottom bulb opening downward.
-        coneA.orientation = simd_quatf(angle: .pi, axis: SIMD3(0, 0, 1))
-        sandA.addChild(coneA)
-        sandB.addChild(coneB)
+
+        // Sand: one mesh per step for each shape, made once.
+        drainMeshes = (0...Self.sandSteps).compactMap {
+            try? Geometry.lathe(H.drainProfile(Float($0) / Float(Self.sandSteps)), segments: 56, name: "drain\($0)")
+        }
+        heapMeshes = (0...Self.sandSteps).compactMap {
+            try? Geometry.lathe(H.heapProfile(Float($0) / Float(Self.sandSteps)), segments: 56, name: "heap\($0)")
+        }
+        sandA.model = ModelComponent(mesh: drainMeshes.last ?? .generateSphere(radius: 0.01), materials: [materials.sand])
+        sandB.model = ModelComponent(mesh: heapMeshes.first ?? .generateSphere(radius: 0.01), materials: [materials.sand])
+        sandShown = [-1, -1]
         glassSpin.addChild(sandA)
         glassSpin.addChild(sandB)
-        sandConeA = coneA
-        sandConeB = coneB
         let stream = ModelEntity(mesh: .generateCylinder(height: 1, radius: 1), materials: [materials.sand])
         glassSpin.addChild(stream)
         self.stream = stream
@@ -411,37 +455,43 @@ final class MachineScene {
         let height = World.len(heightPoints)
         glassGroup.scale = SIMD3(repeating: height)
         // Stand the glass proud of the face so its back half never enters the chassis.
-        glassGroup.position = World.point(HourglassGeometry(layout: layout).center(forHeight: heightPoints), z: heightPoints * 0.3 + 8, in: layout)
+        glassGroup.position = World.point(HourglassGeometry(layout: layout).center(forHeight: heightPoints), z: heightPoints * 0.42 + 8, in: layout)
         glassSpin.orientation = simd_quatf(angle: Float(model.glassAngle.position), axis: SIMD3(0, 0, 1))
 
-        // Each bulb's sand: apex toward the neck. The world-top bulb drains from
-        // its surface (anchored at the neck); the world-bottom pile grows from
-        // its base. At a full bulb both anchorings coincide, so the flip is seamless.
-        let full: Float = 0.36, radius: Float = 0.19, neck: Float = 0.04
+        // Sand is drawn upright in the world: the world-top bulb shows the draining
+        // shape, the world-bottom bulb the pile. After an odd number of flips the
+        // spin is half a turn, so each bulb's shape is turned half a turn back.
         let amountA = Float(min(max(model.sandA.position, 0), 1))
         let amountB = Float(min(max(model.sandB.position, 0), 1))
-        let sA = cbrt(amountA), sB = cbrt(amountB)
         let aUp = model.aIsUp
-        sandA.isEnabled = amountA > 0.002
-        sandB.isEnabled = amountB > 0.002
-        sandA.scale = SIMD3(radius * sA, full * sA, radius * sA)
-        sandB.scale = SIMD3(radius * sB, full * sB, radius * sB)
-        // A: local top bulb, cone opens toward +Y from its apex.
-        sandA.position = SIMD3(0, aUp ? neck : (neck + full) - full * sA, 0)
-        // B: local bottom bulb, cone opens toward -Y from its apex.
-        sandB.position = SIMD3(0, aUp ? -(neck + full) + full * sB : -neck, 0)
+        let turn = aUp ? simd_quatf(angle: 0, axis: SIMD3(0, 0, 1)) : simd_quatf(angle: .pi, axis: SIMD3(0, 0, 1))
+        showSand(sandA, slot: 0, amount: amountA, draining: aUp, turn: turn)
+        showSand(sandB, slot: 1, amount: amountB, draining: !aUp, turn: turn)
 
         // The falling stream, from the neck to the top of the pile.
         let topAmount = aUp ? amountA : amountB
-        let pileApex: Float = aUp ? sandB.position.y : sandA.position.y
+        let bottomAmount = aUp ? amountB : amountA
         let flowing = model.activeRest != nil && topAmount > 0.002 && model.glassAngle.isSettled(tolerance: 0.02)
         stream?.isEnabled = flowing
         if flowing, let stream {
-            let neckY: Float = aUp ? -neck * 0.5 : neck * 0.5
-            let lengthY = abs(neckY - pileApex)
-            stream.scale = SIMD3(0.006, max(lengthY, 0.001), 0.006)
-            stream.position = SIMD3(0, (neckY + pileApex) / 2, 0)
+            let apex = DeskHourglass.heapApex(bottomAmount)  // world-upright, below the neck
+            let length = max(abs(apex), 0.001)
+            stream.scale = SIMD3(0.0035, length, 0.0035)
+            stream.position = SIMD3(0, (aUp ? 1 : -1) * apex / 2, 0)
         }
+    }
+
+    private func showSand(_ entity: ModelEntity, slot: Int, amount: Float, draining: Bool, turn: simd_quatf) {
+        entity.isEnabled = amount > 0.002
+        let meshes = draining ? drainMeshes : heapMeshes
+        guard !meshes.isEmpty else { return }
+        let step = Int((amount * Float(Self.sandSteps)).rounded())
+        let key = (draining ? 1000 : 0) + step
+        if sandShown[slot] != key {
+            sandShown[slot] = key
+            entity.model?.mesh = meshes[min(step, meshes.count - 1)]
+        }
+        entity.orientation = turn
     }
 
     private func applyBody(_ model: MachineModel, layout: MachineLayout) {
