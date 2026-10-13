@@ -78,10 +78,10 @@ struct JarGeometry {
         return CGRect(x: outer.minX - 12, y: top, width: outer.width + 24, height: max(min(pileTop, outer.maxY) - top, 40))
     }
 
-    /// Chunky blocks: area follows energy, proportions vary per food (1.5 to 2.4 wide).
+    /// Chunky blocks: area follows energy, proportions vary per food (1.2 to 2.0 wide).
     func blockSize(kcal: Double, seed: UInt64, scale: CGFloat = 1) -> CGSize {
         let u = CGFloat(Self.unit(seed >> 8))
-        let aspect = 1.5 + 0.9 * u
+        let aspect = 1.2 + 0.8 * u
         let area = CGFloat(max(kcal, 20)) * areaPerKcal * scale * scale
         let w = min(max((area * aspect).squareRoot(), 34 * scale), interior.width * 0.92)
         return CGSize(width: w, height: max(area / w, 18 * scale))
@@ -135,10 +135,18 @@ struct JarGeometry {
                 if candidate.bottom > best.bottom + size.height * 0.45 + CGFloat(abs(k)) * 2 { best = candidate }
             }
             var pose = Self.pose(bottomCenter: CGPoint(x: best.x, y: best.bottom), slope: best.slope, size: size)
+            // Blocks that land flat still sit a little askew, like tossed ones;
+            // they are lifted below so they rest on a corner instead of sinking in.
+            if abs(best.slope) < 0.05 {
+                pose.angle += (Self.unit(Self.mix(item.seed ^ 0xA5A5_5A5A_C3C3_3C3C)) - 0.5) * 0.24
+            }
             // A tipped block is wider than it was upright: nudge its corners off the glass.
             let cornerXs = Self.corners(of: pose).map(\.x)
             if let low = cornerXs.min(), low < interior.minX { pose.center.x += interior.minX - low }
             if let high = cornerXs.max(), high > interior.maxX { pose.center.x -= high - interior.maxX }
+            // Nothing may sit below the surface it fell on.
+            let sink = Self.sink(Self.corners(of: pose), surface: surface, xs: xs)
+            if sink > 0 { pose.center.y -= sink }
             Self.raise(&surface, xs: xs, under: Self.corners(of: pose))
             poses.append(pose)
         }
@@ -222,6 +230,22 @@ struct JarGeometry {
             let y: CGFloat = pose.center.y + p.x * s + p.y * c
             return CGPoint(x: x, y: y)
         }
+    }
+
+    /// How far a posed block reaches below the surface (0 when it rests on or above it).
+    private static func sink(_ poly: [CGPoint], surface: [CGFloat], xs: [CGFloat]) -> CGFloat {
+        var deepest: CGFloat = 0
+        for (i, x) in xs.enumerated() {
+            var lowest: CGFloat?
+            for k in 0..<poly.count {
+                let a = poly[k], b = poly[(k + 1) % poly.count]
+                guard a.x != b.x, (a.x - x) * (b.x - x) <= 0 else { continue }
+                let y = a.y + (b.y - a.y) * (x - a.x) / (b.x - a.x)
+                lowest = max(lowest ?? y, y)
+            }
+            if let lowest { deepest = max(deepest, lowest - surface[i]) }
+        }
+        return deepest
     }
 
     /// Lifts the surface to the top of a placed block, column by column.

@@ -136,7 +136,7 @@ struct LandingGuide: View {
             Rectangle()
                 .strokeBorder(Color.white.opacity(active ? 0.55 : 0.2), style: StrokeStyle(lineWidth: 1, dash: [3, 5]))
             Engraved(text: active ? "LET GO TO DROP IT IN" : "DROP IT IN THE JAR", size: 9, color: .white.opacity(active ? 0.9 : 0.6))
-                .position(x: rect.width / 2, y: 18)
+                .position(x: rect.width / 2, y: 52)
         }
         .frame(width: rect.width, height: rect.height)
         .position(x: rect.midX, y: rect.midY)
@@ -174,14 +174,19 @@ struct JarGlass: View {
                     tick.addLine(to: CGPoint(x: g.interior.minX + 9, y: y))
                     ctx.stroke(tick, with: .color(.white.opacity(0.45)), lineWidth: 1.5)
                 }
+                // The target line runs in from outside the glass, where its label sits clear of the blocks.
                 var line = Path()
-                line.move(to: CGPoint(x: g.interior.minX, y: g.targetLineY))
+                line.move(to: CGPoint(x: o.minX - 12, y: g.targetLineY))
                 line.addLine(to: CGPoint(x: g.interior.minX + 22, y: g.targetLineY))
                 ctx.stroke(line, with: .color(.white.opacity(0.9)), lineWidth: 2)
             }
-            Engraved(text: "TARGET \(Readout.kcal(targetKcal))", size: 8.5, color: .white.opacity(0.9))
-                .fixedSize()
-                .position(x: g.interior.minX + 28 + 34, y: g.targetLineY)
+            VStack(alignment: .trailing, spacing: 2) {
+                Engraved(text: "TARGET", size: 8.5, color: .white.opacity(0.9))
+                Engraved(text: Readout.kcal(targetKcal), size: 11, color: .white, tracking: 0.4)
+            }
+            .fixedSize()
+            .frame(width: 80, alignment: .trailing)
+            .position(x: o.minX - 18 - 40, y: g.targetLineY)
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
