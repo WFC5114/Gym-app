@@ -62,26 +62,28 @@ Reviewed at commit `56a316c` on `m0-foundation`, before branch `2-deck-slice`.
 
 ## 3. Visual acceptance checklist (§11, §16, §17)
 
+PASS (simulator) means Claude reviewed the CI frames by eye; it is not a pixel or bounds assertion and not the phone. Frames live in the CI artifacts of each run (copied to the project files under `captures/pr5/<sha>/`).
+
 Environment for simulator rows: GitHub Actions `macos-26`, newest iPhone Pro Max simulator plus a small iPhone simulator, fixture time 12 Oct 2026 13:05, labelled FIXTURE DATA. Device rows need Wei's iPhone 18 Pro Max on iOS 27.
 
 | Gate | Status | Evidence / how it is checked |
 |---|---|---|
-| Compiles for iOS 26 SDK on CI | NOT TESTED | CI run on the PR |
-| Unit tests: exactly-once commit, cancel logs nothing, re-grab logs nothing, undo, deck bounds, stack scaling, rest additions, rest across relaunch, coach per body part, food parsing | NOT TESTED | `Tests/` on CI |
-| Idle frame has one number, one mechanism, one primary action | NOT TESTED | `diet-idle.png` |
-| Black mechanism readable without gloss or neon | NOT TESTED | `diet-idle.png`, `train-ready.png` |
-| Same object persists through a 120° turn | NOT TESTED | `prism-half.png`, `gestures.mp4` |
-| Block held: lift, tilt, landing region shown | NOT TESTED | `diet-held.png` |
-| Contact: deck compressed, slab morphing, new value shown | NOT TESTED | `diet-contact.png` |
-| Loaded settle: resting position lower than before | NOT TESTED | `diet-settled.png` against `diet-idle.png` |
-| Drag, cancel, drop, re-grab and undo work by touch | NOT TESTED | `GestureTests`, `gestures.mp4` (drop and cancel are scripted; re-grab is unit-tested only) |
-| Food intake inset fits the face and closes obviously | NOT TESTED | `diet-intake.png` |
-| Over-target day: exact negative number, mechanism bounded, stack scaled | NOT TESTED | `diet-over-target.png` |
-| Empty day | NOT TESTED | `diet-empty.png` |
-| Hourglass: ready, resting, time added (taller glass, addition printed) | NOT TESTED | `train-ready.png`, `train-rest.png`, `train-rest-added.png` |
-| BODY labelled schematic; ruler and values in sync | NOT TESTED | `body-idle.png` |
-| No clipped text or controls at accessibility XXL | NOT TESTED | `a11y-xxl.png` |
-| Small iPhone layout | NOT TESTED | `small/contact-sheet.png` |
+| Compiles for iOS 26 SDK on CI | PASS | CI runs for `49a0fa0` and `f855baf` (run 38326217214), Xcode 26.6 |
+| Unit tests: exactly-once commit, cancel logs nothing, re-grab logs nothing, undo, deck bounds, stack scaling, rest additions, rest across relaunch, coach per body part, food parsing | PASS | 57 unit tests green on `f855baf`, including the 15 in `MachineModelTests` |
+| Idle frame has one number, one mechanism, one primary action | PASS (simulator) | `diet-idle.png` |
+| Black mechanism readable without gloss or neon | PASS (simulator) | `diet-idle.png`, `train-ready.png` |
+| Same object persists through a 120° turn | PASS (simulator) | `prism-half.png`, `gestures.mp4` |
+| Block held: lift, tilt, landing region shown | PASS (simulator) | `diet-held.png` |
+| Contact: deck compressed, slab morphing, new value shown | PASS (simulator) | `diet-contact.png` |
+| Loaded settle: resting position lower than before | PASS (simulator) | `diet-settled.png` against `diet-idle.png` |
+| Drag, cancel, drop, re-grab and undo work by touch | PASS for drag, drop, cancel (simulator); re-grab and undo unit-tested only | `GestureTests` on `f855baf`: drop 250 logs once, cancel 100 logs nothing, then TRAIN, SET DONE, +0:30, BODY and back to DIET |
+| Food intake inset fits the face and closes obviously | FAIL on `f855baf`, fix pending capture | `diet-intake.png`: the inset edge cut the hero number in half. The next commit starts the inset under the face header so it covers the hero completely |
+| Over-target day: exact negative number, mechanism bounded, stack scaled | PASS (simulator) | `diet-over-target.png` |
+| Empty day | PASS (simulator) | `diet-empty.png` |
+| Hourglass: ready, resting, time added (taller glass, addition printed) | PASS (simulator) | `train-ready.png`, `train-rest.png`, `train-rest-added.png` |
+| BODY labelled schematic; ruler and values in sync | PASS (simulator) for the label and layout; ruler scrubbing not scripted | `body-idle.png` |
+| No clipped text or controls at accessibility XXL | PASS (simulator, idle DIET only) | `a11y-xxl.png` |
+| Small iPhone layout | PASS (iPhone 17e simulator) | `small/contact-sheet.png` |
 | Projected-bounds assertions (§14, §16) | NOT TESTED | Not built yet; only frame review |
 | Reduce Motion completes the same tasks | NOT TESTED | Code path exists (`reduceMotion` uses critically damped springs, no shake); no capture yet |
 | VoiceOver: names, values, adjustable controls, drag alternatives | NOT TESTED | Accessibility actions exist (`loadQuick`, LOAD button, face buttons, adjustable rest and ruler); not audited |

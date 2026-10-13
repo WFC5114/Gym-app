@@ -32,7 +32,9 @@ struct InsetLayer: View {
                         )
                 )
             }
-            .padding(.top, max(layout.faceTop - layout.safe.top, 0) + layout.heroRect.height * 0.42)
+            // Starts under the face header and covers the whole hero: a hero
+            // cut in half by the inset edge read as a clipping bug (§14).
+            .padding(.top, max(layout.faceTop - layout.safe.top, 0) + 52)
             .padding(.horizontal, layout.margin + 8)
             .padding(.bottom, 12)
             .environment(\.colorScheme, .dark)
