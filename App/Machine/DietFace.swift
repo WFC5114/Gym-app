@@ -5,7 +5,6 @@ import SwiftUI
 struct DietFace: View {
     let model: MachineModel
     let layout: MachineLayout
-    static let space = "face.diet"
 
     var body: some View {
         let totals = model.totals
@@ -66,7 +65,7 @@ struct DietFace: View {
                 .frame(width: rail.buttonRow.width, height: rail.buttonRow.height)
                 .position(x: rail.buttonRow.midX, y: rail.buttonRow.midY)
         }
-        .coordinateSpace(name: Self.space)
+        .coordinateSpace(name: PrismFace.diet.space)
     }
 }
 
@@ -94,14 +93,7 @@ struct DietHero: View {
                     .monospacedDigit()
                     .scaleEffect(1 + 0.07 * model.heroPunch.position, anchor: .bottomLeading)
                     // Lit 3D glyphs take its place; it keeps the layout and reports its frame.
-                    .opacity(model.heroIn3D ? 0 : 1)
-                    .background(GeometryReader { geo in
-                        Color.clear.preference(key: HeroFrameKey.self, value: geo.frame(in: .named(DietFace.space)))
-                    })
-                    .onPreferenceChange(HeroFrameKey.self) { frame in
-                        if model.dietHeroFrame != frame { model.dietHeroFrame = frame }
-                        if model.dietHeroSize != size { model.dietHeroSize = size }
-                    }
+                    .glyphs3D(model: model, face: .diet, text: text, size: size)
                 Engraved(text: remaining >= 0 ? "KCAL LEFT" : "KCAL OVER TARGET", size: 11, color: .white.opacity(0.85))
                 Engraved(text: "\(Readout.kcal(totals.kcal)) OF \(Readout.kcal(targets.kcal)) EATEN", size: 10)
                 HStack(spacing: 14) {
@@ -386,13 +378,5 @@ struct ImpactRays: View {
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
-    }
-}
-
-private struct HeroFrameKey: PreferenceKey {
-    static let defaultValue = CGRect.zero
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
-        let next = nextValue()
-        if next != .zero { value = next }
     }
 }

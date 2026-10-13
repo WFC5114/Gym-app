@@ -40,6 +40,7 @@ struct TrainFace: View {
                 .frame(width: rail.controls.width, height: rail.controls.height)
                 .position(x: rail.controls.midX, y: rail.controls.midY)
         }
+        .coordinateSpace(name: PrismFace.train.space)
     }
 }
 
@@ -89,6 +90,7 @@ struct TrainHero: View {
             .foregroundStyle(.white)
             .lineLimit(1)
             .fixedSize()
+            .glyphs3D(model: model, face: .train, text: text, size: size)
     }
 }
 

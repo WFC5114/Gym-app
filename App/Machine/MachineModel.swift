@@ -157,11 +157,11 @@ final class MachineModel {
     /// 0...1: how strongly a held block over the deck is loading it.
     var charge = SpringState(position: 0, target: 0)
     @ObservationIgnored private var burstSeed: UInt64 = 0x2545_F491_4F6C_DD1D
-    /// DIET's hero number is drawn as lit 3D glyphs; the SwiftUI text stays for
+    /// Hero numbers are drawn as lit 3D glyphs; the SwiftUI text stays for
     /// layout, taps and VoiceOver and reports where it sits.
     var heroIn3D = true
-    var dietHeroFrame: CGRect?
-    var dietHeroSize: CGFloat = 0
+    /// Where each face's invisible hero text sits, so its 3D glyphs can stand there.
+    var heroGlyphs: [PrismFace: HeroGlyphs] = [:]
 
     @ObservationIgnored private var link: CADisplayLink?
     @ObservationIgnored private var linkProxy: DisplayLinkProxy?

@@ -29,7 +29,7 @@ final class MachineScene {
     private var slabEntities: [UUID: (entity: ModelEntity, size: CGSize)] = [:]
     private var coilMesh: MeshResource?
 
-    private var dietNumerals: Numerals3D?
+    private var numerals: [PrismFace: Numerals3D] = [:]
     private var facePlates: [ModelEntity] = []
 
     // TRAIN
@@ -139,10 +139,12 @@ final class MachineScene {
             }
         }
         buildDiet(layout: layout, model: model)
-        if dietNumerals == nil {
-            let numerals = Numerals3D(material: materials.numeral)
-            faces[0].addChild(numerals.root)
-            dietNumerals = numerals
+        if numerals.isEmpty {
+            for face in [PrismFace.diet, .train, .body] {
+                let n = Numerals3D(material: materials.numeral)
+                faces[face.rawValue].addChild(n.root)
+                numerals[face] = n
+            }
         }
         positionHourglass(layout: layout)
         buildBody(layout: layout)
@@ -283,12 +285,14 @@ final class MachineScene {
         }
 
         applyDiet(model, layout: layout)
-        if let numerals = dietNumerals {
-            numerals.root.isEnabled = model.heroIn3D && model.dietHeroFrame != nil
-            if model.heroIn3D, let frame = model.dietHeroFrame {
-                numerals.update(text: Readout.kcal(model.heroKcal.position.rounded()), size: model.dietHeroSize,
-                                frame: frame, punch: model.heroPunch.position, layout: layout)
-            }
+        for (face, n) in numerals {
+            let glyphs = model.heroGlyphs[face]
+            n.root.isEnabled = model.heroIn3D && glyphs != nil
+            guard model.heroIn3D, let glyphs else { continue }
+            // DIET counts on its spring every frame; the others show their text as laid out.
+            let text = face == .diet ? Readout.kcal(model.heroKcal.position.rounded()) : glyphs.text
+            n.update(text: text, size: glyphs.size, frame: glyphs.frame,
+                     punch: face == .diet ? model.heroPunch.position : 0, layout: layout)
         }
         applyTrain(model, layout: layout)
         applyBody(model, layout: layout)

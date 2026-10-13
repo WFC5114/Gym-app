@@ -1,5 +1,13 @@
 import RealityKit
+import SwiftUI
 import UIKit
+
+/// A hero number's text, font size and frame (face-local points).
+struct HeroGlyphs: Equatable {
+    var text: String
+    var size: CGFloat
+    var frame: CGRect
+}
 
 /// Hero numerals as real extruded, lit glyphs standing on the face, instead of
 /// flat text drawn over the scene. Glyph meshes are generated once per size and
@@ -82,5 +90,43 @@ final class Numerals3D {
         let mesh = MeshResource.generateText(String(character), extrusionDepth: World.len(size * Self.depth), font: worldFont)
         cache[character] = mesh
         return mesh
+    }
+}
+
+extension PrismFace {
+    /// Coordinate space of the face's SwiftUI layer (face-local points).
+    var space: String { "face.\(rawValue)" }
+}
+
+private struct HeroGlyphsKey: PreferenceKey {
+    static let defaultValue: HeroGlyphs? = nil
+    static func reduce(value: inout HeroGlyphs?, nextValue: () -> HeroGlyphs?) {
+        if let next = nextValue() { value = next }
+    }
+}
+
+/// Hides a hero `Text` behind its 3D glyphs and reports where it sits.
+struct Glyphs3D: ViewModifier {
+    let model: MachineModel
+    let face: PrismFace
+    let text: String
+    let size: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(model.heroIn3D ? 0 : 1)
+            .background(GeometryReader { geo in
+                Color.clear.preference(key: HeroGlyphsKey.self,
+                                       value: HeroGlyphs(text: text, size: size, frame: geo.frame(in: .named(face.space))))
+            })
+            .onPreferenceChange(HeroGlyphsKey.self) { glyphs in
+                if model.heroGlyphs[face] != glyphs { model.heroGlyphs[face] = glyphs }
+            }
+    }
+}
+
+extension View {
+    func glyphs3D(model: MachineModel, face: PrismFace, text: String, size: CGFloat) -> some View {
+        modifier(Glyphs3D(model: model, face: face, text: text, size: size))
     }
 }

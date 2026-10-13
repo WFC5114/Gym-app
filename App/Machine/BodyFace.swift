@@ -26,6 +26,7 @@ struct BodyFace: View {
                         .tracking(TypeKit.heroTracking * size)
                         .foregroundStyle(.white)
                         .fixedSize()
+                        .glyphs3D(model: model, face: .body, text: text, size: size)
                     Engraved(text: "KG", size: 14, color: .white.opacity(0.85))
                 }
                 Engraved(text: weeklyDelta(index: index), size: 10.5, color: .white.opacity(0.85))
@@ -49,6 +50,7 @@ struct BodyFace: View {
                 .frame(width: rail.controls.width, height: rail.controls.height * 0.62)
                 .position(x: rail.controls.midX, y: rail.controls.minY + rail.controls.height * 0.45)
         }
+        .coordinateSpace(name: PrismFace.body.space)
     }
 
     private func reading(_ title: String, _ value: String?) -> some View {
