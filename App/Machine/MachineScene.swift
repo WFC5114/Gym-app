@@ -45,6 +45,12 @@ final class MachineScene {
     /// Sand drawn in this many steps; at a 3:00 rest that is one step every 3.75 s.
     static let sandSteps = 48
 
+    /// Called once the scene has run a few frames, so a screenshot taken after it
+    /// shows the machine and not an empty view still uploading its meshes.
+    var onDrawn: (() -> Void)?
+    private var updates = 0
+    private static let updatesBeforeDrawn = 6
+
     // BODY: the figurine stands on a turntable; its root sits at the feet.
     private let figureRoot = Entity()
     private let figureTurn = Entity()
@@ -130,6 +136,8 @@ final class MachineScene {
             MainActor.assumeIsolated {
                 guard let self, let model else { return }
                 self.apply(model)
+                self.updates += 1
+                if self.updates == Self.updatesBeforeDrawn { self.onDrawn?() }
             }
         }
     }

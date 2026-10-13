@@ -24,8 +24,8 @@ struct MachineView: View {
             ZStack(alignment: .topLeading) {
                 Color.black
                 RealityView { content in
+                    scene.onDrawn = { isReady = true }
                     await scene.make(content: &content, model: model)
-                    isReady = true
                 }
                 .accessibilityHidden(true)
 
