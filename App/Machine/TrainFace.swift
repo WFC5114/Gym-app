@@ -30,6 +30,8 @@ struct TrainFace: View {
             .position(x: glass.center(forHeight: glassHeight).x, y: glass.labelY)
             .accessibilityHidden(true)
 
+            ImpactRays(model: model, face: .train)
+
             CoachNote(model: model)
                 .frame(width: layout.contentWidth * 0.34, alignment: .leading)
                 .position(x: layout.side + layout.contentWidth * 0.17, y: layout.mechanismRect.minY + 70)

@@ -62,6 +62,19 @@ struct SlabMorph: Equatable {
     var progress = SpringState(position: 0, target: 1)
 }
 
+/// Hit rays thrown out from a contact point. Each burst has its own seed, so
+/// no two look the same (angles and lengths vary).
+struct ImpactBurst: Identifiable, Equatable {
+    let id = UUID()
+    /// Face-local points.
+    var origin: CGPoint
+    var strength: Double
+    var seed: UInt64
+    /// Which face the burst belongs to.
+    var face: PrismFace
+    var progress = SpringState(position: 0, target: 1)
+}
+
 enum Inset: Equatable {
     case closed
     case search
@@ -136,6 +149,15 @@ final class MachineModel {
     // Shared camera shake (points), applied to the whole machine.
     var shake = SpringState(position: 0, target: 0)
 
+    // Juice: hit rays, the hero number's punch and the windup before contact.
+    var bursts: [ImpactBurst] = []
+    var heroPunch = SpringState(position: 0, target: 0)
+    /// The DIET number counts to its new value instead of jumping.
+    var heroKcal = SpringState(position: 0, target: 0)
+    /// 0...1: how strongly a held block over the deck is loading it.
+    var charge = SpringState(position: 0, target: 0)
+    @ObservationIgnored private var burstSeed: UInt64 = 0x2545_F491_4F6C_DD1D
+
     @ObservationIgnored private var link: CADisplayLink?
     @ObservationIgnored private var linkProxy: DisplayLinkProxy?
     @ObservationIgnored private var lastTick: CFTimeInterval?
@@ -153,6 +175,8 @@ final class MachineModel {
         self.plannedRest = memory?.restSeconds ?? advice.seconds
         let geometry = DeckGeometry(layout: layout, targetKcal: store.data.targets.kcal)
         deck = SpringState(position: geometry.restingDisplacement(eaten: totals.kcal), target: geometry.restingDisplacement(eaten: totals.kcal))
+        let left = totals.remainingKcal(target: targets)
+        heroKcal = SpringState(position: left, target: left)
         scrubSpring = SpringState(position: Double(bodyHistory.count - 1), target: Double(bodyHistory.count - 1))
         bodyNumbers = scrubSpring
         syncGlassImmediately()
@@ -247,6 +271,8 @@ final class MachineModel {
             || !morphs.isEmpty || !glassAngle.isSettled(tolerance: 0.0005) || !glassHeight.isSettled(tolerance: 0.1)
             || !sandA.isSettled(tolerance: 0.0005) || !sandB.isSettled(tolerance: 0.0005) || activeRest != nil
             || !scrubSpring.isSettled(tolerance: 0.001) || !bodyNumbers.isSettled(tolerance: 0.001) || !shake.isSettled(tolerance: 0.02)
+            || !bursts.isEmpty || !heroPunch.isSettled(tolerance: 0.001) || !heroKcal.isSettled(tolerance: 0.5)
+            || !charge.isSettled(tolerance: 0.002)
     }
 
     /// Advances every spring and body by `dt` seconds. Public so tests and
@@ -260,6 +286,30 @@ final class MachineModel {
         bodyNumbers.target = scrubSpring.position.rounded()
         bodyNumbers.advance(dt, config: bodyCfg)
         shake.advance(dt, config: .piston)
+        stepJuice(dt)
+    }
+
+    private func stepJuice(_ dt: Double) {
+        heroPunch.advance(dt, config: reduceMotion ? .calm : .punch)
+        heroKcal.target = totals.remainingKcal(target: targets)
+        heroKcal.advance(dt, config: reduceMotion ? .calm : .bodyNumbers)
+        for i in bursts.indices { bursts[i].progress.advance(dt, config: .burst) }
+        bursts.removeAll { $0.progress.isSettled(tolerance: 0.004) }
+        let over = blocks.first { $0.phase == .held && landingRect.contains($0.position) }
+        charge.target = over == nil ? 0 : min(over!.kcal / 500, 1) * 0.6 + 0.4
+        charge.advance(dt, config: .follow)
+        SoundEngine.shared.setCharge(Float(charge.position))
+    }
+
+    /// The juice on a contact: hit rays, a camera kick and the number's punch.
+    /// Reduce Motion keeps the sound and haptic but drops the motion.
+    func fireImpact(at origin: CGPoint, strength: Double, face: PrismFace) {
+        guard !reduceMotion else { return }
+        burstSeed = burstSeed &* 6364136223846793005 &+ 1442695040888963407
+        bursts.append(ImpactBurst(origin: origin, strength: strength, seed: burstSeed, face: face))
+        if bursts.count > 4 { bursts.removeFirst(bursts.count - 4) }
+        shake.velocity += 90 + 170 * strength
+        heroPunch.velocity += 1.6 + 2.4 * strength
     }
 
     // MARK: Prism
@@ -488,7 +538,8 @@ final class MachineModel {
 
     private func stepDiet(_ dt: Double) {
         let g = deckGeometry
-        deck.target = Double(g.restingDisplacement(eaten: totals.kcal))
+        // Windup: a block held over the deck pre-loads it a little.
+        deck.target = Double(g.restingDisplacement(eaten: totals.kcal)) + charge.position * Double(g.travelPerTarget) * 0.04
         deck.advance(dt, config: reduceMotion ? .calm : .deck)
 
         let gravity: CGFloat = 2600
@@ -559,6 +610,16 @@ final class MachineModel {
         let weight = Float(min(block.kcal / 600, 1))
         HapticEngine.shared.play(.dropWeight, weight: weight, scale: strength)
         SoundEngine.shared.play(.mallet, intensity: 0.45 + 0.55 * strength, pitch: 1.08 - 0.12 * weight)
+        // Each food logged today climbs one step up a pentatonic scale.
+        SoundEngine.shared.chime(step: today.count - 1, intensity: 0.35 + 0.3 * strength)
+        fireImpact(at: CGPoint(x: rect.midX, y: rect.maxY), strength: Double(strength), face: .diet)
+        let after = totals.kcal
+        if after >= targets.kcal, after - block.kcal < targets.kcal {
+            // Crossing the day's target: a second, bigger burst at the number.
+            SoundEngine.shared.chime(step: 7, intensity: 0.7)
+            HapticEngine.shared.play(.setDone)
+            fireImpact(at: CGPoint(x: layout.heroRect.minX + 90, y: layout.heroRect.minY + 58 + layout.heroRect.height * 0.2), strength: 1, face: .diet)
+        }
         publishSnapshot()
     }
 
@@ -733,6 +794,8 @@ final class MachineModel {
             HapticEngine.shared.play(.setDone)
             SoundEngine.shared.play(.rack, intensity: 1)
             if !reduceMotion { shake.velocity = 260 }
+            let glass = glassGeometry
+            fireImpact(at: glass.center(forHeight: CGFloat(glassHeight.position)), strength: 0.8, face: .train)
         }
         let top = topSandTarget
         sandA.target = aIsUp ? top : 1 - top

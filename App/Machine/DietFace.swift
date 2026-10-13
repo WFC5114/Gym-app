@@ -59,6 +59,8 @@ struct DietFace: View {
             }
             FlyingBlockLabels(model: model)
 
+            ImpactRays(model: model, face: .diet)
+
             DietControls(model: model, rail: rail)
                 .frame(width: rail.buttonRow.width, height: rail.buttonRow.height)
                 .position(x: rail.buttonRow.midX, y: rail.buttonRow.midY)
@@ -74,8 +76,10 @@ struct DietHero: View {
     let targets: NutritionTargets
 
     var body: some View {
-        let text = Readout.kcal(remaining)
-        let size = TypeKit.heroSize(for: text, screenWidth: layout.size.width, fraction: model.heroFraction,
+        // The number counts to its new value on a spring instead of jumping.
+        let shown = model.heroKcal.position.rounded()
+        let text = Readout.kcal(shown)
+        let size = TypeKit.heroSize(for: Readout.kcal(remaining), screenWidth: layout.size.width, fraction: model.heroFraction,
                                     maxWidth: layout.contentWidth)
         Button { model.openInset(.ledger) } label: {
             VStack(alignment: .leading, spacing: 6) {
@@ -85,7 +89,8 @@ struct DietHero: View {
                     .foregroundStyle(.white)
                     .lineLimit(1)
                     .fixedSize()
-                    .contentTransition(.numericText(value: remaining))
+                    .monospacedDigit()
+                    .scaleEffect(1 + 0.07 * model.heroPunch.position, anchor: .bottomLeading)
                 Engraved(text: remaining >= 0 ? "KCAL LEFT" : "KCAL OVER TARGET", size: 11, color: .white.opacity(0.85))
                 Engraved(text: "\(Readout.kcal(totals.kcal)) OF \(Readout.kcal(targets.kcal)) EATEN", size: 10)
                 HStack(spacing: 14) {
@@ -327,5 +332,47 @@ struct DietControls: View {
                     .accessibilityIdentifier("diet.undo")
             }
         }
+    }
+}
+
+/// Hit rays thrown out from a contact. Angles and lengths come from each
+/// burst's seed, so no two bursts look the same; on DIET they fly up and out
+/// of the deck, never into it. Driven by the burst spring, not a timeline.
+struct ImpactRays: View {
+    let model: MachineModel
+    let face: PrismFace
+
+    var body: some View {
+        let bursts = model.bursts.filter { $0.face == face }
+        Canvas { ctx, _ in
+            for burst in bursts {
+                var rng = burst.seed
+                func next() -> Double {
+                    rng ^= rng << 13; rng ^= rng >> 7; rng ^= rng << 17
+                    return Double(rng % 10_000) / 10_000
+                }
+                let p = min(max(burst.progress.position, 0), 1.05)
+                let count = 9 + Int(next() * 6)
+                let reach = 54 + 96 * burst.strength
+                let upward = face == .diet
+                for k in 0..<count {
+                    let slot = (Double(k) + 0.2 + next() * 0.6) / Double(count)
+                    let angle = upward ? -.pi * (0.06 + 0.88 * slot) : 2 * .pi * slot
+                    let length = reach * (0.55 + 0.45 * next())
+                    let outer = CGFloat(length * p)
+                    let inner = CGFloat(length * p * p * 0.9)
+                    let dir = CGVector(dx: CGFloat(cos(angle)), dy: CGFloat(sin(angle)))
+                    var path = Path()
+                    path.move(to: CGPoint(x: burst.origin.x + dir.dx * inner, y: burst.origin.y + dir.dy * inner))
+                    path.addLine(to: CGPoint(x: burst.origin.x + dir.dx * outer, y: burst.origin.y + dir.dy * outer))
+                    let fade = max(0, 1 - p)
+                    let width = CGFloat(0.8 + 3.2 * fade * (0.6 + 0.4 * burst.strength))
+                    ctx.stroke(path, with: .color(.white.opacity(0.9 * fade)),
+                               style: StrokeStyle(lineWidth: width, lineCap: .round))
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }

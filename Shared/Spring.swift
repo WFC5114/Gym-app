@@ -22,6 +22,10 @@ struct SpringConfig: Equatable {
     static let calm = SpringConfig(mass: 1.0, stiffness: 300, damping: 34.64)
     /// Display values that track a moving target closely (sand level, glass size).
     static let follow = SpringConfig(mass: 1.0, stiffness: 400, damping: 40)
+    /// Hero number punch on impact: light and springy, two quick bounces.
+    static let punch = SpringConfig(mass: 0.6, stiffness: 520, damping: 9)
+    /// Hit rays flying out from a contact: critically damped, they shoot and stop.
+    static let burst = SpringConfig(mass: 1.0, stiffness: 160, damping: 25.3)
 }
 
 /// One spring-driven value, integrated every frame (semi-implicit Euler).

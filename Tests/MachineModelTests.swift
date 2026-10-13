@@ -144,6 +144,58 @@ final class MachineModelTests: XCTestCase {
         }
     }
 
+    // MARK: Juice
+
+    /// Steps until the first block lands, then returns.
+    func stepUntilLanded(_ model: MachineModel, count: Int = 1) {
+        for _ in 0..<2400 where model.today.count < count { model.step(1.0 / 240) }
+    }
+
+    func testContactFiresOneBurstAndPunchesTheNumber() {
+        let model = makeModel()
+        let before = model.heroKcal.position
+        drop(250, on: model, at: deckPoint(model))
+        stepUntilLanded(model)
+        XCTAssertEqual(model.bursts.count, 1)
+        XCTAssertEqual(model.bursts.first?.face, .diet)
+        XCTAssertGreaterThan(model.heroPunch.velocity, 0)
+        run(model, seconds: 4)
+        XCTAssertTrue(model.bursts.isEmpty, "rays finish and are removed")
+        XCTAssertEqual(model.heroKcal.position, before - 250, accuracy: 0.5, "the number counts down to the new value")
+    }
+
+    func testReduceMotionKeepsTheLogButDropsTheBurst() {
+        let model = makeModel()
+        model.reduceMotion = true
+        drop(250, on: model, at: deckPoint(model))
+        stepUntilLanded(model)
+        XCTAssertEqual(model.today.count, 1)
+        XCTAssertTrue(model.bursts.isEmpty)
+    }
+
+    func testCrossingTheTargetFiresASecondBurst() {
+        let target = Int(AppData().targets.kcal)
+        let model = makeModel(foods: [FoodEntry.quickAdd(kcal: target - 100, at: clock)])
+        drop(250, on: model, at: deckPoint(model))
+        stepUntilLanded(model, count: 2)
+        XCTAssertEqual(model.bursts.count, 2)
+    }
+
+    func testHoldingABlockOverTheDeckWindsItUp() throws {
+        let model = makeModel()
+        let resting = model.deck.position
+        let home = model.rail.quickBlockHome(kcal: 500)
+        let id = try XCTUnwrap(model.grabQuick(kcal: 500, at: home, time: 0))
+        model.dragBlock(id, to: deckPoint(model), time: 0.1)
+        run(model, seconds: 1)
+        XCTAssertGreaterThan(model.charge.position, 0.9)
+        XCTAssertGreaterThan(model.deck.position, resting, "the deck pre-loads under the held block")
+        model.cancelBlock(id)
+        run(model, seconds: 3)
+        XCTAssertLessThan(model.charge.position, 0.01)
+        XCTAssertTrue(model.today.isEmpty)
+    }
+
     // MARK: Prism
 
     func testSwipeTurnsAtMostOneFace() {

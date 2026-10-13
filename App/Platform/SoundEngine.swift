@@ -15,6 +15,8 @@ enum SoundEvent: Int {
     case seat
     /// A knuckle on glass: the rest has run out.
     case glassTap
+    /// A struck bell bar; its note comes from `SoundEngine.chime(step:)`.
+    case chime
 }
 
 final class SoundEngine {
@@ -71,6 +73,24 @@ final class SoundEngine {
         synth.withLock { $0.trigger(event, amp: min(max(intensity, 0), 1), pitch: p) }
     }
 
+    /// Pentatonic notes above C5. Successive logs climb, so a full day sounds
+    /// like a rising phrase rather than the same blip again and again.
+    static let pentatonic: [Float] = [1, 9.0 / 8, 5.0 / 4, 3.0 / 2, 5.0 / 3]
+
+    func chime(step: Int, intensity: Float = 0.5) {
+        guard startIfNeeded() else { return }
+        let n = min(max(step, 0), 11)
+        let freq = 523.25 * Self.pentatonic[n % 5] * Float(1 << (n / 5))
+        synth.withLock { $0.trigger(.chime, amp: min(max(intensity, 0), 1), pitch: 1, freq: freq) }
+    }
+
+    /// Continuous rising tension while a block hovers over the deck: 0 = silent.
+    func setCharge(_ level: Float) {
+        guard started || level > 0.01 else { return }
+        guard startIfNeeded() else { return }
+        synth.withLock { $0.chargeTarget = min(max(level, 0), 1) }
+    }
+
     /// Continuous vault grind while the prism turns: 0 = silent.
     func setGrind(_ level: Float) {
         guard started || level > 0.01 else { return }
@@ -88,6 +108,7 @@ private struct Synth {
         var pitch: Float = 1
         var active = false
         var lp: Float = 0
+        var freq: Float = 0
     }
 
     var sampleRate: Float = 48_000
@@ -97,18 +118,22 @@ private struct Synth {
     var grindLevel: Float = 0
     var grindLP: Float = 0
     var grindPhase: Float = 0
+    var chargeTarget: Float = 0
+    var chargeLevel: Float = 0
+    var chargeLP: Float = 0
+    var chargePhase: Float = 0
 
     mutating func noise() -> Float {
         rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5
         return Float(rng) / Float(UInt32.max) * 2 - 1
     }
 
-    mutating func trigger(_ event: SoundEvent, amp: Float, pitch: Float) {
+    mutating func trigger(_ event: SoundEvent, amp: Float, pitch: Float, freq: Float = 0) {
         // Slight variation so repeated actions never sound identical.
         let vary = 1 + noise() * 0.03
         let level = amp * (1 + noise() * 0.08)
         let slot = voices.firstIndex { !$0.active } ?? voices.indices.max { voices[$0].t < voices[$1].t } ?? 0
-        voices[slot] = Voice(event: event, t: 0, amp: level, pitch: pitch * vary, active: true, lp: 0)
+        voices[slot] = Voice(event: event, t: 0, amp: level, pitch: pitch * vary, active: true, lp: 0, freq: freq)
     }
 
     static let rackFreq: [Float] = [218, 561, 1187, 2043, 3127]
@@ -122,6 +147,7 @@ private struct Synth {
         case .detent: return 0.04
         case .seat: return 0.4
         case .glassTap: return 1.2
+        case .chime: return 1.4
         }
     }
 
@@ -163,6 +189,14 @@ private struct Synth {
                     x += sinf(twoPi * 1318 * p * t) * expf(-t * 6) * 0.22
                     x += sinf(twoPi * 1977 * p * t) * expf(-t * 9) * 0.14
                     x += sinf(twoPi * 3290 * p * t) * expf(-t * 15) * 0.06
+                case .chime:
+                    // Bar bell: fundamental plus the bar's inharmonic overtones,
+                    // with a short mallet click on top.
+                    let f = voices[v].freq * p
+                    x += sinf(twoPi * f * t) * expf(-t * 4) * 0.24
+                    x += sinf(twoPi * f * 2.756 * t) * expf(-t * 9) * 0.09
+                    x += sinf(twoPi * f * 5.404 * t) * expf(-t * 18) * 0.035
+                    x += noise() * expf(-t * 700) * 0.15
                 }
                 s += x * a
                 voices[v].t = t + dt
@@ -176,6 +210,16 @@ private struct Synth {
                 let n = noise()
                 grindLP += (n - grindLP) * (0.02 + 0.05 * grindLevel)
                 s += grindLP * grindLevel * (0.7 + 0.3 * sinf(twoPi * grindPhase)) * 0.9
+            }
+            // Charge: band-passed noise and a hum whose pitch rises with the load,
+            // like a spring winding up.
+            chargeLevel += (chargeTarget - chargeLevel) * 0.002
+            if chargeLevel > 0.001 {
+                chargePhase += (70 + 90 * chargeLevel) * dt
+                if chargePhase > 1 { chargePhase -= 1 }
+                let n = noise()
+                chargeLP += (n - chargeLP) * (0.04 + 0.12 * chargeLevel)
+                s += (chargeLP * 0.5 + sinf(twoPi * chargePhase) * 0.35) * chargeLevel * 0.35
             }
             out[i] = max(-1, min(1, s * 0.8))
         }

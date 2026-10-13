@@ -142,6 +142,8 @@ enum Fixtures {
             b.lift = SpringState(position: 1, target: 1)
             b.tilt = SpringState(position: -0.12, target: -0.12)
             model.blocks = [b]
+            // The deck already winding up under the held block.
+            model.charge = SpringState(position: 0.7, target: 0.7)
         case "diet-contact":
             // The frame right after a 250 kcal block hit: deck at its deepest, slab mid-morph.
             let entry = FoodEntry.quickAdd(kcal: 250, at: date)
@@ -153,6 +155,12 @@ enum Fixtures {
                                                progress: SpringState(position: 0.35, target: 1))
             let rest = Double(g.restingDisplacement(eaten: model.totals.kcal))
             model.deck = SpringState(position: rest + 34, target: rest)
+            // Hit rays a third of the way out, the number mid-count and mid-punch.
+            let left = model.totals.remainingKcal(target: model.targets)
+            model.heroKcal = SpringState(position: left + 110, target: left)
+            model.heroPunch = SpringState(position: 0.7, target: 0)
+            model.bursts = [ImpactBurst(origin: CGPoint(x: g.centerX, y: top), strength: 0.7, seed: 0x9E37_79B9_7F4A_7C15,
+                                        face: .diet, progress: SpringState(position: 0.32, target: 1))]
         case "prism-half":
             model.yaw = SpringState(position: 60, target: 60)
         case "diet-intake":
