@@ -197,14 +197,25 @@ m_orange = mat('orange', 0xFF6A1A, rough=0.3, coat=0.8, coat_rough=0.08)
 m_dark = mat('dark', 0x161A2E, rough=0.45, coat=0.4)
 
 # ---------- face, hero, keys ----------
+MIN = concept in 'DEF'  # Wei, 13 Oct: elegant but minimal
+if MIN:
+    m_face = mat('faceMin', 0x2340E0, rough=0.62, coat=0.08, coat_rough=0.4)
+    m_tone = mat('tone', 0x1D36C4, rough=0.55, coat=0.15)
+    m_satin = mat('satin', CREAM, rough=0.45, coat=0.3, coat_rough=0.2)
 rounded_box('plate', (FW, 0.2, FH), 0.08, m_face, (0, 0.1, 0))
 text('2:08', 1.30, m_cream, P(36, 232, -0.10), extrude=0.10, bevel=0.025)
-rounded_box('keyA', (1.78, 0.36, 0.64), 0.16, m_navy, P(36 + 89, 779, -0.18).to_tuple())
-rounded_box('keyB', (1.78, 0.36, 0.64), 0.16, m_navy, P(404 - 89, 779, -0.18).to_tuple())
-rounded_box('keyDone', (3.68, 0.44, 0.80), 0.2, m_cream, P(220, 866, -0.22).to_tuple())
+if MIN:
+    # Quiet keys: tone-on-tone pills for the small actions, one slim cream pill for SET DONE.
+    rounded_box('keyA', (1.74, 0.12, 0.46), 0.059, m_tone, P(36 + 87, 792, -0.06).to_tuple(), segments=12)
+    rounded_box('keyB', (1.74, 0.12, 0.46), 0.059, m_tone, P(404 - 87, 792, -0.06).to_tuple(), segments=12)
+    rounded_box('keyDone', (3.68, 0.16, 0.62), 0.079, m_satin, P(220, 868, -0.08).to_tuple(), segments=12)
+else:
+    rounded_box('keyA', (1.78, 0.36, 0.64), 0.16, m_navy, P(36 + 89, 779, -0.18).to_tuple())
+    rounded_box('keyB', (1.78, 0.36, 0.64), 0.16, m_navy, P(404 - 89, 779, -0.18).to_tuple())
+    rounded_box('keyDone', (3.68, 0.44, 0.80), 0.2, m_cream, P(220, 866, -0.22).to_tuple())
 
 # ---------- the hourglass ----------
-CY_PT = {'A': 545, 'B': 528, 'C': 520}[concept]
+CY_PT = {'A': 545, 'B': 528, 'C': 520, 'D': 540, 'E': 540, 'F': 545}[concept]
 CX, CZ = P(220, CY_PT).x, P(220, CY_PT).z
 before = set(bpy.data.objects)
 Y = -0.95  # stands proud of the face
@@ -244,7 +255,55 @@ def classic_glass(h, rmax, neck, top_r, wall, loc, top_level, fill_z, apex_z):
     cylinder('stream', 0.011, 0.05 - apex_z, m_sand, (loc[0], loc[1], loc[2] + (0.05 + apex_z) / 2), seg=24)
 
 
-if concept == 'A':
+m_white = mat('sandWhite', 0xD9CBB2, rough=0.8, bump=0.5, bump_scale=260)
+m_char = mat('sandChar', 0x2A2C33, rough=0.6, bump=0.3, bump_scale=200)
+m_champ = mat('champagne', 0xD8C3A0, rough=0.3, metal=1.0)
+m_matte = mat('matteCream', CREAM, rough=0.62, coat=0.1)
+
+
+def glass(half, wall, loc, top_level, fill_z, apex_z, floor_z, sand, caps=True):
+    up = spline(half, 12)
+    outer = [(-z, r) for z, r in reversed(up[1:])] + up
+    inner = [(z * 0.99, max(r - wall, 0.012)) for z, r in outer]
+    lathe('glass_out', outer, m_glass, loc, cap_bottom=caps, cap_top=caps)
+    gi = lathe('glass_in', inner, m_glass, loc, cap_bottom=caps, cap_top=caps)
+    for p in gi.data.polygons:
+        p.flip()
+    inner_s = [(z, r - 0.006) for z, r in inner]
+    lathe('sand_top', sand_top(inner_s, top_level, 0.05), sand, loc)
+    lathe('sand_heap', heap(inner_s, floor_z, fill_z, apex_z), sand, loc)
+    cylinder('stream', 0.009, 0.05 - apex_z, sand, (loc[0], loc[1], loc[2] + (0.05 + apex_z) / 2), seg=24)
+
+
+if concept == 'D':
+    # Teardrop: one seamless glass form, no frame, resting in a small cream cup.
+    loc = (CX, Y, CZ)
+    glass([(0, 0.05), (0.07, 0.065), (0.2, 0.2), (0.4, 0.36), (0.62, 0.42), (0.85, 0.4), (1.05, 0.33), (1.2, 0.2), (1.29, 0.07), (1.31, 0.0)],
+          0.035, loc, top_level=0.62, fill_z=-0.86, apex_z=-0.6, floor_z=-1.26, sand=m_white)
+    cylinder('cup', 0.13, 0.08, m_matte, (CX, Y, CZ - 1.33), bevel=0.03, seg=64)
+    cylinder('disc', 0.4, 0.035, m_matte, (CX, Y, CZ - 1.385), bevel=0.012)
+
+elif concept == 'E':
+    # Orbit: two glass spheres hung on one thin champagne hoop.
+    loc = (CX, Y, CZ)
+    glass([(0, 0.045), (0.05, 0.08), (0.15, 0.3), (0.3, 0.46), (0.55, 0.53), (0.8, 0.46), (0.95, 0.3), (1.05, 0.1), (1.09, 0.0)],
+          0.035, loc, top_level=0.52, fill_z=-0.72, apex_z=-0.46, floor_z=-1.02, sand=m_white)
+    Rh = 1.34
+    torus('hoop', Rh, 0.022, m_champ, (CX, Y, CZ), rot=(math.pi / 2, 0, 0))
+    for s in (1, -1):
+        cylinder('hanger', 0.016, Rh - 1.07, m_champ, (CX, Y, CZ + s * (1.07 + (Rh - 1.07) / 2)), seg=24)
+    rounded_box('foot', (0.7, 0.16, 0.05), 0.02, m_matte, (CX, Y, CZ - Rh - 0.045))
+
+elif concept == 'F':
+    # Column: straight glass between two thin cream discs, one slender rod behind, dark sand.
+    loc = (CX, Y, CZ)
+    glass([(0, 0.06), (0.06, 0.08), (0.18, 0.3), (0.3, 0.4), (0.45, 0.42), (1.0, 0.42), (1.12, 0.42)],
+          0.035, loc, top_level=0.72, fill_z=-0.78, apex_z=-0.5, floor_z=-1.1, sand=m_char)
+    for s in (1, -1):
+        cylinder('disc', 0.52, 0.06, m_matte, (CX, Y, CZ + s * 1.15), bevel=0.02)
+    cylinder('rod', 0.018, 2.3, m_champ, (CX, Y + 0.47, CZ), seg=24)
+
+elif concept == 'A':
     # Classic lab hourglass: thick glass, cream turned caps, three brass posts.
     h = 1.12
     loc = (CX, Y, CZ)
@@ -367,10 +426,12 @@ def area(name, loc, target, size, energy, sx=None):
     return o
 
 
-area('key', (-5, -7, 8), (0, 0, 0), 5, 1700)
+area('key', (-6, -9, 9), (0, 0, 0), 9 if MIN else 5, 1500 if MIN else 1700)
 area('fill', (3, -10, 1), (0, 0, 0), 8, 700)
-area('rimL', (-3.2, -0.6, 0), (CX, Y, CZ), 6, 900, sx=0.6)
-area('rimR', (3.2, -0.6, 0), (CX, Y, CZ), 6, 900, sx=0.6)
+# Minimal: rims further forward so they catch the glass edges, not the plate.
+rim_y, rim_e = (-3.0, 650) if MIN else (-0.6, 900)
+area('rimL', (-3.2, rim_y, 0), (CX, Y, CZ), 6, rim_e, sx=0.6)
+area('rimR', (3.2, rim_y, 0), (CX, Y, CZ), 6, rim_e, sx=0.6)
 area('top', (0, -2, 6), (CX, Y, CZ), 3, 500)
 
 cam = bpy.data.cameras.new('cam')

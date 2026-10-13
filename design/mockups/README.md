@@ -8,7 +8,8 @@ numbers are sample data and every sheet is labelled MOCKUP.
 | `diet/` | DIET options: Plate, Gauge, Jar (HTML) | Jar (13 Oct 2026) |
 | `jar/` | `pile.py`: prototype of the deterministic block pile (Pillow) | — |
 | `body/` | BODY options: Figurine, Stacks, Dial (HTML from `make.py`) | Figurine (13 Oct 2026) |
-| `train/` | TRAIN hourglass options rendered in Blender: Lab glass, Candy capsule, Gimbal | open |
+| `train/` | TRAIN round 1 in Blender: Lab glass, Candy capsule, Gimbal (`options.jpg`, concepts A–C) | none (Wei: "elegant but minimal") |
+| `train/` | TRAIN round 2, minimal: Teardrop, Orbit, Column (`options-minimal.jpg`, concepts D–F, `make_minimal.py`) | open |
 
 ## Re-rendering
 
