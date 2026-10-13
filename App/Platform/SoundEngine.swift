@@ -1,7 +1,9 @@
 import AVFoundation
 import os
 
-/// Material sounds synthesised in code (no samples, no system sounds).
+/// Material sounds: a synthesised body in code, layered with a recorded CC0
+/// impact (App/Sounds, provenance in LICENSE-SOUNDS.txt) picked at random from
+/// five variants, so no two hits sound the same. No system sounds.
 /// The audio session is `.ambient`: it honours the silent switch and mixes with
 /// workout music instead of interrupting it.
 enum SoundEvent: Int {
@@ -17,6 +19,35 @@ enum SoundEvent: Int {
     case glassTap
     /// A struck bell bar; its note comes from `SoundEngine.chime(step:)`.
     case chime
+}
+
+/// Recorded layers, five variants each.
+enum SoundLayer: Int, CaseIterable {
+    case plateHeavy, plateLight, metalHeavy, woodHeavy, glassLight, click
+
+    var file: String {
+        switch self {
+        case .plateHeavy: return "plate_heavy"
+        case .plateLight: return "plate_light"
+        case .metalHeavy: return "metal_heavy"
+        case .woodHeavy: return "wood_heavy"
+        case .glassLight: return "glass_light"
+        case .click: return "click"
+        }
+    }
+
+    static func load() -> [[[Float]]] {
+        allCases.map { layer in
+            (0..<5).compactMap { k -> [Float]? in
+                guard let url = Bundle.main.url(forResource: "\(layer.file)_\(k)", withExtension: "caf"),
+                      let file = try? AVAudioFile(forReading: url),
+                      let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)),
+                      (try? file.read(into: buffer)) != nil,
+                      let data = buffer.floatChannelData?[0] else { return nil }
+                return Array(UnsafeBufferPointer(start: data, count: Int(buffer.frameLength)))
+            }
+        }
+    }
 }
 
 final class SoundEngine {
@@ -46,7 +77,8 @@ final class SoundEngine {
             let sampleRate = rate > 0 ? rate : 48_000
             guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1) else { return false }
             let synth = self.synth
-            synth.withLock { $0.sampleRate = Float(sampleRate) }
+            let bank = SoundLayer.load()
+            synth.withLock { $0.sampleRate = Float(sampleRate); $0.samples = bank }
             let node = AVAudioSourceNode(format: format) { _, _, frameCount, audioBufferList -> OSStatus in
                 let buffers = UnsafeMutableAudioBufferListPointer(audioBufferList)
                 guard let data = buffers.first?.mData?.assumingMemoryBound(to: Float.self) else { return noErr }
@@ -113,6 +145,28 @@ private struct Synth {
 
     var sampleRate: Float = 48_000
     var voices = [Voice](repeating: Voice(), count: 12)
+
+    /// Recorded layers [layer][variant] at 44.1 kHz, filled once before playback.
+    var samples: [[[Float]]] = []
+    struct SampleVoice {
+        var layer = 0
+        var variant = 0
+        var position: Float = 0
+        var rate: Float = 1
+        var gain: Float = 0
+        var active = false
+    }
+    var sampleVoices = [SampleVoice](repeating: SampleVoice(), count: 8)
+
+    mutating func triggerSample(_ layer: SoundLayer, gain: Float, pitch: Float) {
+        guard layer.rawValue < samples.count, !samples[layer.rawValue].isEmpty else { return }
+        let count = samples[layer.rawValue].count
+        let variant = min(Int((noise() * 0.5 + 0.5) * Float(count)), count - 1)
+        let slot = sampleVoices.firstIndex { !$0.active } ?? 0
+        let rate = 44_100 / sampleRate * pitch * (1 + noise() * 0.04)
+        sampleVoices[slot] = SampleVoice(layer: layer.rawValue, variant: variant, position: 0, rate: rate,
+                                         gain: gain * (1 + noise() * 0.1), active: true)
+    }
     var rng: UInt32 = 0x9E37_79B9
     var grindTarget: Float = 0
     var grindLevel: Float = 0
@@ -134,6 +188,15 @@ private struct Synth {
         let level = amp * (1 + noise() * 0.08)
         let slot = voices.firstIndex { !$0.active } ?? voices.indices.max { voices[$0].t < voices[$1].t } ?? 0
         voices[slot] = Voice(event: event, t: 0, amp: level, pitch: pitch * vary, active: true, lp: 0, freq: freq)
+        // The recorded layer under the synthesised body.
+        switch event {
+        case .mallet: triggerSample(pitch > 1.02 ? .plateLight : .plateHeavy, gain: amp * 0.6, pitch: pitch)
+        case .rack: triggerSample(.metalHeavy, gain: amp * 0.55, pitch: pitch)
+        case .detent: triggerSample(.click, gain: amp * 0.3, pitch: pitch)
+        case .seat: triggerSample(.woodHeavy, gain: amp * 0.5, pitch: pitch)
+        case .glassTap: triggerSample(.glassLight, gain: amp * 0.45, pitch: pitch)
+        case .chime: break
+        }
     }
 
     static let rackFreq: [Float] = [218, 561, 1187, 2043, 3127]
@@ -201,6 +264,18 @@ private struct Synth {
                 s += x * a
                 voices[v].t = t + dt
                 if voices[v].t > Self.duration(voices[v].event) { voices[v].active = false }
+            }
+            for v in sampleVoices.indices where sampleVoices[v].active {
+                let sv = sampleVoices[v]
+                let data = samples[sv.layer][sv.variant]
+                let i0 = Int(sv.position)
+                if i0 + 1 >= data.count {
+                    sampleVoices[v].active = false
+                    continue
+                }
+                let frac = sv.position - Float(i0)
+                s += (data[i0] + (data[i0 + 1] - data[i0]) * frac) * sv.gain
+                sampleVoices[v].position = sv.position + sv.rate
             }
             // Grind: low-passed noise with a slow judder, following prism speed.
             grindLevel += (grindTarget - grindLevel) * 0.0015
