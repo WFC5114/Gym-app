@@ -28,6 +28,10 @@ struct SpringConfig: Equatable {
     static let tumble = SpringConfig(mass: 1.0, stiffness: 220, damping: 15)
     /// Hit rays flying out from a contact: critically damped, they shoot and stop.
     static let burst = SpringConfig(mass: 1.0, stiffness: 160, damping: 25.3)
+    /// BODY mannequin flexing its arm after a tap: quick, one small overshoot.
+    static let flex = SpringConfig(mass: 1.0, stiffness: 140, damping: 13)
+    /// BODY mannequin turning its head: slow and soft.
+    static let glance = SpringConfig(mass: 1.2, stiffness: 60, damping: 10)
 }
 
 /// One spring-driven value, integrated every frame (semi-implicit Euler).

@@ -388,113 +388,6 @@ struct HourglassGeometry {
     static let aspect: CGFloat = 0.67
 }
 
-/// BODY's figurine in figure units: feet at y 0, the top of the head near 1,
-/// x across, z toward the viewer. A schematic, not a body scan: fat fills out
-/// the waist and limbs, lean mass broadens the shoulders and limbs.
-struct FigureShape: Equatable {
-    var shoulders: Float
-    var waist: Float
-    var depth: Float
-    var limb: Float
-
-    static let neutral = FigureShape.from(fatPercent: nil, leanKg: nil)
-    static let range: ClosedRange<Float> = 0.55...2.0
-
-    static func from(fatPercent: Double?, leanKg: Double?) -> FigureShape {
-        let fat = Float(min(max(fatPercent ?? 16, 5), 45))
-        let lean = Float(min(max(leanKg ?? 66, 35), 100))
-        let soft = (fat - 16) * 0.045
-        let muscle = (lean - 66) * 0.015
-        func clamp(_ v: Float) -> Float { min(max(v, range.lowerBound), range.upperBound) }
-        return FigureShape(shoulders: clamp((1 + muscle) * (1 + soft * 0.4)),
-                           waist: clamp((1 + soft) * (1 + muscle * 0.3)),
-                           depth: clamp(1 + soft * 0.9 + muscle * 0.3),
-                           limb: clamp((1 + soft * 0.5) * (1 + muscle * 1.4)))
-    }
-
-    /// One piece of the figure. `size` is its full extent on each axis; `roll`
-    /// turns it about z through its centre.
-    struct Part: Equatable {
-        enum Kind: Equatable {
-            /// Rounded box; corner radius is `rounding` × its smaller side across.
-            case block(rounding: Float)
-            /// Ellipsoid filling `size`.
-            case ball
-            /// Upright cylinder filling `size`.
-            case rod
-        }
-        var center: SIMD3<Float>
-        var size: SIMD3<Float>
-        var roll: Float = 0
-        var kind: Kind = .block(rounding: 0.48)
-    }
-
-    /// One smooth torso from hips to shoulders, mostly as wide as the shoulders
-    /// with some of the waist. It deepens slower than the belly so fat shows there.
-    var torso: Part {
-        Part(center: [0, 0.62, 0], size: [0.29 * (shoulders * 0.6 + waist * 0.4), 0.38, 0.16 * (1 + (depth - 1) * 0.4)],
-             kind: .block(rounding: 0.42))
-    }
-    var torsoTop: Float { torso.center.y + torso.size.y / 2 }
-
-    /// The belly: an ellipsoid hidden inside the torso at ordinary body fat that
-    /// pushes out past its front and sides as body fat rises.
-    var belly: Part {
-        Part(center: [0, 0.58, 0], size: [0.26 * waist, 0.26 * (0.8 + 0.2 * waist), 0.144 * depth], kind: .ball)
-    }
-
-    var neck: Part {
-        Part(center: [0, torsoTop + 0.02, 0], size: [0.075, 0.07, 0.075], kind: .rod)
-    }
-
-    /// Legs, left then right, tops hidden inside the torso.
-    var legs: [Part] {
-        let size = SIMD3<Float>(0.10 * limb, 0.45, 0.11 * limb)
-        let x = max(0.06 * waist, size.x / 2 + 0.004)
-        return [Float(-1), 1].map { Part(center: [$0 * x, 0.225, 0], size: size) }
-    }
-
-    /// Arms, left then right, hanging from the shoulders and swung out far
-    /// enough to clear the torso and belly.
-    var arms: [Part] {
-        let size = SIMD3<Float>(0.08 * limb, 0.33, 0.085 * limb)
-        let shoulderX = torso.size.x / 2 + size.x / 2 + 0.006
-        let shoulderY: Float = 0.79
-        // Where the inner edge comes closest: the torso's lower sides and the belly's widest point.
-        let checks: [(half: Float, y: Float)] = [(torso.size.x / 2, 0.47), (belly.size.x / 2, belly.center.y)]
-        let angle = checks.reduce(Float(0.08)) { a, c in
-            max(a, atan((c.half + 0.012 - (shoulderX - size.x / 2)) / (shoulderY - c.y)))
-        }
-        return [Float(-1), 1].map { side in
-            let c = SIMD3<Float>(side * (shoulderX + sin(angle) * size.y / 2), shoulderY - cos(angle) * size.y / 2, 0)
-            return Part(center: c, size: size, roll: side * angle)
-        }
-    }
-
-    static let headRadius: Float = 0.085
-    var headCenter: SIMD3<Float> { [0, torsoTop + 0.045 + Self.headRadius, 0] }
-    var head: Part { Part(center: headCenter, size: SIMD3(repeating: Self.headRadius * 2), kind: .ball) }
-    var height: Float { headCenter.y + Self.headRadius }
-
-    /// Every piece, in a fixed order the scene relies on.
-    var parts: [Part] { [torso, belly, neck, head] + legs + arms }
-
-    /// Torso (rounded rect) and belly (ellipse bounds) as the orthographic
-    /// camera sees them with the figure turned by `yaw`, in figure units (y up),
-    /// for the type layer's ghost outline.
-    func torsoOutline(yaw: Float) -> (torso: CGRect, belly: CGRect) {
-        let c = abs(cos(yaw)), s = abs(sin(yaw))
-        let t = torso, b = belly
-        // A box's silhouette adds its depth; an ellipse's grows as an ellipse does.
-        let tHalf = t.size.x / 2 * c + t.size.z / 2 * s
-        let bHalf = ((b.size.x / 2 * c) * (b.size.x / 2 * c) + (b.size.z / 2 * s) * (b.size.z / 2 * s)).squareRoot()
-        func rect(_ half: Float, _ p: Part) -> CGRect {
-            CGRect(x: CGFloat(-half), y: CGFloat(p.center.y - p.size.y / 2), width: CGFloat(half * 2), height: CGFloat(p.size.y))
-        }
-        return (rect(tHalf, t), rect(bHalf, b))
-    }
-}
-
 /// Where the figurine stands on the BODY face.
 struct FigureGeometry {
     var layout: MachineLayout
@@ -506,8 +399,12 @@ struct FigureGeometry {
     var feet: CGPoint { CGPoint(x: layout.faceWidth / 2, y: mech.maxY - 40) }
     /// The figure stands this far proud of the face.
     static let depth: CGFloat = 90
-    /// Resting three-quarter turn, so the orthographic camera sees its depth.
-    static let restYaw: Float = 0.38
+    /// Resting three-quarter turn, so the orthographic camera sees its depth
+    /// (the clay mockup's −0.42, design/mockups/body/mannequin.py).
+    static let restYaw: Float = -0.42
+    /// The whole stand leans its top toward the viewer by this much (radians), so
+    /// the orthographic camera looks a little down onto the dial, as in the mockup.
+    static let lean: Float = 0.16
     /// How far scrubbing can swing it off the resting turn.
     static let maxSwing: Double = 0.6
 

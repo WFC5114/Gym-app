@@ -10,7 +10,7 @@ struct BodyFace: View {
         let rail = model.rail
         let index = Int(model.bodyNumbers.target.rounded())
         let obs = model.bodyObservation
-        let carried = BodyObservation.carried(model.bodyHistory, upTo: index)
+        let composition = model.bodyComposition
         ZStack(alignment: .topLeading) {
             Color.clear.contentShape(Rectangle()).modifier(FaceSwipe(model: model))
 
@@ -36,8 +36,24 @@ struct BodyFace: View {
             .position(x: layout.heroRect.midX, y: layout.heroRect.minY + 58 + layout.heroRect.height * 0.36)
             .accessibilityElement(children: .combine)
 
-            Engraved(text: "SCHEMATIC · NOT A BODY SCAN", size: 8, color: Ink.text(0.4))
-                .position(x: layout.faceWidth / 2, y: layout.mechanismRect.minY + 10)
+            VStack(spacing: 3) {
+                Engraved(text: "SCHEMATIC · NOT A BODY SCAN", size: 8, color: Ink.text(0.4))
+                Engraved(text: shapeSources(composition), size: 7, color: Ink.text(0.35))
+            }
+            .position(x: layout.faceWidth / 2, y: layout.mechanismRect.minY + 14)
+
+            // Tap the mannequin: it flexes and the turntable gives a little swing.
+            let figure = FigureGeometry(layout: layout)
+            Color.clear
+                .contentShape(Rectangle())
+                .frame(width: figure.unit * 0.5, height: figure.unit * 1.0)
+                .position(figure.point(x: 0, y: 0.5))
+                .onTapGesture { model.pokeFigure() }
+                .accessibilityElement()
+                .accessibilityLabel("Mannequin, shaped from your body readings")
+                .accessibilityHint("Double-tap to make it flex")
+                .accessibilityAddTraits(.isButton)
+                .accessibilityIdentifier("body.figure")
 
             if let ghost = model.ghostFigure {
                 GhostOutline(shape: ghost.shape, daysBack: ghost.daysBack, yaw: model.figureYaw,
@@ -45,8 +61,9 @@ struct BodyFace: View {
             }
 
             HStack(spacing: 22) {
-                reading("FAT", carried.fat.map { String(format: "%.1f %%", $0) })
-                reading("LEAN", carried.lean.map { String(format: "%.1f KG", $0) })
+                reading(composition.fatIsEstimate ? "FAT · EST" : "FAT",
+                        composition.fatPercent.map { String(format: composition.fatIsEstimate ? "≈ %.1f %%" : "%.1f %%", $0) })
+                reading("LEAN", composition.leanKg.map { String(format: "%.1f KG", $0) })
                 reading("SOURCE", obs.map { $0.isScan ? "INBODY" : "SCALE" })
             }
             .position(x: layout.faceWidth / 2, y: layout.mechanismRect.maxY + 10)
@@ -63,6 +80,14 @@ struct BodyFace: View {
             Engraved(text: title, size: 8, color: Ink.text(0.45))
             Engraved(text: value ?? "NO DATA", size: 11, color: Ink.text(value == nil ? 0.4 : 0.9), tracking: 0.6)
         }
+    }
+
+    /// What the figure's shape comes from, estimates named as such.
+    private func shapeSources(_ c: BodyComposition) -> String {
+        var parts = [model.bodyUsesSample ? "SHAPE FROM SAMPLE DATA" : "SHAPE FROM INBODY + HEALTH"]
+        if c.fatIsEstimate { parts.append("FAT FROM SCALE TREND (EST.)") }
+        if !model.figureTilt.isEven { parts.append("TRAINING TILT (EST.)") }
+        return parts.joined(separator: " · ")
     }
 
     private func weeklyDelta(index: Int) -> String {
@@ -159,8 +184,10 @@ struct GhostOutline: View {
 
     /// A figure-unit rect (y up) in face-local points.
     private func onFace(_ r: CGRect) -> CGRect {
-        CGRect(origin: geometry.point(x: r.minX, y: r.maxY),
-               size: CGSize(width: r.width * geometry.unit, height: r.height * geometry.unit))
+        // The stand leans its top toward the viewer, so heights read a little shorter.
+        let k = CGFloat(cos(FigureGeometry.lean))
+        return CGRect(origin: geometry.point(x: r.minX, y: r.maxY * k),
+                      size: CGSize(width: r.width * geometry.unit, height: r.height * geometry.unit * k))
     }
 
     private var label: String {

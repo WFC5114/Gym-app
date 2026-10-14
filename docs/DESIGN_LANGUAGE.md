@@ -6,6 +6,8 @@ Revision 3 (2026-10-12): `docs/ART_DIRECTION.md` (Wei's Revision 2 art direction
 
 Revision 4 (2026-10-13): Wei said the build still felt "very off" next to the Not Boring apps and chose **colour**: the default skin is now **FLARE** (saturated colour plate per face, lit, satin and clearcoat objects); matte black lives on as the MONO skin. Not Boring is the feel benchmark, learned only from their public write-ups and screenshots (no decompiling): juice stacked on every commit (windup, hit rays, camera kick, number punch, layered sound and matched haptic), lit 3D numerals, layered recorded plus synthesised sound. The gap analysis lives in the project files (`notes/not-boring-gap.md`).
 
+Revision 6 (2026-10-14): **claymorphism across the whole app** (Wei). Realistic objects read as uncanny next to Not Boring, so every object becomes stylised clay: solid colours, a soft satin sheen and a fine pressed surface, chunky volumes. It is never simple or smooth for its own sake: objects are complex and tactile ("complex with tactile 3d object", "highly detailed not just smooth"), with real hardware detail (hinges, screws, socket rings, seams, knurled grips, raised lettering) and idle life (breathing, small shifts, reactions to touch). Hard objects stay hard: the look is clay, the motion is rigid on springs. BODY is the first face done this way; the hourglass and the jar follow.
+
 ## Core thesis
 The whole app is **one machine**: a heavy calibration rig floating in black space (#000000), its faces skinned (FLARE colour by default, MONO matte black). Every user action is filtered through that machine. No fragmented widgets, no tab bars, no hamburger menus, no pushed view controllers.
 
@@ -37,11 +39,13 @@ Nutrition is a tall glass jar fed by **real food logging** (Wei, 12 Oct): every 
 - **Coach:** recommends rest **per body part** (legs longer than chest or back, arms and core shorter, compound longer than isolation) and **adapts each day** from the rests Wei extended or cut short, today's HRV and resting heart rate, and last night's sleep. Missing Health data is said plainly. The reasons are printed under the advice; USE applies it.
 - **Heart rate and cardio** (planned, not built): heart-rate zones will influence the glass and recoil; cardio will reuse the same glass and face.
 
-### Face C: BODY, the Figurine
-Wei picked the Figurine on 13 Oct 2026 (replaces the deforming low-poly mesh).
-- **Layout:** current mass on top (78.4 KG, −0.4 / WK). Centre: a glossy figurine (one rounded torso with a belly that pushes out as fat rises, arms, legs, neck, head) in the skin's object colour, standing on a dark turntable tipped toward the camera, labelled **SCHEMATIC · NOT A BODY SCAN**. Bottom: an expansive horizontal **vernier scale** (ruler scrubber), with taller marks on InBody scan days. Missing values say NO DATA, never zero.
-- **Shape:** **body fat %** fills out the waist, depth and limbs; **lean mass** broadens the shoulders and limbs. Values are clamped (fat 5–45 %, lean 35–100 kg) and the arms swing out to clear the belly. Shape values spring with **mass 1.2, stiffness 180, damping 28**.
-- **Comparison:** a dashed outline of the torso 8 weeks before the scrubbed day (or the earliest day there is, labelled with the real gap), hidden when that is under a week back or nothing changed.
+### Face C: BODY, the clay mannequin
+Wei picked the Figurine on 13 Oct 2026; on 14 Oct it became a tall, jointed **artist's mannequin in clay** (IKEA-style wooden mannequin as the reference, hard joints, not soft), approved from the Blender mockups in `design/mockups/body/` (`mannequin.py clay`).
+- **Layout:** current mass on top (78.4 KG, −0.4 / WK). Centre: the mannequin on a dial turntable, labelled **SCHEMATIC · NOT A BODY SCAN** with a second line naming what the shape comes from (INBODY + HEALTH, or SAMPLE DATA; FAT FROM SCALE TREND (EST.) and TRAINING TILT (EST.) when they apply). Bottom: an expansive horizontal **vernier scale** (ruler scrubber), with taller marks on InBody scan days. Missing values say NO DATA, never zero.
+- **The object:** cream clay body, orange joints, dark rust socket rings. Egg head with a small nose ridge and ears, no face. Seamed chest and hip blocks, a belly ball between socket cups, shoulder blades and a bead spine, hinge forks with screws at elbows and knees, jointed fingers on a knuckle bar, hinged toes. The dial is violet with a knurled butter-yellow rim, dots, raised week numbers 0 to 8 and a stand rod into the hips; the indigo plinth has bun feet, an index pointer, a crank and a BODY plaque with two screws. The stand leans its top 0.16 rad toward the camera so the dial reads.
+- **Shape:** **body fat %** fills out the waist, belly ball, hips and limbs; **lean mass** broadens the shoulders and limbs. Lengths never change, only widths. Between InBody scans the **scale's smoothed trend** moves fat (lean held at the last scan, the change counted as fat), shown as FAT · EST with "≈"; estimates stop 90 days after a scan. A **training tilt** leans the shape at most ±5% toward the regions trained most (share of the last 28 days' lifted volume against an even programme; needs 12 sets), labelled an estimate. InBody's per-limb readings are not in Apple Health, so they are not used. Values are clamped (fat 5–45 %, lean 35–100 kg) and the arms swing out to clear the hips and belly. Shape values spring with **mass 1.2, stiffness 180, damping 28**.
+- **Idle life:** while BODY is showing it breathes (4.2 s), shifts its weight between hips (9 s) and glances to its right now and then (glance spring 1.2/60/10). **Tap the figure** and it flexes its right arm (flex spring 1.0/140/13) for 1.3 s while the turntable gives a little swing, with a hollow wooden clack and a firm tick. Reduce Motion: no breathing, glances or swing; the flex is critically damped. Fixtures hold still.
+- **Comparison:** a dashed outline of the chest and hips 8 weeks before the scrubbed day (or the earliest day there is, labelled with the real gap), hidden when that is under a week back or nothing changed.
 - **Time travel:** dragging across the ruler scrubs through Apple Health and InBody dates; the figure morphs to each day and the turntable swings with the drag (up to 0.6 rad), then springs back to its three-quarter rest (tumble spring 1.0/220/15). Reduce Motion: no swing.
 
 ## 3. Sensory engine
@@ -55,6 +59,7 @@ Visual frame, audio and haptic are designed together and timed to the millisecon
 | Rotate prism | 120° yaw, 8% overshoot (9.6°), snap; one face per swipe at most | Low grind of a vault door or monolith sliding on concrete | Continuous pattern swelling at 60°, crisp seating pulse at 120° |
 
 | Rest done | Sand runs out; GO | Glass tap | Two soft transients |
+| Tap the mannequin | Right arm flexes, turntable swings a little | Hollow wooden clack (provisional: the seat sample pitched up) | One firm tick, intensity 0.7, sharpness 0.55 |
 
 Sound and haptics fire at the modelled contact or seating moment, not at a spring's peak. Always honour Reduce Motion (no shake, critically damped springs, same tasks), the silent switch (`.ambient` audio that mixes with workout music), the in-app sound and haptics toggles, VoiceOver and Dynamic Type.
 
@@ -79,8 +84,10 @@ A skin is not an image swap. It is a config: palette, PBR material, physics para
 | --- | --- |
 | Dietary energy consumed vs target | How full the jar is (blocks sized by energy) |
 | Dietary protein / carbs / fat | Block colour by the dominant macro |
-| Lean body mass / skeletal muscle | Figurine shoulders and limbs broaden |
-| Body fat % | Figurine waist, depth and limbs fill out |
+| Lean body mass (InBody via Health) | Mannequin shoulders and limbs broaden |
+| Body fat % (InBody via Health) | Mannequin waist, belly, hips and limbs fill out |
+| Body mass trend between scans | Estimated fat moves with the smoothed scale trend (labelled EST.) |
+| Logged sets, last 28 days | Training tilt toward the most-trained regions, ±5% at most (labelled EST.) |
 | Active energy burned | Planned: adjusts the kcal target (the TARGET etch) |
 | Heart rate (in a workout, when the Watch supplies it) | Planned: hourglass and recoil response |
 | HRV, resting heart rate, sleep | Coach rest advice per body part |

@@ -422,22 +422,92 @@ final class MachineModelTests: XCTestCase {
         }
     }
 
-    func testArmsHangClearOfTheBellyAndLegsStayApart() {
+    func testArmsHangClearOfTheHipsAndLegsStayApart() {
         for fat in [5.0, 16, 30, 45] {
             for lean in [35.0, 66, 100] {
                 let f = FigureShape.from(fatPercent: fat, leanKg: lean)
-                let arm = f.arms[1]
-                // Inner edge of the right arm where it passes the torso's lower sides and the belly's widest point.
-                let a = arm.roll
-                let inner = SIMD2<Float>(arm.center.x - cos(a) * arm.size.x / 2, arm.center.y - sin(a) * arm.size.x / 2)
-                for (half, y) in [(f.torso.size.x / 2, Float(0.47)), (f.belly.size.x / 2, f.belly.center.y)] {
-                    let x = inner.x + sin(a) * (inner.y - y) / cos(a)
-                    XCTAssertGreaterThanOrEqual(x, half, "fat \(fat) lean \(lean) at y \(y)")
+                let p = Mannequin.positions(shape: f, pose: Mannequin.Pose(swing: f.armSwing))
+                for wrist in [Mannequin.Joint.wristL, .wristR] {
+                    XCTAssertGreaterThan(abs(p[wrist]!.x) - 0.0132, Mannequin.pelvisTop * f.pelvisScale.x,
+                                         "fat \(fat) lean \(lean): hand clear of the hips")
                 }
-                XCTAssertEqual(f.arms[0].center.x, -arm.center.x, accuracy: 0.0001)
-                XCTAssertGreaterThanOrEqual(f.legs[1].center.x - f.legs[1].size.x / 2, 0)
+                XCTAssertGreaterThanOrEqual(f.hipX - Mannequin.thighTop * f.legScale, 0, "thighs apart")
+                XCTAssertGreaterThanOrEqual(f.armSwing, Mannequin.minimumSwing)
+                XCTAssertGreaterThan(p[.shoulderL]!.x, 0)
+                XCTAssertLessThan(p[.shoulderR]!.x, 0)
             }
         }
+    }
+
+    func testMannequinStandsOnTheDialAndHasTallProportions() {
+        let p = Mannequin.positions(shape: .neutral, pose: Mannequin.Pose())
+        for ankle in [Mannequin.Joint.ankleL, .ankleR] {
+            XCTAssertEqual(p[ankle]!.y, 0.022, accuracy: 0.012, "ankles just above the dial")
+        }
+        let headHeight = 2 * Mannequin.skull.y
+        XCTAssertGreaterThan(Mannequin.headTop / headHeight, 6.5, "a tall artist's mannequin, not a squat toy")
+    }
+
+    func testTapFlexesTheRightArmThenLetsGo() {
+        let model = makeModel()
+        let rest = Mannequin.positions(shape: model.figure, pose: model.figurePose)
+        model.pokeFigure()
+        run(model, seconds: 0.6)
+        XCTAssertGreaterThan(model.figureFlex.position, 0.8)
+        let flexed = Mannequin.positions(shape: model.figure, pose: model.figurePose)
+        XCTAssertGreaterThan(flexed[.wristR]!.y, flexed[.shoulderR]!.y, "the fist rises above the shoulder")
+        XCTAssertEqual(flexed[.wristL]!.y, rest[.wristL]!.y, accuracy: 0.001, "the other arm stays put")
+        run(model, seconds: 4)
+        XCTAssertEqual(model.figureFlex.position, 0, accuracy: 0.01, "and back down")
+        XCTAssertFalse(model.needsFrames)
+    }
+
+    func testFixtureFigureHoldsStill() {
+        let model = makeModel()
+        model.yaw = SpringState(position: 240, target: 240)
+        run(model, seconds: 2)
+        XCTAssertEqual(model.bodyClock, 0, "no idle life in fixtures, so captures repeat exactly")
+        XCTAssertFalse(model.figureIsAlive)
+    }
+
+    func testFatBetweenScansFollowsTheScaleTrend() {
+        let cal = Calendar(identifier: .gregorian)
+        let start = cal.date(from: DateComponents(year: 2026, month: 9, day: 1))!
+        let history = (0..<15).map { i in
+            BodyObservation(date: cal.date(byAdding: .day, value: i, to: start)!,
+                            weightKg: 80 - Double(i) * 0.1,
+                            bodyFatPercent: i == 0 ? 20 : nil, leanKg: i == 0 ? 64 : nil, isScan: i == 0)
+        }
+        let scanDay = BodyComposition.on(history, upTo: 0)
+        XCTAssertEqual(scanDay.fatPercent, 20)
+        XCTAssertFalse(scanDay.fatIsEstimate)
+        let later = BodyComposition.on(history, upTo: 14)
+        XCTAssertTrue(later.fatIsEstimate, "between scans the fat figure is an estimate")
+        XCTAssertEqual(later.leanKg, 64, "lean is held at the last scan")
+        XCTAssertLessThan(later.fatPercent!, 20, "the trend went down, so estimated fat did too")
+        XCTAssertGreaterThan(later.fatPercent!, 18.5, "the trend lags the raw scale, so the change is gentle")
+    }
+
+    func testTrainingTiltLeansGentlyTowardTheMostTrainedParts() {
+        let end = Date(timeIntervalSince1970: 1_791_800_000)
+        func sets(_ part: BodyPart, _ count: Int) -> [SetRecord] {
+            (0..<count).map { i in
+                SetRecord(id: UUID(), exercise: "x", bodyPart: part, loadKg: 80, reps: 8, setNumber: i + 1,
+                          completedAt: end.addingTimeInterval(-Double(i) * 3_600))
+            }
+        }
+        XCTAssertEqual(MuscleTilt.from(sets(.legs, 5), endingAt: end), MuscleTilt.none, "too few sets to say anything")
+        let legDay = MuscleTilt.from(sets(.legs, 30) + sets(.chest, 6), endingAt: end)
+        XCTAssertGreaterThan(legDay.legs, 0)
+        XCTAssertLessThan(legDay.arms, 0)
+        for v in [legDay.legs, legDay.arms, legDay.shoulders, legDay.torso] {
+            XCTAssertLessThanOrEqual(abs(v), MuscleTilt.limit)
+        }
+        let old = MuscleTilt.from(sets(.legs, 30), endingAt: end.addingTimeInterval(40 * 86_400))
+        XCTAssertEqual(old, MuscleTilt.none, "sets older than 28 days no longer count")
+        let shaped = FigureShape.from(fatPercent: 16, leanKg: 66, tilt: legDay)
+        XCTAssertGreaterThan(shaped.legScale, FigureShape.neutral.legScale)
+        XCTAssertLessThan(shaped.armScale, FigureShape.neutral.armScale)
     }
 
     func testFigureFollowsTheScrubbedDayOnASpring() {

@@ -211,6 +211,16 @@ final class MachineModel {
     var figureLean = SpringState(position: 66, target: 66)
     /// Turntable swing (radians) from scrubbing; it swings back to rest.
     var figureSpin = SpringState(position: 0, target: 0)
+    /// 0 at rest, 1 with the right arm up in a flex; a tap raises it for a moment.
+    var figureFlex = SpringState(position: 0, target: 0)
+    /// Head turn: now and then the figure glances to its right.
+    var figureLook = SpringState(position: 0, target: 0)
+    /// Seconds of idle life on BODY (breathing, weight shift); frozen in fixtures.
+    var bodyClock: Double = 0
+    @ObservationIgnored private var flexHold: Double = 0
+    /// Training tilt for the scrubbed day, recomputed when the day or the sets change.
+    private(set) var figureTilt = MuscleTilt.none
+    @ObservationIgnored private var tiltKey: (day: Int, sets: Int)?
 
     // Shared camera shake (points), applied to the whole machine.
     var shake = SpringState(position: 0, target: 0)
@@ -348,6 +358,7 @@ final class MachineModel {
             // Only sand moving: a slower cadence is plenty and saves energy.
             let calm = !isRotating && yaw.isSettled(tolerance: 0.01) && blocks.allSatisfy { $0.phase == .resting }
                 && jarBob.isSettled(tolerance: 0.05) && glassAngle.isSettled(tolerance: 0.001) && shake.isSettled(tolerance: 0.05)
+                && figureFlex.isSettled(tolerance: 0.01) && figureSpin.isSettled(tolerance: 0.01)
             link.preferredFrameRateRange = calm ? CAFrameRateRange(minimum: 15, maximum: 30, preferred: 30)
                                                 : CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
         }
@@ -360,6 +371,7 @@ final class MachineModel {
             || !sandA.isSettled(tolerance: 0.0005) || !sandB.isSettled(tolerance: 0.0005) || activeRest != nil
             || !scrubSpring.isSettled(tolerance: 0.001) || !bodyNumbers.isSettled(tolerance: 0.001) || !shake.isSettled(tolerance: 0.02)
             || !figureFat.isSettled(tolerance: 0.005) || !figureLean.isSettled(tolerance: 0.005) || !figureSpin.isSettled(tolerance: 0.001)
+            || !figureFlex.isSettled(tolerance: 0.001) || !figureLook.isSettled(tolerance: 0.001) || figureIsAlive
             || !bursts.isEmpty || !heroPunch.isSettled(tolerance: 0.001) || !heroKcal.isSettled(tolerance: 0.5)
             || !charge.isSettled(tolerance: 0.002)
     }
@@ -996,7 +1008,35 @@ final class MachineModel {
     }
 
     /// The figurine as it is drawn this frame.
-    var figure: FigureShape { FigureShape.from(fatPercent: figureFat.position, leanKg: figureLean.position) }
+    var figure: FigureShape {
+        FigureShape.from(fatPercent: figureFat.position, leanKg: figureLean.position, tilt: figureTilt)
+    }
+
+    /// Breathing and weight shift run whenever BODY is the face showing, unless
+    /// Reduce Motion is on. Fixtures hold still so every capture is identical.
+    var figureIsAlive: Bool { face == .body && !reduceMotion && !isFixture && !isRotating }
+
+    /// What the mannequin is doing this frame.
+    var figurePose: Mannequin.Pose {
+        let t = bodyClock
+        let alive: Float = reduceMotion ? 0 : 1
+        return Mannequin.Pose(breathe: alive * Float(sin(2 * .pi * t / 4.2)),
+                              shift: alive * Float(sin(2 * .pi * t / 9.0)),
+                              look: Float(figureLook.position),
+                              flex: Float(figureFlex.position),
+                              swing: figure.armSwing)
+    }
+
+    /// A tap on the figure: it flexes its right arm and the turntable gives a
+    /// little swing, then both settle back on their springs.
+    func pokeFigure() {
+        figureFlex.target = 1
+        flexHold = 1.3
+        if !reduceMotion { figureSpin.velocity += 0.9 }
+        HapticEngine.shared.tick(intensity: 0.7, sharpness: 0.55)
+        SoundEngine.shared.play(.seat, intensity: 0.7, pitch: 1.35)
+        wake()
+    }
     /// Turn about the vertical axis this frame: the resting three-quarter view plus the swing.
     var figureYaw: Float { FigureGeometry.restYaw + Float(figureSpin.position) }
 
@@ -1006,17 +1046,29 @@ final class MachineModel {
         let index = min(Int(bodyNumbers.target.rounded()), bodyHistory.count - 1)
         let back = max(index - 56, 0)
         guard index - back >= 7 else { return nil }
-        let then = BodyObservation.carried(bodyHistory, upTo: back)
-        guard then.fat != nil || then.lean != nil else { return nil }
-        let shape = FigureShape.from(fatPercent: then.fat, leanKg: then.lean)
-        let now = BodyObservation.carried(bodyHistory, upTo: index)
-        guard shape != FigureShape.from(fatPercent: now.fat, leanKg: now.lean) else { return nil }
+        let then = BodyComposition.on(bodyHistory, upTo: back)
+        guard then.fatPercent != nil || then.leanKg != nil else { return nil }
+        let shape = FigureShape.from(fatPercent: then.fatPercent, leanKg: then.leanKg, tilt: tilt(forDay: back))
+        let now = BodyComposition.on(bodyHistory, upTo: index)
+        guard shape != FigureShape.from(fatPercent: now.fatPercent, leanKg: now.leanKg, tilt: tilt(forDay: index)) else { return nil }
         return (shape, index - back)
     }
 
     private func figureTargets() -> (fat: Double, lean: Double) {
-        let carried = BodyObservation.carried(bodyHistory, upTo: Int(bodyNumbers.target.rounded()))
-        return (carried.fat ?? 16, carried.lean ?? 66)
+        let c = BodyComposition.on(bodyHistory, upTo: Int(bodyNumbers.target.rounded()))
+        return (c.fatPercent ?? 16, c.leanKg ?? 66)
+    }
+
+    /// The scrubbed day's composition: scans, with the scale trend in between.
+    var bodyComposition: BodyComposition {
+        BodyComposition.on(bodyHistory, upTo: Int(bodyNumbers.target.rounded()))
+    }
+
+    /// Training tilt from the 28 days of logged sets up to the end of a ruler day.
+    func tilt(forDay index: Int) -> MuscleTilt {
+        guard bodyHistory.indices.contains(index) else { return .none }
+        let end = Calendar.current.startOfDay(for: bodyHistory[index].date).addingTimeInterval(86_400)
+        return MuscleTilt.from(store.data.sets, endingAt: end)
     }
 
     func syncFigureImmediately() {
@@ -1024,6 +1076,17 @@ final class MachineModel {
         figureFat = SpringState(position: t.fat, target: t.fat)
         figureLean = SpringState(position: t.lean, target: t.lean)
         figureSpin = SpringState(position: 0, target: 0)
+        figureFlex = SpringState(position: 0, target: 0)
+        figureLook = SpringState(position: 0, target: 0)
+        updateTilt()
+    }
+
+    private func updateTilt() {
+        let day = min(max(Int(bodyNumbers.target.rounded()), 0), max(bodyHistory.count - 1, 0))
+        let key = (day: day, sets: store.data.sets.count)
+        if let tiltKey, tiltKey == key { return }
+        tiltKey = key
+        figureTilt = tilt(forDay: day)
     }
 
     private func stepFigure(_ dt: Double) {
@@ -1038,6 +1101,18 @@ final class MachineModel {
         let swing = reduceMotion ? 0 : min(max(-scrubSpring.velocity * 0.015, -FigureGeometry.maxSwing), FigureGeometry.maxSwing)
         figureSpin.target = swing
         figureSpin.advance(dt, config: reduceMotion ? .calm : .tumble)
+        updateTilt()
+        // Idle life: a slow clock drives breathing and weight shift; a glance to
+        // the right every so often; the flex holds a moment, then lets go.
+        if figureIsAlive { bodyClock += dt }
+        let glance = bodyClock.truncatingRemainder(dividingBy: 11)
+        figureLook.target = (!reduceMotion && glance > 6.5 && glance < 8.2) ? -0.5 : 0
+        figureLook.advance(dt, config: reduceMotion ? .calm : .glance)
+        if flexHold > 0 {
+            flexHold -= dt
+            if flexHold <= 0 { figureFlex.target = 0 }
+        }
+        figureFlex.advance(dt, config: reduceMotion ? .calm : .flex)
     }
 
     var bodyObservation: BodyObservation? {

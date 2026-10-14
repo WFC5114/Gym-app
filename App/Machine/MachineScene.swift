@@ -51,12 +51,9 @@ final class MachineScene {
     private var updates = 0
     private static let updatesBeforeDrawn = 6
 
-    // BODY: the figurine stands on a turntable; its root sits at the feet.
+    // BODY: the clay mannequin on its dial turntable; its root sits at the feet.
     private let figureRoot = Entity()
-    private let figureTurn = Entity()
-    /// `FigureShape.parts` in order, each built at the neutral shape's size and
-    /// scaled to the current one.
-    private var figureParts: [(entity: ModelEntity, base: SIMD3<Float>)] = []
+    private var figureRig: MannequinRig?
 
     /// Depths above the face surface, in points.
     enum Depth {
@@ -75,12 +72,18 @@ final class MachineScene {
             woodGrain = try? await TextureResource(image: woodImage, withName: "walnut",
                                                    options: .init(semantic: .color, mipmapsMode: .allocateAndGenerateAll))
         }
+        // A fainter grain for clay: a fine pressed surface, not crumpled paper.
+        var clayGrain: TextureResource?
+        if let clayImage = MaterialKit.grainImage(seed: 0xC1A7_0001, strength: 0.3) {
+            clayGrain = try? await TextureResource(image: clayImage, withName: "clayGrain",
+                                                   options: .init(semantic: .normal, mipmapsMode: .allocateAndGenerateAll))
+        }
         if let grainImage = MaterialKit.grainImage(),
            let grain = try? await TextureResource(image: grainImage, withName: "grain",
                                                    options: .init(semantic: .normal, mipmapsMode: .allocateAndGenerateAll)) {
-            materials = MaterialKit.make(skin: Brutal.skin, grain: grain, woodGrain: woodGrain)
+            materials = MaterialKit.make(skin: Brutal.skin, grain: grain, woodGrain: woodGrain, clayGrain: clayGrain)
         } else {
-            materials = MaterialKit.make(skin: Brutal.skin, grain: nil, woodGrain: woodGrain)
+            materials = MaterialKit.make(skin: Brutal.skin, grain: nil, woodGrain: woodGrain, clayGrain: clayGrain)
         }
         if let envImage = MaterialKit.environmentImage(),
            let env = try? await EnvironmentResource(equirectangular: envImage, withName: "studio") {
@@ -307,40 +310,11 @@ final class MachineScene {
     }
 
     private func buildBody(layout: MachineLayout) {
-        if figureParts.isEmpty {
+        if figureRig == nil {
             faces[2].addChild(figureRoot)
-            figureRoot.addChild(figureTurn)
-            // Tipped toward the camera so the orthographic view sees its top.
-            // A walnut turntable with a brass rim on a black plinth, like the hourglass.
-            let tilt = simd_quatf(angle: 0.3, axis: SIMD3(1, 0, 0))
-            let parts: [(MeshResource, PhysicallyBasedMaterial, Float)] = [
-                (.generateCylinder(height: 0.04, radius: 0.27), materials.walnut, -0.025),
-                (.generateCylinder(height: 0.012, radius: 0.274), materials.brass, -0.025),
-                (.generateCylinder(height: 0.016, radius: 0.24), materials.blackMatte, -0.048),
-            ]
-            for (mesh, material, y) in parts {
-                let e = ModelEntity(mesh: mesh, materials: [material])
-                e.orientation = tilt
-                e.position = tilt.act(SIMD3(0, y + 0.025, 0)) - SIMD3(0, 0.025, 0)
-                figureRoot.addChild(e)
-            }
-            for part in FigureShape.neutral.parts {
-                let s = part.size
-                let mesh: MeshResource
-                var base = SIMD3<Float>(repeating: 1)
-                switch part.kind {
-                case .block(let rounding):
-                    mesh = .generateBox(width: s.x, height: s.y, depth: s.z, cornerRadius: min(s.x, s.z) * rounding)
-                    base = s
-                case .ball:
-                    mesh = .generateSphere(radius: 0.5)
-                case .rod:
-                    mesh = .generateCylinder(height: 1, radius: 0.5)
-                }
-                let e = ModelEntity(mesh: mesh, materials: [materials.porcelain])
-                figureTurn.addChild(e)
-                figureParts.append((e, base))
-            }
+            let rig = MannequinRig(clay: materials.clay)
+            figureRoot.addChild(rig.root)
+            figureRig = rig
         }
         let g = FigureGeometry(layout: layout)
         figureRoot.position = World.point(g.feet, z: FigureGeometry.depth, in: layout)
@@ -529,12 +503,6 @@ final class MachineScene {
     }
 
     private func applyBody(_ model: MachineModel, layout: MachineLayout) {
-        let shape = model.figure
-        figureTurn.orientation = simd_quatf(angle: model.figureYaw, axis: SIMD3(0, 1, 0))
-        for (slot, part) in zip(figureParts, shape.parts) {
-            slot.entity.position = part.center
-            slot.entity.scale = part.size / slot.base
-            slot.entity.orientation = simd_quatf(angle: part.roll, axis: SIMD3(0, 0, 1))
-        }
+        figureRig?.apply(shape: model.figure, pose: model.figurePose, yaw: model.figureYaw)
     }
 }

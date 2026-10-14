@@ -33,6 +33,7 @@ final class CaptureTests: XCTestCase {
     @MainActor func test11_trainRestAdded() { capture("train-rest-added") }
     @MainActor func test12_bodyIdle() { capture("body-idle") }
     @MainActor func test12b_bodyScrub() { capture("body-scrub") }
+    @MainActor func test12c_bodyFlex() { capture("body-flex") }
     @MainActor func test13_a11yXXL() {
         // The app renders this fixture at accessibility XXXL text; the system
         // launch argument makes sure Dynamic Type agrees.

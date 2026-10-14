@@ -199,4 +199,155 @@ enum Geometry {
         desc.primitives = .triangles(indices)
         return try MeshResource.generate(from: [desc])
     }
+
+    // MARK: Clay (BODY mannequin and its turntable)
+
+    /// A smooth closed surface from rings stacked bottom to top. Each ring is a
+    /// loop of `segments + 1` points (the last repeats the first) laid out
+    /// with increasing angle the way `lathe` lays its rings out, so the outside
+    /// faces out. Normals come from the neighbouring points; at a collapsed pole
+    /// they point away from the surface's centre.
+    static func surface(_ rings: [[SIMD3<Float>]], name: String) throws -> MeshResource {
+        var positions: [SIMD3<Float>] = []
+        var normals: [SIMD3<Float>] = []
+        var uvs: [SIMD2<Float>] = []
+        var indices: [UInt32] = []
+        let n = rings.count
+        let row = rings[0].count
+        let segments = row - 1
+        var centre = SIMD3<Float>(repeating: 0)
+        for ring in rings { for p in ring.dropLast() { centre += p } }
+        centre /= Float(max(n * segments, 1))
+        for i in 0..<n {
+            let ring = rings[i]
+            for k in 0...segments {
+                let p = ring[k]
+                let du = ring[k == segments ? 1 : k + 1] - ring[k == 0 ? segments - 1 : k - 1]
+                let dv = rings[min(i + 1, n - 1)][k] - rings[max(i - 1, 0)][k]
+                // With rings laid out like `lathe`'s, dv × du points out of the surface.
+                var nrm = simd_cross(dv, du)
+                if simd_length(nrm) < 1e-9 { nrm = p - centre }
+                normals.append(simd_length(nrm) < 1e-9 ? SIMD3(0, 1, 0) : simd_normalize(nrm))
+                positions.append(p)
+                uvs.append(SIMD2(Float(k) / Float(max(segments, 1)), Float(i) / Float(max(n - 1, 1))))
+            }
+        }
+        for i in 0..<(n - 1) {
+            for k in 0..<segments {
+                let a = UInt32(i * row + k), b = UInt32(i * row + k + 1)
+                let c = UInt32((i + 1) * row + k + 1), d = UInt32((i + 1) * row + k)
+                indices += [a, d, c, a, c, b]
+            }
+        }
+        var desc = MeshDescriptor(name: name)
+        desc.positions = MeshBuffers.Positions(positions)
+        desc.normals = MeshBuffers.Normals(normals)
+        desc.textureCoordinates = MeshBuffers.TextureCoordinates(uvs)
+        desc.primitives = .triangles(indices)
+        return try MeshResource.generate(from: [desc])
+    }
+
+    /// A sculpted clay block centred on the origin: squircle cross-sections whose
+    /// half-width runs from `bottom` to `top`, `depth` half-deep, `height` half-tall,
+    /// with every edge rounded by `round` and an optional swell on its front (+z).
+    /// Mirrors `shaped()` in design/mockups/body/mannequin.py.
+    static func clayBlockRings(bottom: Float, top: Float, depth: Float, height: Float, front: Float = 0,
+                               round: Float, segments: Int = 48) -> [[SIMD3<Float>]] {
+        let r = min(round, height * 0.95, min(bottom, top, depth) * 0.95)
+        let e: Float = 2.6
+        var levels: [(y: Float, inset: Float)] = []
+        let capRows = 7
+        for j in 0...capRows {
+            let t = -Float.pi / 2 + Float(j) / Float(capRows) * Float.pi / 2
+            levels.append((-height + r * (1 + sin(t)), r * (1 - cos(t))))
+        }
+        let middleRows = 6
+        for j in 1..<middleRows {
+            levels.append((-height + r + (2 * height - 2 * r) * Float(j) / Float(middleRows), 0))
+        }
+        for j in 0...capRows {
+            let t = Float(j) / Float(capRows) * Float.pi / 2
+            levels.append((height - r + r * sin(t), r * (1 - cos(t))))
+        }
+        func power(_ v: Float) -> Float { (v < 0 ? -1 : 1) * pow(abs(v), 2 / e) }
+        var rings: [[SIMD3<Float>]] = [Array(repeating: SIMD3(0, -height, 0), count: segments + 1)]
+        for level in levels {
+            let u = (level.y + height) / (2 * height)
+            let a = max(bottom + (top - bottom) * u - level.inset, 0.0004)
+            let b = max(depth - level.inset, 0.0004)
+            let swell = front * depth * sin(Float.pi * u) * (1 - level.inset / max(r, 1e-6))
+            rings.append((0...segments).map { k in
+                let phi = Float(k % segments) / Float(segments) * 2 * Float.pi
+                let c = cos(phi), s = sin(phi)
+                let z = b * power(s) + (s > 0 ? swell * s * s : 0)
+                return SIMD3(a * power(c), level.y, z)
+            })
+        }
+        rings.append(Array(repeating: SIMD3(0, height, 0), count: segments + 1))
+        return rings
+    }
+
+    static func clayBlock(bottom: Float, top: Float, depth: Float, height: Float, front: Float = 0,
+                          round: Float, name: String) throws -> MeshResource {
+        try surface(clayBlockRings(bottom: bottom, top: top, depth: depth, height: height, front: front, round: round), name: name)
+    }
+
+    /// A turned limb hanging from y 0 to −length: rounded ends, a swell near the
+    /// top and two lathe-cut grooves just inside its ends, as (y, radius) for `lathe`.
+    static func spindleProfile(length: Float, top: Float, bottom: Float, bulge: Float = 0, peak: Float = 0.3,
+                               grooves: Bool = true) -> [SIMD2<Float>] {
+        let n = 72
+        return (0...n).map { i in
+            let t = Float(i) / Float(n)  // 0 at the bottom, 1 at the top
+            let base = bottom + (top - bottom) * t
+            let swell = bulge * exp(-pow((t - (1 - peak)) / 0.28, 2))
+            let end = min(t, 1 - t) / 0.08
+            let cap = (max(0, 1 - pow(1 - min(end, 1), 2))).squareRoot()
+            var groove: Float = 0
+            if grooves && length > 0.06 {
+                for g in [Float(0.13), 0.87] { groove += 0.09 * base * exp(-pow((t - g) * length / 0.0022, 2)) }
+            }
+            return SIMD2(-length + length * t, (base + swell - groove) * cap)
+        }
+    }
+
+    /// An egg: an ellipsoid narrowing toward its lower end, like a mannequin head,
+    /// as (y, radius) for `lathe` (round in plan; scale x and z on the entity).
+    static func eggProfile(radius: Float, height: Float, taper: Float, steps: Int = 40) -> [SIMD2<Float>] {
+        (0...steps).map { i in
+            let t = -Float.pi / 2 + Float(i) / Float(steps) * Float.pi
+            let y = height * sin(t)
+            var r = radius * cos(t)
+            if y < 0 { r *= 1 - taper * pow(-y / height, 1.5) }
+            return SIMD2(y, max(r, 0))
+        }
+    }
+
+    /// A ring of revolution from a closed cross-section loop of (y, radius)
+    /// points listed counter-clockwise (outward, up, inward, down).
+    static func ring(_ loop: [SIMD2<Float>], segments: Int = 64, name: String) throws -> MeshResource {
+        try lathe(loop + [loop[0]], segments: segments, name: name)
+    }
+
+    /// The turntable's rim with a knurled grip round its outer wall: `ridges`
+    /// raised ribs, each `rib` proud, over the middle of the wall.
+    static func knurledRim(loop: [SIMD2<Float>], ridges: Int, rib: Float, name: String) throws -> MeshResource {
+        let outer = loop.map(\.y).max() ?? 0
+        let ys = loop.map(\.x)
+        let low = ys.min() ?? 0, high = ys.max() ?? 0
+        let segments = ridges * 6
+        let closed = loop + [loop[0]]
+        let rings: [[SIMD3<Float>]] = closed.map { p in
+            // Only points on the outer wall, away from its rounded edges, carry ribs.
+            let onWall = p.y >= outer - 1e-5 && p.x > low + (high - low) * 0.2 && p.x < high - (high - low) * 0.2
+            return (0...segments).map { k in
+                let phi = Float(k % segments) / Float(segments) * 2 * Float.pi
+                let ribShape = max(0, cos(phi * Float(ridges)))
+                let r = p.y + (onWall ? rib * ribShape * ribShape : 0)
+                return SIMD3(r * cos(phi), p.x, r * sin(phi))
+            }
+        }
+        return try surface(rings, name: name)
+    }
 }
+

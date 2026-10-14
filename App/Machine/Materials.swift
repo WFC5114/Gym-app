@@ -26,12 +26,16 @@ struct MaterialKit {
     var brass: PhysicallyBasedMaterial
     /// The BODY figurine: satin glazed porcelain.
     var porcelain: PhysicallyBasedMaterial
+    /// Claymorphism: the BODY mannequin, its turntable and hardware.
+    var clay: ClayKit
 
     func food(_ tint: FoodTint) -> PhysicallyBasedMaterial {
         tint.rawValue < foods.count ? foods[tint.rawValue] : weight
     }
 
-    static func make(skin: Skin, grain: TextureResource?, woodGrain: TextureResource? = nil) -> MaterialKit {
+    static func make(skin: Skin, grain: TextureResource?, woodGrain: TextureResource? = nil,
+                     clayGrain: TextureResource? = nil) -> MaterialKit {
+        let clay = ClayKit.make(grain: clayGrain)
         func matte(_ white: CGFloat, roughness: Float, metallic: Float = 0, grainScale: Float = 1) -> PhysicallyBasedMaterial {
             var m = PhysicallyBasedMaterial()
             m.baseColor = .init(tint: UIColor(white: white, alpha: 1))
@@ -132,7 +136,8 @@ struct MaterialKit {
                 facePlates: (skin.faceColors ?? []).map(plate),
                 // Golden carbs, roasted protein, pale fat, the skin's cream for mixed, amber quick-adds.
                 foods: [object(0xE9B44C), object(0xC9874A), object(0xF6E7C8), object(skin.objectColor), object(0xFFD77A)],
-                clearGlass: clearGlass, walnut: walnut, blackMatte: blackMatte, brass: brass, porcelain: porcelain
+                clearGlass: clearGlass, walnut: walnut, blackMatte: blackMatte, brass: brass, porcelain: porcelain,
+                clay: clay
             )
         }
         return MaterialKit(
@@ -157,7 +162,8 @@ struct MaterialKit {
             foods: [matte(0.78, roughness: 0.85, grainScale: 6), matte(0.62, roughness: 0.85, grainScale: 6),
                     matte(0.94, roughness: 0.85, grainScale: 6), matte(0.86, roughness: 0.85, grainScale: 6),
                     matte(0.46, roughness: 0.9, grainScale: 6)],
-            clearGlass: clearGlass, walnut: walnut, blackMatte: blackMatte, brass: brass, porcelain: porcelain
+            clearGlass: clearGlass, walnut: walnut, blackMatte: blackMatte, brass: brass, porcelain: porcelain,
+            clay: clay
         )
     }
 
@@ -236,3 +242,49 @@ struct MaterialKit {
                        provider: provider, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
     }
 }
+
+/// Claymorphism (Wei, 14 Oct 2026): every object a solid colour with a soft
+/// satin sheen and a fine pressed surface, like the clay mockup
+/// (design/mockups/body/mannequin.py, look `clay`). Hard objects stay hard:
+/// the look is clay, the motion is rigid.
+@MainActor
+struct ClayKit {
+    /// Cream body pieces.
+    var body: PhysicallyBasedMaterial
+    /// Orange joints, cups and hinge cheeks.
+    var joint: PhysicallyBasedMaterial
+    /// Dark rust socket rings and seam cores.
+    var socket: PhysicallyBasedMaterial
+    /// Butter-yellow hardware: rims, screws, crank, plaque.
+    var hardware: PhysicallyBasedMaterial
+    /// Pale stand rod.
+    var rod: PhysicallyBasedMaterial
+    /// Violet dial.
+    var dial: PhysicallyBasedMaterial
+    /// Deep indigo plinth.
+    var plinth: PhysicallyBasedMaterial
+    /// Lilac dots and lettering on the dial.
+    var tick: PhysicallyBasedMaterial
+
+    static func make(grain: TextureResource?) -> ClayKit {
+        func clay(_ hex: UInt32, roughness: Float = 0.42, coat: Float = 0.3) -> PhysicallyBasedMaterial {
+            var m = PhysicallyBasedMaterial()
+            m.baseColor = .init(tint: UIColor(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
+                                              blue: CGFloat(hex & 0xFF) / 255, alpha: 1))
+            m.roughness = .init(floatLiteral: roughness)
+            m.metallic = .init(floatLiteral: 0)
+            m.specular = .init(floatLiteral: 0.45)
+            m.clearcoat = .init(floatLiteral: coat)
+            m.clearcoatRoughness = .init(floatLiteral: 0.3)
+            if let grain {
+                m.normal = .init(texture: .init(grain))
+                m.textureCoordinateTransform = .init(scale: SIMD2(repeating: 3))
+            }
+            return m
+        }
+        return ClayKit(body: clay(0xF2C38C), joint: clay(0xF0904E), socket: clay(0xB8703C, roughness: 0.55, coat: 0),
+                       hardware: clay(0xFFD27A, roughness: 0.36), rod: clay(0xF4EEE6), dial: clay(0x8F5BF0, roughness: 0.5, coat: 0),
+                       plinth: clay(0x2A1257, roughness: 0.5), tick: clay(0xB894FF, coat: 0.1))
+    }
+}
+

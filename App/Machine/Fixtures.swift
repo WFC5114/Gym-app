@@ -190,6 +190,10 @@ enum Fixtures {
             model.bodyNumbers = model.scrubSpring
             model.syncFigureImmediately()
             model.figureSpin = SpringState(position: 0.45, target: 0.45)
+        case "body-flex":
+            // Just after a tap: the right arm is up in a flex.
+            model.yaw = SpringState(position: 240, target: 240)
+            model.figureFlex = SpringState(position: 1, target: 1)
         default:
             break
         }
