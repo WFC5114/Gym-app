@@ -17,6 +17,9 @@ final class MannequinRig {
     /// Pieces whose width and depth follow the body, with how to scale them.
     private var scaled: [(entity: Entity, scale: (FigureShape) -> SIMD3<Float>)] = []
     private var chestGroup = Entity()
+    /// The right hand's finger joints and thumb, which close into a fist on a flex.
+    private var fingers: [(base: Entity, knuckle: Entity)] = []
+    private let thumb = Entity()
     private let clay: ClayKit
     private let sphere: MeshResource
 
@@ -42,7 +45,32 @@ final class MannequinRig {
         // The chest swells a touch with each breath.
         let breath = 1 + 0.012 * max(pose.breathe, 0)
         chestGroup.scale = SIMD3(shape.chestScale.x * breath, 1, shape.chestScale.y * breath)
+        curlRightHand(min(max(pose.flex, 0), 1))
     }
+
+    /// 0 is the open resting hand; 1 is a fist with the thumb across the fingers.
+    /// The right hand's palm faces local +x.
+    private func curlRightHand(_ f: Float) {
+        for (base, knuckle) in fingers {
+            base.orientation = Self.fingerBase(side: -1, curl: f)
+            knuckle.orientation = Self.fingerKnuckle(side: -1, curl: f)
+        }
+        thumb.position = Self.thumbRest(side: -1) + [0, -0.012 * f, 0]
+        thumb.orientation = simd_slerp(Self.thumbOpen, Self.thumbFist, f)
+    }
+
+    private static func fingerBase(side: Float, curl f: Float) -> simd_quatf {
+        simd_quatf(angle: side * (0.12 - 1.5 * f), axis: [0, 0, 1]) * simd_quatf(angle: 0.1 * (1 - f), axis: [1, 0, 0])
+    }
+
+    private static func fingerKnuckle(side: Float, curl f: Float) -> simd_quatf {
+        simd_quatf(angle: -side * 1.7 * f, axis: [0, 0, 1]) * simd_quatf(angle: -0.35 * (1 - f), axis: [1, 0, 0])
+    }
+
+    private static func thumbRest(side: Float) -> SIMD3<Float> { [side * -0.0087, -0.018, 0.0174] }
+    private static let thumbOpen = simd_quatf(angle: 0.5, axis: [1, 0, 0])
+    /// Down, in towards the palm and a little back, so the tip rests on the curled index finger.
+    private static let thumbFist = simd_quatf(from: [0, -1, 0], to: simd_normalize(SIMD3<Float>(0.0113, -0.037, -0.0054)))
 
     // MARK: Building blocks
 
@@ -302,21 +330,25 @@ final class MannequinRig {
         let wrist = joint(left ? .wristL : .wristR)
         ball(SIMD3(repeating: 0.0132), clay.joint, to: wrist, at: .zero)
         add(block(bottom: 0.0109, top: 0.0093, depth: 0.0247, height: 0.032, round: 0.0087, "palm"), clay.body, to: wrist, at: [0, -0.04, 0])
-        spindle(length: 0.03, top: 0.0075, bottom: 0.00625, at: [side * -0.0087, -0.018, 0.0174], to: wrist,
-                orientation: simd_quatf(angle: 0.5, axis: [1, 0, 0]))
+        let thumbPivot = left ? Entity() : thumb
+        thumbPivot.position = Self.thumbRest(side: side)
+        thumbPivot.orientation = Self.thumbOpen
+        wrist.addChild(thumbPivot)
+        spindle(length: 0.03, top: 0.0075, bottom: 0.00625, at: .zero, to: thumbPivot)
         add(.generateCylinder(height: 0.0288, radius: 0.0055), clay.joint, to: wrist, at: [0, -0.07, 0],
             orientation: simd_quatf(angle: .pi / 2, axis: [1, 0, 0]))
         for i in 0..<4 {
             let length = 0.016 - abs(Float(i) - 1.5) * 0.0018
             let base = Entity()
             base.position = [0, -0.07, 0.018 - Float(i) * 0.012]
-            base.orientation = simd_quatf(angle: side * 0.12, axis: [0, 0, 1]) * simd_quatf(angle: 0.1, axis: [1, 0, 0])
+            base.orientation = Self.fingerBase(side: side, curl: 0)
             wrist.addChild(base)
             spindle(length: length, top: 0.00525, bottom: 0.004875, at: .zero, to: base)
             let knuckle = Entity()
             knuckle.position = [0, -length - 0.002, 0]
-            knuckle.orientation = simd_quatf(angle: -0.35, axis: [1, 0, 0])
+            knuckle.orientation = Self.fingerKnuckle(side: side, curl: 0)
             base.addChild(knuckle)
+            if !left { fingers.append((base, knuckle)) }
             ball(SIMD3(repeating: 0.0045), clay.joint, to: knuckle, at: [0, 0.001, 0])
             spindle(length: length * 0.85, top: 0.00475, bottom: 0.004125, at: [0, -0.002, 0], to: knuckle)
         }

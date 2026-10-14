@@ -229,8 +229,14 @@ enum Mannequin {
         static let rest = Pose()
     }
 
-    /// Rotation of one joint relative to its parent: about x (forward bend), then
-    /// z (sideways), then y (twist). Values are the mockup's contrapposto pose.
+    /// Rotation of one joint relative to its parent: a twist about the limb's own
+    /// axis, then about x (forward bend), then z (sideways), then y (turn). Values
+    /// are the mockup's contrapposto pose.
+    ///
+    /// The flex is a real biceps pose, not a wave: the right upper arm rolls out a
+    /// quarter turn as it rises, so the elbow hinge (pinned along x, like the
+    /// mockup's forks) faces forward and bends the forearm straight up beside the
+    /// head, palm to the front; the rig curls that hand into a fist.
     static func rotation(_ joint: Joint, pose p: Pose) -> simd_quatf {
         let b = p.breathe, sh = p.shift, fl = p.flex
         let angles: SIMD3<Float>  // (x, y, z)
@@ -243,9 +249,9 @@ enum Mannequin {
         case .shoulderL: angles = [0.08, 0, p.swing]
         case .elbowL: angles = [-0.25, 0, 0]
         case .wristL: angles = [0, 0, -0.1]
-        case .shoulderR: angles = [0.05 - 0.15 * fl, 0, -(p.swing + 1.45 * fl)]
-        case .elbowR: angles = [-0.3 * (1 - fl), 0, -2.05 * fl]
-        case .wristR: angles = [-0.3 * fl, 0, -0.6 * fl]
+        case .shoulderR: angles = [0.05 - 0.15 * fl, 0, -(p.swing + 1.5 * fl)]
+        case .elbowR: angles = [-0.3 - 1.75 * fl, 0, 0]
+        case .wristR: angles = [0, 0, 0.25 * fl]
         case .hipL: angles = [-0.02, 0, 0.06 + 0.02 * sh]
         case .kneeL: angles = [0.03, 0, 0]
         case .ankleL: angles = [0, 0, -0.04]
@@ -256,7 +262,8 @@ enum Mannequin {
         let qx = simd_quatf(angle: angles.x, axis: [1, 0, 0])
         let qy = simd_quatf(angle: angles.y, axis: [0, 1, 0])
         let qz = simd_quatf(angle: angles.z, axis: [0, 0, 1])
-        return qy * qz * qx
+        let twist = joint == .shoulderR ? -Float.pi / 2 * fl : 0
+        return qy * qz * qx * simd_quatf(angle: twist, axis: [0, 1, 0])
     }
 
     /// Where every joint is in figure units for a body and pose (forward
