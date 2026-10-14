@@ -3,7 +3,8 @@
 # and strongly lit. Wei, 14 Oct: "mannequins are hard", "taller", "fake but
 # highly detailed and 3d". Round 3 (clay look): Wei asked for claymorphism,
 # "highly detailed not just smooth": one-colour clay, an egg head, turned
-# grooves, socket rings, pins, fingers and a dotted dial. Mockup only.
+# grooves, socket rings, pins, fingers and a dotted dial. Then "complex with
+# tactile 3d object": hinge forks, screws, seams, a knurled dial and a crank.
 # FLEX=1 poses the touched (flexing) arm in a still.
 #   python3 mannequin.py <look> <out> [samples] [scale]            one still
 #   python3 mannequin.py <look> <out dir> [samples] [scale] motion  frames
@@ -74,12 +75,24 @@ def clay(name, color, rough=0.38, coat=0.25, sss=0.18):
     b.inputs['Subsurface Weight'].default_value = sss
     b.inputs['Subsurface Radius'].default_value = (0.05, 0.03, 0.02)
     b.inputs['Subsurface Scale'].default_value = 0.03
+    nt = m.node_tree
+    coord = nt.nodes.new('ShaderNodeTexCoord')
+    noise = nt.nodes.new('ShaderNodeTexNoise')
+    noise.inputs['Scale'].default_value = 260.0
+    noise.inputs['Detail'].default_value = 6.0
+    noise.inputs['Roughness'].default_value = 0.6
+    bump = nt.nodes.new('ShaderNodeBump')
+    bump.inputs['Strength'].default_value = 0.07
+    bump.inputs['Distance'].default_value = 0.0004
+    nt.links.new(coord.outputs['Object'], noise.inputs['Vector'])
+    nt.links.new(noise.outputs['Fac'], bump.inputs['Height'])
+    nt.links.new(bump.outputs['Normal'], b.inputs['Normal'])
     return m
 
 
 if CLAY:
     body = clay('body', 0xF2C38C)
-    jnt = clay('joint', 0xE8A96C)
+    jnt = clay('joint', 0xF0904E)
     socket = clay('socket', 0xB8703C, rough=0.5, coat=0)
     backdrop = 0x7B3FE4
 elif LOOK == 'beech':
@@ -224,10 +237,55 @@ def ring(name, r, z, parent, width=0.004, depth=0.003):
     return o
 
 
+def screw(name, parent, loc, rot, r=0.0045):
+    """A domed screw head with a cross slot; its axis is local z."""
+    h = link(lathe(name, [(0, 1e-4), (0, r), (r * 0.25, r * 0.92), (r * 0.45, r * 0.6), (r * 0.52, 1e-4)], 32), parent, brass)
+    h.location, h.rotation_euler = loc, rot
+    for a in (0, math.pi / 2):
+        sl = link(shaped(name + 'Slot', r * 0.8, r * 0.13, r * 0.2, bevel=0, sub=0), h, socket, smooth=False)
+        sl.location = (0, 0, r * 0.5)
+        sl.rotation_euler = (0, 0, a)
+    return h
+
+
+def seam(o, parent, z, gap=0.0028, core=0.8):
+    """Cut a panel line right round a part: a thin slice taken out at z, with a
+    dark core behind it so the line reads as a deep groove."""
+    cut = bpy.data.objects.new(o.name + 'Cut', bpy.data.meshes.new(o.name + 'Cut'))
+    bm = bmesh.new()
+    bmesh.ops.create_cube(bm, size=1.0)
+    bm.to_mesh(cut.data)
+    bm.free()
+    scene.collection.objects.link(cut)
+    cut.parent = parent
+    cut.location = (o.location.x, o.location.y, z)
+    cut.scale = (0.5, 0.5, gap)
+    cut.hide_render = True
+    cut.display_type = 'WIRE'
+    bo = o.modifiers.new('seam' + str(z), 'BOOLEAN')
+    bo.operation, bo.object, bo.solver = 'DIFFERENCE', cut, 'EXACT'
+    dims = o.dimensions
+    c = link(ellipsoid(o.name + 'Core', dims.x * core / 2, dims.y * core / 2, gap * 1.5), parent, socket)
+    c.location = (o.location.x, o.location.y, z)
+
+
+def fork(name, parent, z, r):
+    """A hinge: two cheek plates from the upper limb hug the ball, pinned
+    through with a screw each side."""
+    r *= 1.1
+    for x in (-1, 1):
+        cheek = link(lathe(name, [(-0.002, 1e-4), (-0.002, r * 0.95), (0.0, r * 1.02), (0.002, r * 0.95), (0.002, 1e-4)], 48), parent, jnt)
+        cheek.location = (x * (r + 0.002), 0, z)
+        cheek.rotation_euler = (0, math.pi / 2, 0)
+        tongue = link(shaped(name + 'Tongue', 0.0022, r * 0.7, r * 0.6, bevel=0.0015, sub=1), parent, jnt)
+        tongue.location = (x * (r + 0.002), 0, z + r * 0.75)
+        screw(name + 'Screw', parent, (x * (r + 0.004), 0, z), (0, x * math.pi / 2, 0), r=r * 0.42)
+
+
 def ball(name, r, parent, pins=False, mat=None):
     r *= 1.1 if CLAY else 1.0
     b = link(ellipsoid(name, r, r, r), parent, mat or jnt)
-    if pins:
+    if pins and not CLAY:
         for x in (-1, 1):
             p = link(lathe(name + 'Pin', [(0, 1e-4), (0, r * 0.3), (r * 0.08, r * 0.3), (r * 0.16, 1e-4)], 32), parent, steel)
             p.location = (x * r * 0.96, 0, 0)
@@ -248,7 +306,9 @@ neck = empty('neck', (0, 0, 0.215), chest)
 head = empty('head', (0, 0, 0.03), neck)
 
 if CLAY:
-    link(shaped('pelvisBlock', 0.08, 0.052, 0.044, top=1.0, bottom=0.6, front=0.12, bevel=0.028), pelvis, body).location = (0, 0, 0.0)
+    pb = link(shaped('pelvisBlock', 0.08, 0.052, 0.044, top=1.0, bottom=0.6, front=0.12, bevel=0.028), pelvis, body)
+    bpy.context.view_layer.update()
+    seam(pb, pelvis, 0.022)
     ball('abdomenBall', 0.036, abdomen, mat=body)
 else:
     link(shaped('pelvisBlock', 0.074, 0.047, 0.034, top=1.0, bottom=0.62, front=0.4, bevel=0.022), pelvis, body).location = (0, 0, 0.0)
@@ -256,6 +316,9 @@ else:
 ring('abdTop', 0.03, 0.035, abdomen)
 torso = link(shaped('rib', 0.085, 0.054, 0.092, top=1.12, bottom=0.56, front=0.5, bevel=0.034), chest, body)
 torso.location = (0, 0, 0.105)
+if CLAY:
+    bpy.context.view_layer.update()
+    seam(torso, chest, 0.15)
 if CLAY:
     for x in (-1, 1):
         blade = link(ellipsoid('blade', 0.032, 0.012, 0.042), chest, body)
@@ -265,6 +328,16 @@ if CLAY:
             ab.location = (x * 0.0165, -0.054 + row * 0.004, 0.083 - row * 0.022)
     ring('abdLow', 0.034, -0.03, abdomen)
 ball('neckBall', 0.022, neck)
+if CLAY:
+    for i, z in enumerate((0.012, 0.024)):
+        ring('neckRing%d' % i, 0.017 * THICK, 0.04 + z, neck, width=0.003, depth=0.002)
+    for i in range(6):
+        v = link(ellipsoid('vertebra', 0.009, 0.006, 0.0075), chest, jnt)
+        v.location = (0, 0.06 - 0.004 * abs(i - 2.5) / 2.5, 0.06 + i * 0.024)
+    # Socket cups: the chest seats on the waist ball and the neck in a collar.
+    link(lathe('waistCup', [(-0.006, 0.026), (-0.006, 0.036), (0.0, 0.043), (0.008, 0.045), (0.008, 0.026)], 64, loop=True), chest, jnt).location = (0, 0, 0.004)
+    link(lathe('hipCup', [(-0.008, 0.026), (-0.008, 0.045), (0.0, 0.043), (0.006, 0.036), (0.006, 0.026)], 64, loop=True), abdomen, jnt).location = (0, 0, -0.03)
+    link(lathe('collar', [(-0.004, 0.012), (-0.004, 0.026), (0.004, 0.028), (0.009, 0.024), (0.009, 0.012)], 64, loop=True), chest, jnt).location = (0, 0, 0.2)
 link(spindle('neckRod', 0.035, 0.016, 0.019), neck, body).location = (0, 0, 0.04)
 if CLAY:
     link(egg('skull', 0.046, 0.054, 0.072, taper=0.32), head, body).location = (0, -0.006, 0.066)
@@ -287,13 +360,16 @@ for side, x in (('L', 1), ('R', -1)):
     link(spindle('upperArm' + side, 0.15, 0.022, 0.017, bulge=0.004), sh, body).location = (0, 0, -0.02)
     el = empty('elbow' + side, (0, 0, -0.17), sh)
     ball('elbowBall' + side, 0.019, el, pins=True)
+    if CLAY:
+        fork('elbowFork', sh, -0.17, 0.019)
     link(spindle('forearm' + side, 0.145, 0.018, 0.013, bulge=0.003), el, body).location = (0, 0, -0.016)
     wr = empty('wrist' + side, (0, 0, -0.165), el)
     ball('wristBall' + side, 0.012, wr)
-    hand = link(shaped('hand' + side, 0.0075, 0.017, 0.032, top=0.85, bottom=1.0, bevel=0.006), wr, body)
+    hw = 1.45 if CLAY else 1.0
+    hand = link(shaped('hand' + side, 0.0075 * hw, 0.017 * hw, 0.032, top=0.85, bottom=1.0, bevel=0.006 * hw), wr, body)
     hand.location = (0, 0, -0.04)
     thumb = link(spindle('thumb' + side, 0.03, 0.006, 0.005), wr, body)
-    thumb.location = (x * -0.006, -0.012, -0.018)
+    thumb.location = (x * -0.006 * hw, -0.012 * hw, -0.018)
     thumb.rotation_euler = (0.5, 0, 0)
 
     hip = empty('hip' + side, (x * 0.045, 0, -0.04), pelvis)
@@ -301,22 +377,41 @@ for side, x in (('L', 1), ('R', -1)):
     link(spindle('thigh' + side, 0.205, 0.03, 0.021, bulge=0.005), hip, body).location = (0, 0, -0.022)
     kn = empty('knee' + side, (0, 0, -0.228), hip)
     ball('kneeBall' + side, 0.022, kn, pins=True)
+    if CLAY:
+        fork('kneeFork', hip, -0.228, 0.022)
     link(spindle('shin' + side, 0.19, 0.022, 0.015, bulge=0.004, peak=0.25), kn, body).location = (0, 0, -0.018)
     an = empty('ankle' + side, (0, 0, -0.21), kn)
     ball('ankleBall' + side, 0.014, an)
-    foot = link(shaped('foot' + side, 0.02, 0.045, 0.011, top=0.8, bottom=1.0, bevel=0.008), an, body)
-    foot.location = (0, -0.022, -0.012)
+    if CLAY:
+        foot = link(shaped('foot' + side, 0.02, 0.035, 0.011, top=0.8, bottom=1.0, bevel=0.008), an, body)
+        foot.location = (0, -0.026, -0.012)
+    else:
+        foot = link(shaped('foot' + side, 0.02, 0.045, 0.011, top=0.8, bottom=1.0, bevel=0.008), an, body)
+        foot.location = (0, -0.022, -0.012)
     if CLAY:
         for i in range(4):
-            fing = link(spindle('finger', 0.026 - abs(i - 1.5) * 0.003, 0.0034, 0.003), wr, body)
-            fing.location = (0, -0.012 + i * 0.008, -0.064)
-            fing.rotation_euler = (0, -x * 0.12, 0)
+            L = 0.016 - abs(i - 1.5) * 0.0018
+            base = empty('finger', (0, -0.018 + i * 0.012, -0.07), wr)
+            base.rotation_euler = (0.1, -x * 0.12, 0)
+            link(spindle('fingerA', L, 0.0042, 0.0039), base, body)
+            k = empty('knuckle', (0, 0, -L - 0.002), base)
+            k.rotation_euler = (-0.35, 0, 0)
+            link(ellipsoid('knuckleBall', 0.0045, 0.0045, 0.0045), k, jnt).location = (0, 0, 0.001)
+            link(spindle('fingerB', L * 0.85, 0.0038, 0.0033), k, body).location = (0, 0, -0.002)
+        knuck = link(lathe('knuckles', [(-0.004, 1e-4), (-0.004, 0.0055), (0.004, 0.0055), (0.004, 1e-4)], 24), wr, jnt)
+        knuck.location = (0, -0.0002, -0.07)
+        knuck.rotation_euler = (math.pi / 2, 0, 0)
+        knuck.scale = (1, 1, 3.6)
+        screw('shoulderScrew', sh, (x * 0.031, 0, 0), (0, x * math.pi / 2, 0), r=0.005)
         cap = link(ellipsoid('kneecap', 0.014, 0.008, 0.017), kn, body)
         cap.location = (0, -0.024, -0.004)
         heel = link(ellipsoid('heel', 0.017, 0.015, 0.012), an, body)
         heel.location = (0, 0.012, -0.012)
-        toe = link(ellipsoid('toe', 0.02, 0.016, 0.01), an, body)
-        toe.location = (0, -0.058, -0.015)
+        hinge = link(lathe('toeHinge', [(-0.017, 1e-4), (-0.017, 0.0035), (0.017, 0.0035), (0.017, 1e-4)], 24), an, steel)
+        hinge.location = (0, -0.066, -0.016)
+        hinge.rotation_euler = (0, math.pi / 2, 0)
+        toe = link(shaped('toe' + side, 0.017, 0.011, 0.008, top=0.75, bottom=1.0, bevel=0.006), an, body)
+        toe.location = (0, -0.079, -0.016)
         ring('shoulderRing' + side, 0.024 * THICK, -0.02, sh)
         ring('hipRing' + side, 0.03 * THICK, -0.022, hip)
         ring('kneeRing' + side, 0.023 * THICK, -0.018, kn)
@@ -366,6 +461,60 @@ if CLAY:
     idx.location = (0, -0.27, -0.036)
     idx.rotation_euler = (math.pi / 2, 0, 0)
 link(lathe('plinth', [(-0.075, 1e-4), (-0.075, 0.225), (-0.072, 0.23), (-0.044, 0.23), (-0.04, 0.225), (-0.04, 1e-4)], 128), None, black)
+
+
+def raised_text(name, text, size, parent, mat, depth=0.0018):
+    cu = bpy.data.curves.new(name, 'FONT')
+    cu.body = text
+    cu.size = size
+    cu.align_x, cu.align_y = 'CENTER', 'CENTER'
+    cu.extrude = depth
+    cu.bevel_depth = depth * 0.35
+    cu.bevel_resolution = 2
+    o = bpy.data.objects.new(name, cu)
+    return link(o, parent, mat, smooth=False)
+
+
+if CLAY:
+    # Knurled grip on the rim: the bit your thumb wants to turn.
+    for k in range(120):
+        a = 2 * math.pi * k / 120
+        kn_ = link(shaped('knurl', 0.0022, 0.0016, 0.0085, bevel=0.0012, sub=1), turn, brass)
+        kn_.location = (0.2655 * math.sin(a), -0.2655 * math.cos(a), -0.015)
+        kn_.rotation_euler = (0, 0, a)
+    # Raised week numbers, 0 to 8, a quarter turn apart (the scrub range).
+    for i, wk in enumerate(('0', '2', '4', '6', '8')):
+        a = -math.pi / 2 + i * math.pi / 4
+        t = raised_text('wk' + wk, wk, 0.045, turn, brass, depth=0.004)
+        t.location = (0.19 * math.sin(a), -0.19 * math.cos(a), 0.0)
+        t.rotation_euler = (0, 0, a)
+    t = raised_text('wkLabel', 'WEEKS', 0.022, turn, engrave, depth=0.003)
+    t.location = (0, -0.15, 0.0)
+    # A crank on the plinth's side, with a spinning knob.
+    arm = link(shaped('crankArm', 0.03, 0.006, 0.004, bevel=0.003), None, brass)
+    arm.location = (0.248, -0.03, -0.058)
+    arm.rotation_euler = (0, math.pi / 2, 0.3)
+    hub = link(lathe('crankHub', [(0, 1e-4), (0, 0.011), (0.012, 0.011), (0.016, 0.006), (0.016, 1e-4)], 32), None, brass)
+    hub.location = (0.228, -0.02, -0.058)
+    hub.rotation_euler = (0, math.pi / 2, 0)
+    knob = link(lathe('crankKnob', [(0, 1e-4), (0, 0.004), (0.004, 0.009), (0.022, 0.009), (0.028, 0.006), (0.03, 1e-4)], 32), None, engrave)
+    knob.location = (0.252, -0.055, -0.058)
+    knob.rotation_euler = (0, math.pi / 2, 0)
+    # Three bun feet.
+    for k in range(3):
+        a = 2 * math.pi * k / 3 + math.pi / 3
+        f_ = link(ellipsoid('foot', 0.03, 0.03, 0.012), None, brass)
+        f_.location = (0.17 * math.sin(a), -0.17 * math.cos(a), -0.072)
+    # A raised name plaque with two screws on the plinth front.
+    pl = link(shaped('plaque', 0.05, 0.003, 0.012, bevel=0.003), None, brass)
+    pa = math.radians(-32)   # off to one side, clear of the index pointer
+    pl.location = (0.232 * math.sin(pa), -0.232 * math.cos(pa), -0.058)
+    pl.rotation_euler = (0, 0, pa)
+    t = raised_text('plaqueText', 'BODY', 0.014, pl, black, depth=0.0012)
+    t.location = (0, -0.0035, 0)
+    t.rotation_euler = (math.pi / 2, 0, 0)
+    for x in (-1, 1):
+        screw('plaqueScrew', pl, (x * 0.042, -0.0028, 0), (math.pi / 2, 0, 0), r=0.003)
 
 bpy.ops.mesh.primitive_plane_add(size=8, location=(0, 1.0, 0.5), rotation=(math.pi / 2, 0, 0))
 bpy.context.object.data.materials.append(plate)
