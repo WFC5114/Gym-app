@@ -27,7 +27,7 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSSupportsLiveActivities: true
-        UIAppFonts: [Unbounded-Black.ttf]
+        UIAppFonts: [Unbounded-Black.ttf, InterDisplay-Bold.otf, InterDisplay-Medium.otf]
         UIUserInterfaceStyle: Dark
         CADisableMinimumFrameDurationOnPhone: true
         NSCameraUsageDescription: GYM uses the camera only to read food barcodes. Nothing is recorded or uploaded.

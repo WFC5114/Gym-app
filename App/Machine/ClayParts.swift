@@ -58,7 +58,7 @@ struct ClayPartReporter: ViewModifier {
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if let host, let id, Brutal.skin.clayUI {
+        if let host, let id, Brutal.skin.clayUI, !RenderedArt.on(host.face) {
             content
                 .background(GeometryReader { geo in
                     let frame = geo.frame(in: .named(host.face.space))
@@ -101,7 +101,8 @@ struct MachineKey: View {
 
     var body: some View {
         let clay = Brutal.skin.clayUI
-        let inScene = clay && host != nil && part != nil
+        // Rendered faces place their own rendered keys; other faces build lit 3D keys.
+        let inScene = clay && host != nil && part != nil && !(host.map { RenderedArt.on($0.face) } ?? false)
         let pressed = configuration.isPressed
         configuration.label
             .font(TypeKit.label(13 * min(scale, 1.25), weight: .heavy))

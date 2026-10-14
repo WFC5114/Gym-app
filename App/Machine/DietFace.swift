@@ -7,13 +7,22 @@ struct DietFace: View {
     let layout: MachineLayout
 
     var body: some View {
+        if RenderedArt.on(.diet) {
+            RenderedDietFace(model: model, layout: layout)
+        } else {
+            drawnFace
+        }
+    }
+
+    /// The face drawn in code (skins without rendered art).
+    private var drawnFace: some View {
         let totals = model.totals
         let targets = model.targets
         let remaining = totals.remainingKcal(target: targets)
         let g = model.jarGeometry
         let rail = model.rail
         let bob = CGFloat(model.jarBob.position)
-        ZStack(alignment: .topLeading) {
+        return ZStack(alignment: .topLeading) {
             // Empty face area: horizontal swipes turn the prism.
             Color.clear.contentShape(Rectangle()).modifier(FaceSwipe(model: model))
 
@@ -201,10 +210,15 @@ struct JarGlass: View {
 /// block opens that food to change or delete it.
 struct PieceLabels: View {
     let model: MachineModel
+    /// Rendered faces draw each block as a rendered clay picture under its label.
+    var rendered = false
 
     var body: some View {
         ForEach(model.jarPieces()) { piece in
-            PieceLabel(piece: piece)
+            ZStack {
+                if rendered { FoodSprite(tint: piece.tint, size: piece.size) }
+                PieceLabel(piece: piece)
+            }
                 .frame(width: piece.size.width, height: piece.size.height)
                 .contentShape(Rectangle())
                 .rotationEffect(.radians(piece.angle))
@@ -260,7 +274,7 @@ struct FlyingBlockLabels: View {
 
     var body: some View {
         ForEach(model.blocks.filter { $0.phase != .resting || $0.entryID != nil }) { block in
-            BlockFace(block: block)
+            BlockFace(block: block, rendered: RenderedArt.on(.diet), size: block.drawnSize)
                 .frame(width: block.drawnSize.width, height: block.drawnSize.height)
                 .scaleEffect(1 + 0.05 * block.lift.position)
                 .rotationEffect(.radians(block.tilt.position))
@@ -280,8 +294,24 @@ struct FlyingBlockLabels: View {
 /// What is printed on a block: its energy and, for food, its name.
 struct BlockFace: View {
     let block: FlyingBlock
+    /// Rendered faces draw the block itself as a rendered clay picture; a
+    /// quick-add picture carries its own raised number.
+    var rendered = false
+    var size: CGSize = .zero
 
     var body: some View {
+        ZStack {
+            if rendered {
+                switch block.kind {
+                case .quick(let kcal): QuickSprite(kcal: kcal, size: size)
+                case .food(let food): FoodSprite(tint: FoodTint.of(food.nutrients), size: size)
+                }
+            }
+            if !(rendered && block.isQuick) { printed }
+        }
+    }
+
+    private var printed: some View {
         VStack(spacing: 1) {
             switch block.kind {
             case .quick(let kcal):
@@ -351,7 +381,10 @@ struct QuickBlockHandle: View {
         let inFlight = model.blocks.contains { if case .quick(kcal) = $0.kind { return true }; return false }
         ZStack {
             if !inFlight {
-                BlockFace(block: FlyingBlock(id: UUID(), kind: .quick(kcal), size: size, jarSize: size, seed: 0, home: home, position: home))
+                BlockFace(block: FlyingBlock(id: UUID(), kind: .quick(kcal), size: size, jarSize: size, seed: 0, home: home, position: home),
+                          rendered: RenderedArt.on(.diet), size: size)
+                    .frame(width: size.width, height: size.height)
+                    .offset(y: max(0, 44 - size.height) / 2)
             }
         }
         .frame(width: size.width, height: max(size.height, 44))
@@ -379,7 +412,9 @@ struct PendingBlockHandle: View {
         let inFlight = model.blocks.contains { $0.entryID == pending.entryID }
         ZStack {
             if !inFlight {
-                BlockFace(block: FlyingBlock(id: UUID(), kind: .food(pending), size: size, jarSize: size, seed: 0, home: home, position: home))
+                BlockFace(block: FlyingBlock(id: UUID(), kind: .food(pending), size: size, jarSize: size, seed: 0, home: home, position: home),
+                          rendered: RenderedArt.on(.diet), size: size)
+                    .frame(width: size.width, height: size.height)
             }
         }
         .frame(width: size.width, height: max(size.height, 44))
@@ -462,5 +497,12 @@ struct ImpactRays: View {
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+}
+
+extension FlyingBlock {
+    var isQuick: Bool {
+        if case .quick = kind { return true }
+        return false
     }
 }

@@ -431,13 +431,18 @@ final class MachineScene {
             face.components.set(OpacityComponent(opacity: opacity))
         }
 
+        // A rendered face draws its tray and objects from pictures (RenderedArt).
+        let dietRendered = RenderedArt.on(.diet)
+        dietGroup.isEnabled = !dietRendered
+        if !facePlates.isEmpty { facePlates[0].isEnabled = !dietRendered }
         applyDiet(model, layout: layout)
         for (face, n) in numerals {
             let glyphs = model.heroGlyphs[face]
-            n.root.isEnabled = model.heroIn3D && glyphs != nil
-            guard model.heroIn3D, let glyphs else { continue }
             // DIET counts on its spring every frame; the others show their text as laid out.
-            let text = face == .diet ? Readout.kcal(model.heroKcal.position.rounded()) : glyphs.text
+            let text = face == .diet ? Readout.kcal(model.heroKcal.position.rounded()) : (glyphs?.text ?? "")
+            let rendered = RenderedArt.on(face) && RenderedArt.covers(text)
+            n.root.isEnabled = model.heroIn3D && glyphs != nil && !rendered
+            guard model.heroIn3D, !rendered, let glyphs else { continue }
             n.update(text: text, size: glyphs.size, frame: glyphs.frame,
                      punch: face == .diet ? model.heroPunch.position : 0, layout: layout)
         }

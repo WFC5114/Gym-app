@@ -57,16 +57,27 @@ struct JarGeometry {
     static let maxTilt: Double = 0.26
     static let column: CGFloat = 2
 
+    /// The rendered jar's glass where Blender put it (DIET drawn from Blender).
+    private var art: RenderedArt.Jar? { RenderedArt.on(.diet) ? RenderedArt.layout?.jar : nil }
+
     var outer: CGRect {
+        if let art { return RenderedArt.rect(art.outer, layout) }
         let w = (layout.contentWidth * 0.58).rounded() + 2 * (Self.wall - 7)
         let top = mech.minY + Self.overflowRoom
         return CGRect(x: layout.faceWidth / 2 - w / 2, y: top, width: w, height: mech.maxY - 8 - top)
     }
-    var interior: CGRect { outer.insetBy(dx: Self.wall, dy: Self.wall) }
+    var interior: CGRect {
+        if let art { return RenderedArt.rect(art.interior, layout) }
+        return outer.insetBy(dx: Self.wall, dy: Self.wall)
+    }
     var floorY: CGFloat { interior.maxY }
-    var innerRadius: CGFloat { Self.cornerRadius - Self.wall }
+    /// The rendered tank's inside corners are tight (a 0.02 unit bevel, about 8 pt).
+    var innerRadius: CGFloat { art == nil ? Self.cornerRadius - Self.wall : 8 }
     /// The etched TARGET line.
-    var targetLineY: CGFloat { floorY - interior.height * Self.targetFraction }
+    var targetLineY: CGFloat {
+        if let art { return art.targetY * RenderedArt.scale(layout).height }
+        return floorY - interior.height * Self.targetFraction
+    }
     /// The pile never rises above this.
     var ceilingY: CGFloat { mech.minY + 6 }
     var areaPerKcal: CGFloat {
@@ -321,12 +332,20 @@ struct RailGeometry {
 
     static let heightFactors: [Int: CGFloat] = [50: 0.58, 100: 0.68, 250: 0.82, 500: 1.0]
 
+    /// A quick block's rect where Blender put it (DIET drawn from Blender).
+    private func art(kcal: Int) -> CGRect? {
+        guard RenderedArt.on(.diet), let r = RenderedArt.layout?.quick["\(kcal)"] else { return nil }
+        return RenderedArt.rect(r, layout)
+    }
+
     func quickBlockSize(kcal: Int) -> CGSize {
-        CGSize(width: slotWidth, height: rowHeight * (Self.heightFactors[kcal] ?? 0.7))
+        if let r = art(kcal: kcal) { return r.size }
+        return CGSize(width: slotWidth, height: rowHeight * (Self.heightFactors[kcal] ?? 0.7))
     }
 
     /// Centre of the quick block resting in its slot (bottom-aligned on the rail).
     func quickBlockHome(kcal: Int) -> CGPoint {
+        if let r = art(kcal: kcal) { return CGPoint(x: r.midX, y: r.midY) }
         let i = CGFloat(QuickAdd.weights.firstIndex(of: kcal) ?? 0)
         let size = quickBlockSize(kcal: kcal)
         return CGPoint(x: controls.minX + i * (slotWidth + gap) + slotWidth / 2,
@@ -342,10 +361,13 @@ struct RailGeometry {
 
     func foodBlockHome(kcal: Double) -> CGPoint {
         let size = foodBlockSize(kcal: kcal)
-        return CGPoint(x: controls.minX + size.width / 2, y: controls.minY + rowHeight - size.height / 2)
+        return CGPoint(x: controls.minX + size.width / 2, y: railLineY - size.height / 2)
     }
 
-    var railLineY: CGFloat { controls.minY + rowHeight }
+    var railLineY: CGFloat {
+        if RenderedArt.on(.diet), let y = RenderedArt.layout?.railY { return y * RenderedArt.scale(layout).height }
+        return controls.minY + rowHeight
+    }
 }
 
 /// The TRAIN hourglass: its size follows the rest length, its sand follows time.
