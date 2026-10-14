@@ -254,6 +254,15 @@ struct ClayKit {
             m.normal = .init(texture: .init(grain))
             m.textureCoordinateTransform = .init(scale: SIMD2(repeating: 3))
         }
+        if #available(iOS 27, *) {
+            // Light soaks a little way into clay and comes back warmer, as in
+            // the Cycles mockups (subsurface 0.12 to 0.18, radius about 3% of an object).
+            let r = CGFloat((hex >> 16) & 0xFF) / 255, g = CGFloat((hex >> 8) & 0xFF) / 255, b = CGFloat(hex & 0xFF) / 255
+            m.subsurfaceWeight = .init(scale: 0.3, texture: nil)
+            m.subsurfaceColor = .init(color: CGColor(srgbRed: min(r * 1.08, 1), green: g * 0.92, blue: b * 0.85, alpha: 1), texture: nil)
+            m.subsurfaceRadius = .init(scale: 0.08, texture: nil)
+            m.subsurfaceRadiusScale = .init(color: CGColor(srgbRed: 1, green: 0.55, blue: 0.35, alpha: 1), texture: nil)
+        }
         return m
     }
 }

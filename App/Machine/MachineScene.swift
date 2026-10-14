@@ -106,11 +106,34 @@ final class MachineScene {
         // Key light from the upper left, in front: planes separate by tone and
         // mechanisms drop soft contact shadows onto the face.
         let key = Entity()
-        var keyLight = DirectionalLightComponent(color: .white, intensity: 5200)
-        keyLight.isRealWorldProxy = false
-        key.components.set(keyLight)
-        key.components.set(DirectionalLightComponent.Shadow(maximumDistance: 12, depthBias: 2))
-        key.look(at: .zero, from: SIMD3(-2.4, 3.4, 5.0), relativeTo: nil)
+        let keyFrom = SIMD3<Float>(-2.4, 3.4, 5.0)
+        if #available(iOS 27, *) {
+            // iOS 27 spot lights cast soft, area-like shadows whose penumbra
+            // widens with distance, like the softbox in the clay mockups. The
+            // key is split: an unshadowed directional share keeps the shading,
+            // a spot share from the same side casts the soft shadows.
+            var keyLight = DirectionalLightComponent(color: .white, intensity: 5200 * 0.55)
+            keyLight.isRealWorldProxy = false
+            key.components.set(keyLight)
+            let softKey = Entity()
+            let distance: Float = 13
+            let lux: Float = 5200 * 0.45
+            softKey.components.set(SpotLightComponent(color: .white, intensity: lux * 4 * .pi * distance * distance,
+                                                      innerAngleInDegrees: 34, outerAngleInDegrees: 48, attenuationRadius: 60))
+            var shadow = SpotLightComponent.Shadow()
+            shadow.quality = .high
+            shadow.lightSize = 1.2
+            shadow.depthBias = 2
+            softKey.components.set(shadow)
+            softKey.look(at: .zero, from: simd_normalize(keyFrom) * distance, relativeTo: nil)
+            root.addChild(softKey)
+        } else {
+            var keyLight = DirectionalLightComponent(color: .white, intensity: 5200)
+            keyLight.isRealWorldProxy = false
+            key.components.set(keyLight)
+            key.components.set(DirectionalLightComponent.Shadow(maximumDistance: 12, depthBias: 2))
+        }
+        key.look(at: .zero, from: keyFrom, relativeTo: nil)
         root.addChild(key)
 
         let fill = Entity()
