@@ -98,11 +98,12 @@ struct DietHero: View {
                     .glyphs3D(model: model, face: .diet, text: text, size: size)
                 Engraved(text: remaining >= 0 ? "KCAL LEFT" : "KCAL OVER TARGET", size: 11, color: Ink.text(0.85))
                 Engraved(text: "\(Readout.kcal(totals.kcal)) OF \(Readout.kcal(targets.kcal)) EATEN", size: 10)
-                HStack(spacing: 14) {
-                    macro("PROTEIN", totals.protein, targets.protein)
-                    macro("CARBS", totals.carbs, targets.carbs)
-                    macro("FAT", totals.fat, targets.fat)
+                HStack(alignment: .top, spacing: 14) {
+                    macro("PROTEIN", totals.protein, targets.protein, .protein)
+                    macro("CARBS", totals.carbs, targets.carbs, .carbs)
+                    macro("FAT", totals.fat, targets.fat, .fat)
                 }
+                .frame(width: layout.contentWidth, alignment: .leading)
                 .padding(.top, 4)
                 if totals.entriesWithUnknownMacros > 0 {
                     Engraved(text: "+\(totals.entriesWithUnknownMacros) QUICK-ADD\(totals.entriesWithUnknownMacros == 1 ? "" : "S") WITHOUT MACROS",
@@ -117,12 +118,16 @@ struct DietHero: View {
         .accessibilityIdentifier("diet.hero")
     }
 
-    /// "PROTEIN 118/180 G": amount eaten against target, so the tag is never ambiguous.
-    private func macro(_ name: String, _ eaten: Double, _ target: Double) -> some View {
+    /// "PROTEIN 118/180 G": amount eaten against target, so the tag is never
+    /// ambiguous, over a gauge (a glass tube filled with clay on clay skins).
+    private func macro(_ name: String, _ eaten: Double, _ target: Double, _ tint: GaugeTint) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Engraved(text: name, size: 8.5, color: Ink.text(0.45))
             Engraved(text: "\(Int(eaten.rounded()))/\(Int(target)) G", size: 11, color: Ink.text(0.9), tracking: 0.6)
+            MacroGauge(id: "diet.gauge.\(tint.rawValue)", tint: tint, fill: target > 0 ? eaten / target : 0)
+                .padding(.top, 5)
         }
+        .frame(width: (layout.contentWidth - 28) / 3, alignment: .leading)
     }
 }
 
@@ -181,7 +186,7 @@ struct JarGlass: View {
             }
             VStack(alignment: .trailing, spacing: 2) {
                 Engraved(text: "TARGET", size: 8.5, color: Ink.text(0.9))
-                Engraved(text: Readout.kcal(targetKcal), size: 11, color: .white, tracking: 0.4)
+                Engraved(text: Readout.kcal(targetKcal), size: 11, color: Ink.text(1), tracking: 0.4)
             }
             .fixedSize()
             .frame(width: 80, alignment: .trailing)
@@ -396,17 +401,17 @@ struct DietControls: View {
         HStack(spacing: 10) {
             if model.pending != nil {
                 Button("LOAD") { model.loadPending() }
-                    .buttonStyle(MachineButtonStyle(primary: true))
+                    .buttonStyle(MachineButtonStyle(primary: true, part: "diet.load"))
                     .accessibilityIdentifier("intake.load")
                 Button("DISCARD") { model.discardPending() }
-                    .buttonStyle(MachineButtonStyle())
+                    .buttonStyle(MachineButtonStyle(part: "diet.discard"))
                     .frame(maxWidth: rail.controls.width * 0.34)
             } else {
                 Button("LOG FOOD") { model.openInset(.search) }
-                    .buttonStyle(MachineButtonStyle(primary: true))
+                    .buttonStyle(MachineButtonStyle(primary: true, part: "diet.log"))
                     .accessibilityIdentifier("intake.open")
                 Button("UNDO") { model.undoFood() }
-                    .buttonStyle(MachineButtonStyle())
+                    .buttonStyle(MachineButtonStyle(part: "diet.undo"))
                     .frame(maxWidth: rail.controls.width * 0.3)
                     .disabled(!model.store.canUndoFood)
                     .accessibilityIdentifier("diet.undo")

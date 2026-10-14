@@ -17,8 +17,16 @@ enum TypeKit {
 
     static func display(_ size: CGFloat) -> Font { Font(displayUIFont(size)) }
 
+    /// Small type. Clay skins set it in the system sans with tabular digits
+    /// (mature, quieter than a typewriter); the others in SF Mono.
     static func label(_ size: CGFloat, weight: Font.Weight = .bold) -> Font {
-        .system(size: size, weight: weight, design: .monospaced)
+        if Brutal.skin.clayUI { return Font.system(size: size, weight: weight).monospacedDigit() }
+        return .system(size: size, weight: weight, design: .monospaced)
+    }
+
+    /// Letter spacing for small type: the sans needs about half the mono's.
+    static func tracking(_ mono: CGFloat) -> CGFloat {
+        Brutal.skin.clayUI ? mono * 0.55 : mono
     }
 
     /// Measures the shaped width of a string at a size, including tracking.
@@ -41,16 +49,17 @@ enum TypeKit {
     }
 }
 
-/// Engraved monospaced label used everywhere on the faces.
+/// Engraved label used everywhere on the faces.
 /// Small type on the faces. On black, dim labels step back by opacity; on the
 /// colour plates a dim white sinks into the colour (0.45 white on DIET orange
 /// was about 1.8:1), so every label keeps at least 0.88 there and the hierarchy
 /// comes from size and weight instead.
 enum Ink {
-    static var onColour: Bool { Brutal.skin.faceColors != nil }
+    /// Vivid colour plates; the graphite clay tray lets dim labels step back.
+    static var onColour: Bool { Brutal.skin.faceColors != nil && !Brutal.skin.clayUI }
 
     static func text(_ opacity: Double) -> Color {
-        .white.opacity(onColour ? max(opacity, 0.88) : opacity)
+        Color(hex: Brutal.skin.inkHex).opacity(onColour ? max(opacity, 0.88) : max(opacity, Brutal.skin.clayUI ? 0.5 : 0))
     }
 }
 
@@ -64,11 +73,12 @@ struct Engraved: View {
     var body: some View {
         Text(text)
             .font(TypeKit.label(size * scale))
-            .tracking(tracking)
+            .tracking(TypeKit.tracking(tracking))
             .foregroundStyle(color)
             // A one-point engraved shadow: invisible on black, keeps small type
-            // legible on the colour plates.
-            .shadow(color: .black.opacity(Ink.onColour ? 0.45 : 0.35), radius: 0, x: 0, y: 1)
+            // legible on the colour plates, and on clay lifts it like raised lettering.
+            .shadow(color: .black.opacity(Brutal.skin.clayUI ? 0.6 : Ink.onColour ? 0.45 : 0.35),
+                    radius: Brutal.skin.clayUI ? 0.6 : 0, x: 0, y: 1)
             .lineLimit(1)
             .fixedSize()
     }
@@ -96,28 +106,5 @@ extension DynamicTypeSize {
         case .xxxLarge: return 1.24
         default: return 1.4
         }
-    }
-}
-
-/// The two button weights on the machine: primary (white slab) and secondary (graphite).
-struct MachineButtonStyle: ButtonStyle {
-    var primary = false
-    @Environment(\.labelScale) private var scale
-    @Environment(\.isEnabled) private var isEnabled
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .font(TypeKit.label(13 * min(scale, 1.25), weight: .heavy))
-            .tracking(1.4)
-            .foregroundStyle(primary ? Color.black : Color.white)
-            .frame(maxWidth: .infinity, minHeight: 44, maxHeight: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(primary ? Color(white: 0.92) : Color(white: 0.11))
-            )
-            .offset(y: configuration.isPressed ? 2 : 0)
-            .scaleEffect(configuration.isPressed ? 0.985 : 1)
-            .opacity(isEnabled ? 1 : 0.4)
-            .animation(.interpolatingSpring(mass: 1, stiffness: 800, damping: 35), value: configuration.isPressed)
     }
 }

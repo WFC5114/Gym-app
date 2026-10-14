@@ -20,6 +20,11 @@ struct Skin: Identifiable, Equatable {
     var objectColor: UInt32 = 0xEDEDED
     /// Satin and clearcoat on objects instead of matte graphite.
     var glossy = false
+    /// Claymorphic chrome: keys and gauges are lit clay and glass objects on a
+    /// thick clay tray, labels are set in a sans, and dim labels may step back.
+    var clayUI = false
+    /// Colour of type on the faces.
+    var inkHex: UInt32 = 0xFFFFFF
 
     static let mono = Skin(
         id: "mono", name: "MONO",
@@ -51,15 +56,29 @@ struct Skin: Identifiable, Equatable {
         objectColor: 0xFFF4E0,
         glossy: true
     )
-    static let all: [Skin] = [.flare, .mono, .concrete, .signal]
+    /// Default (Wei, 14 Oct 2026, picked "Night" of three whole-screen clay
+    /// mockups, design/mockups/clay/screen.py): mature claymorphism. Graphite
+    /// clay trays, ivory clay objects and numerals, clear glass, a terracotta accent.
+    static let night = Skin(
+        id: "night", name: "NIGHT",
+        base: Color(hex: 0x000000), accent: Color(hex: 0xF1ECE4), mid: Color(hex: 0xD9774E),
+        roughness: 0.55, metalness: 0.0, soundKit: "Anvil",
+        unlock: nil,
+        faceColors: [0x211F24, 0x211F24, 0x211F24],
+        objectColor: 0xF1ECE4,
+        glossy: true,
+        clayUI: true,
+        inkHex: 0xF1ECE4
+    )
+    static let all: [Skin] = [.night, .flare, .mono, .concrete, .signal]
 
-    /// `-skin <id>` on launch picks a skin (fixtures and comparisons); otherwise FLARE.
+    /// `-skin <id>` on launch picks a skin (fixtures and comparisons); otherwise NIGHT.
     static var launch: Skin {
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "-skin"), i + 1 < args.count, let skin = all.first(where: { $0.id == args[i + 1] }) {
             return skin
         }
-        return .flare
+        return .night
     }
 }
 

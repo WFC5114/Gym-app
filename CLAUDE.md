@@ -22,7 +22,7 @@ Product owner: Wei (GitHub `WFC5114`). Wei approves scope, designs and releases.
 - Damped springs only (mass/stiffness/damping). No easing curves.
 - Every event has a specified sound (AVAudioEngine) and Core Haptics profile (see the sensory table). No presets or system beeps.
 - Widgets and the Dynamic Island are typographic: text on black, light-to-heavy "strike" on change; island is a flat gauge.
-- Skins (FLARE colour default per Wei 13 Oct, MONO matte black, CONCRETE, SIGNAL) bundle palette, material, physics and sound kit. Defined in `Shared/Brutal.swift`; `-skin <id>` on launch overrides.
+- Skins (NIGHT default per Wei 14 Oct: graphite clay trays, ivory clay, glass, sans labels, keys and gauges as lit clay/glass objects in the scene (`App/Machine/ClayParts.swift`); FLARE colour, MONO matte black, CONCRETE, SIGNAL) bundle palette, material, physics and sound kit. Defined in `Shared/Brutal.swift`; `-skin <id>` on launch overrides.
 - RealityKit + Metal (SceneKit is deprecated); text and controls are SwiftUI layers projected with the same orthographic maths. Honour Reduce Motion, silent switch, sound and haptics toggles, VoiceOver, Dynamic Type, 44 pt targets.
 - Fixture data, sample data and untested behaviour are always labelled as such.
 - Rest and cardio sessions are stored and feed the AI review.

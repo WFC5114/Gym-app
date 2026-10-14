@@ -36,7 +36,7 @@ trap cleanup EXIT
 FIXTURES=(
   diet-idle diet-held diet-contact diet-settled prism-half diet-intake
   diet-over-target diet-empty train-ready train-rest train-rest-added
-  body-idle body-scrub body-flex a11y-xxl diet-idle-mono
+  body-idle body-scrub body-flex a11y-xxl diet-idle-mono diet-idle-flare
 )
 
 # ---------------------------------------------------------------------------

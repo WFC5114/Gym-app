@@ -21,13 +21,15 @@ struct MaterialKit {
     var foods: [PhysicallyBasedMaterial]
     /// Claymorphism: the BODY mannequin, the TRAIN hourglass, the DIET jar and their hardware.
     var clay: ClayKit
+    /// Claymorphic chrome (skins with `clayUI`): keys, the glass gauges and their clay fills.
+    var chrome: ChromeKit
 
     func food(_ tint: FoodTint) -> PhysicallyBasedMaterial {
         tint.rawValue < foods.count ? foods[tint.rawValue] : weight
     }
 
     static func make(skin: Skin, grain: TextureResource?, clayGrain: TextureResource? = nil) -> MaterialKit {
-        let clay = ClayKit.make(grain: clayGrain)
+        let clay = ClayKit.make(grain: clayGrain, night: skin.clayUI)
         func matte(_ white: CGFloat, roughness: Float, metallic: Float = 0, grainScale: Float = 1) -> PhysicallyBasedMaterial {
             var m = PhysicallyBasedMaterial()
             m.baseColor = .init(tint: UIColor(white: white, alpha: 1))
@@ -73,9 +75,16 @@ struct MaterialKit {
             spring.specular = .init(floatLiteral: 0.6)
             var numeral = object(skin.objectColor)
             numeral.roughness = .init(floatLiteral: 0.3)
+            let night = skin.clayUI
+            var tray = ClayKit.material(skin.faceColors?.first ?? 0x211F24, roughness: 0.58, coat: 0.18, grain: clayGrain)
+            tray.textureCoordinateTransform = .init(scale: SIMD2(repeating: 1))
+            if night { numeral = ClayKit.material(skin.objectColor, roughness: 0.44, coat: 0.3, grain: clayGrain) }
+            // Golden carbs, roasted protein, pale fat, the skin's cream for mixed, amber quick-adds.
+            let foodHexes: [UInt32] = night ? [0xD9A55B, 0xB86E48, 0xEFE6D6, 0xC8B79A, 0xE3CB98]
+                                            : [0xE9B44C, 0xC9874A, 0xF6E7C8, skin.objectColor, 0xFFD77A]
             return MaterialKit(
                 chassis: matte(0.07, roughness: 0.7, grainScale: 3),
-                plate: object(0x2A2A2E),
+                plate: night ? ClayKit.material(0x2E2A31, roughness: 0.5, coat: 0.15, grain: clayGrain) : object(0x2A2A2E),
                 spring: spring,
                 weight: object(skin.objectColor),
                 unknownWeight: object(0xFFD77A),
@@ -89,10 +98,10 @@ struct MaterialKit {
                     return m
                 }(),
                 numeral: numeral,
-                facePlates: (skin.faceColors ?? []).map(plate),
-                // Golden carbs, roasted protein, pale fat, the skin's cream for mixed, amber quick-adds.
-                foods: [0xE9B44C, 0xC9874A, 0xF6E7C8, skin.objectColor, 0xFFD77A].map { ClayKit.material($0, grain: clayGrain) },
-                clay: clay
+                facePlates: night ? Array(repeating: tray, count: 3) : (skin.faceColors ?? []).map(plate),
+                foods: foodHexes.map { ClayKit.material($0, grain: clayGrain) },
+                clay: clay,
+                chrome: ChromeKit.make(grain: clayGrain, glass: clay.glass)
             )
         }
         return MaterialKit(
@@ -117,7 +126,8 @@ struct MaterialKit {
             foods: [matte(0.78, roughness: 0.85, grainScale: 6), matte(0.62, roughness: 0.85, grainScale: 6),
                     matte(0.94, roughness: 0.85, grainScale: 6), matte(0.86, roughness: 0.85, grainScale: 6),
                     matte(0.46, roughness: 0.9, grainScale: 6)],
-            clay: clay
+            clay: clay,
+            chrome: ChromeKit.make(grain: clayGrain, glass: clay.glass)
         )
     }
 
@@ -220,8 +230,10 @@ struct ClayKit {
     /// white so its edges read. Back faces are culled: these are closed shells,
     /// so the near outside and the far inside of each wall show.
     var glass: PhysicallyBasedMaterial
+    /// The jar's TARGET bar and other marks that must catch the eye.
+    var accent: PhysicallyBasedMaterial
 
-    static func make(grain: TextureResource?) -> ClayKit {
+    static func make(grain: TextureResource?, night: Bool = false) -> ClayKit {
         func clay(_ hex: UInt32, roughness: Float = 0.42, coat: Float = 0.3) -> PhysicallyBasedMaterial {
             material(hex, roughness: roughness, coat: coat, grain: grain)
         }
@@ -234,10 +246,21 @@ struct ClayKit {
         glass.clearcoatRoughness = .init(floatLiteral: 0.05)
         glass.blending = .transparent(opacity: .init(floatLiteral: 0.16))
         glass.faceCulling = .back
+        if night {
+            // NIGHT (Wei, 14 Oct 2026): ivory clay, terracotta joints, brass
+            // hardware, graphite plinths, as in design/mockups/clay/screen.py night.
+            let joint = clay(0xD9774E)
+            return ClayKit(body: clay(0xE9DFD0, roughness: 0.46), joint: joint, socket: clay(0x7A4632, roughness: 0.55, coat: 0),
+                           hardware: clay(0xC9A46A, roughness: 0.34, coat: 0.45), rod: clay(0xF1ECE4),
+                           dial: clay(0x3A3540, roughness: 0.5, coat: 0.1), plinth: clay(0x34303A, roughness: 0.5),
+                           tick: clay(0x8E8892, coat: 0.1), sand: clay(0xF3E9D8, roughness: 0.8, coat: 0), glass: glass,
+                           accent: joint)
+        }
+        let hardware = clay(0xFFD27A, roughness: 0.36)
         return ClayKit(body: clay(0xF2C38C), joint: clay(0xF0904E), socket: clay(0xB8703C, roughness: 0.55, coat: 0),
-                       hardware: clay(0xFFD27A, roughness: 0.36), rod: clay(0xF4EEE6), dial: clay(0x8F5BF0, roughness: 0.5, coat: 0),
+                       hardware: hardware, rod: clay(0xF4EEE6), dial: clay(0x8F5BF0, roughness: 0.5, coat: 0),
                        plinth: clay(0x2A1257, roughness: 0.5), tick: clay(0xB894FF, coat: 0.1),
-                       sand: clay(0xFFF2D6, roughness: 0.8, coat: 0), glass: glass)
+                       sand: clay(0xFFF2D6, roughness: 0.8, coat: 0), glass: glass, accent: hardware)
     }
 
     /// One clay colour: satin sheen and, with `grain`, a fine pressed surface.
@@ -267,3 +290,38 @@ struct ClayKit {
     }
 }
 
+
+/// Keys and gauges on the faces as objects (NIGHT, Wei 14 Oct 2026): a primary
+/// key is a puffy ivory clay slab, a secondary key smoked glass, and a gauge a
+/// clear glass tube with a clay fill (design/mockups/clay/screen.py).
+@MainActor
+struct ChromeKit {
+    var primary: PhysicallyBasedMaterial
+    var secondary: PhysicallyBasedMaterial
+    var tube: PhysicallyBasedMaterial
+    /// Gauge fills by `GaugeTint` (protein, carbs, fat).
+    var fills: [PhysicallyBasedMaterial]
+    /// Raised plates under the coach note and the BODY ruler.
+    var panel: PhysicallyBasedMaterial
+    /// The ruler's slider.
+    var knob: PhysicallyBasedMaterial
+
+    static func make(grain: TextureResource?, glass: PhysicallyBasedMaterial) -> ChromeKit {
+        var smoked = PhysicallyBasedMaterial()
+        smoked.baseColor = .init(tint: UIColor(red: 0.105, green: 0.11, blue: 0.135, alpha: 1))
+        smoked.roughness = .init(floatLiteral: 0.12)
+        smoked.metallic = .init(floatLiteral: 0)
+        smoked.specular = .init(floatLiteral: 0.8)
+        smoked.clearcoat = .init(floatLiteral: 1)
+        smoked.clearcoatRoughness = .init(floatLiteral: 0.06)
+        smoked.blending = .transparent(opacity: .init(floatLiteral: 0.84))
+        smoked.faceCulling = .back
+        var tube = glass
+        tube.blending = .transparent(opacity: .init(floatLiteral: 0.22))
+        return ChromeKit(primary: ClayKit.material(0xEDE5D8, roughness: 0.42, coat: 0.35, grain: grain),
+                         secondary: smoked, tube: tube,
+                         fills: [0xC9744A, 0xE3B57A, 0xEFE6D6].map { ClayKit.material($0, roughness: 0.45, grain: grain) },
+                         panel: ClayKit.material(0x2C2931, roughness: 0.55, coat: 0.15, grain: grain),
+                         knob: ClayKit.material(0xD9774E, roughness: 0.4, coat: 0.35, grain: grain))
+    }
+}

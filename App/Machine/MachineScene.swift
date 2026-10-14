@@ -30,6 +30,13 @@ final class MachineScene {
 
     private var numerals: [PrismFace: Numerals3D] = [:]
     private var facePlates: [ModelEntity] = []
+    /// Keys and gauges as clay and glass objects (clay skins).
+    private let clayParts = ClayPartsRig()
+
+    /// Clay skins sit every face on a thick clay tray: this many points of it
+    /// stand proud of the chassis, the rest is sunk into it.
+    static var trayProud: CGFloat { Brutal.skin.clayUI ? 5 : 0 }
+    static let trayDepth: CGFloat = 12
 
     // TRAIN
     private let glassGroup = Entity()
@@ -184,7 +191,18 @@ final class MachineScene {
             face.position = SIMD3(a * sin(theta), 0, a * cos(theta))
             face.orientation = simd_quatf(angle: theta, axis: SIMD3(0, 1, 0))
             // The skin's colour inlay, set just proud of the chassis inside its bevel.
-            if i < materials.facePlates.count {
+            if Brutal.skin.clayUI, i < materials.facePlates.count {
+                // A pressed graphite clay tray, rounded at the corners and rolled at the edges.
+                let inset: CGFloat = 7
+                if let mesh = try? Geometry.slab(halfWidth: World.len(layout.faceWidth / 2 - inset), halfHeight: World.len(layout.faceHeight / 2 - inset),
+                                                 depth: World.len(Self.trayDepth), corner: World.len(26), bevel: World.len(5), name: "tray") {
+                    let plate = ModelEntity(mesh: mesh, materials: [materials.facePlates[i]])
+                    plate.position = World.point(CGPoint(x: layout.faceWidth / 2, y: layout.faceHeight / 2),
+                                                 z: Self.trayProud - Self.trayDepth, in: layout)
+                    face.addChild(plate)
+                    facePlates.append(plate)
+                }
+            } else if i < materials.facePlates.count {
                 let inset: CGFloat = 7
                 let plate = box(CGSize(width: layout.faceWidth - inset * 2, height: layout.faceHeight - inset * 2),
                                 depth: 1.2, radius: 6, material: materials.facePlates[i])
@@ -281,7 +299,7 @@ final class MachineScene {
             tick.position = World.point(CGPoint(x: g.interior.maxX - 14, y: g.floorY - span * CGFloat(q) / 4), z: frontZ + 0.8, in: layout)
             jarGroup.addChild(tick)
         }
-        let bar = box(CGSize(width: g.interior.width * 0.92, height: 3), depth: 1.8, radius: 0.9, material: clay.hardware)
+        let bar = box(CGSize(width: g.interior.width * 0.92, height: 3), depth: 1.8, radius: 0.9, material: clay.accent)
         bar.position = World.point(CGPoint(x: g.interior.midX, y: g.targetLineY), z: frontZ + 0.9, in: layout)
         jarGroup.addChild(bar)
 
@@ -417,6 +435,7 @@ final class MachineScene {
         }
         applyTrain(model, layout: layout)
         applyBody(model, layout: layout)
+        clayParts.apply(model, faces: faces, layout: layout, chrome: materials.chrome, surface: Self.trayProud)
     }
 
     private func applyDiet(_ model: MachineModel, layout: MachineLayout) {

@@ -378,6 +378,22 @@ final class MachineModelTests: XCTestCase {
         XCTAssertGreaterThan(loop.count, 300, "dense enough to read smooth and round")
     }
 
+    /// Clay keys and trays: the slab fills its outline, sits on its flat back
+    /// and swells forward only at the middle.
+    func testClaySlabKeepsItsOutlineAndPuffsForward() {
+        let rings = Geometry.slabRings(halfWidth: 1, halfHeight: 0.3, depth: 0.2, corner: 0.12, bevel: 0.06, puff: 0.03)
+        let points = rings.flatMap { $0 }
+        XCTAssertEqual(points.map(\.x).max()!, 1, accuracy: 0.0001)
+        XCTAssertEqual(points.map(\.y).min()!, -0.3, accuracy: 0.0001)
+        XCTAssertEqual(points.map(\.z).min()!, 0, accuracy: 0.0001)
+        XCTAssertEqual(points.map(\.z).max()!, 0.23, accuracy: 0.0001, "front centre is the puff above the face")
+        XCTAssertTrue(rings.allSatisfy { $0.count == rings[0].count }, "every ring has the same points")
+        XCTAssertEqual(rings.first!.first!, SIMD3(0, 0, 0.23), "front pole")
+        // A capsule (bevel as round as the corner) keeps a front outline, never a collapsed line.
+        let tube = Geometry.slabRings(halfWidth: 1, halfHeight: 0.1, depth: 0.2, corner: 0.1, bevel: 0.1)
+        XCTAssertTrue(tube.flatMap { $0 }.allSatisfy { $0.x.isFinite && $0.y.isFinite && $0.z.isFinite })
+    }
+
     func testSandStaysInsideTheGlass() {
         typealias H = DeskHourglass
         for a: Float in [0.05, 0.5, 1] {

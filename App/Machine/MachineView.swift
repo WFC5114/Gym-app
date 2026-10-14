@@ -98,6 +98,7 @@ struct FaceLayer: View {
         Group {
             if facing > 0.02 {
                 content
+                    .environment(\.clayHost, ClayHost(model: model, face: face))
                     .frame(width: layout.faceWidth, height: layout.faceHeight, alignment: .topLeading)
                     .coordinateSpace(name: "face")
                     // Text is printed on the face, so it darkens as the face turns from the light.
@@ -194,7 +195,11 @@ struct FaceHeader: View {
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 3) {
-                Engraved(text: face.letter + " · " + face.title, size: 11, color: Ink.text(0.85))
+                if Brutal.skin.clayUI {
+                    Engraved(text: face.title, size: 15, color: Ink.text(0.95), tracking: 1.2)
+                } else {
+                    Engraved(text: face.letter + " · " + face.title, size: 11, color: Ink.text(0.85))
+                }
                 Engraved(text: caption, size: 9, color: Ink.text(0.4))
             }
             Spacer(minLength: 4)

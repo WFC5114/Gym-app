@@ -43,8 +43,9 @@ final class CaptureTests: XCTestCase {
         ])
     }
 
-    // Comparison for Wei: the same frame in MONO.
+    // Comparisons for Wei: the same frame in MONO and in the earlier FLARE colour skin.
     @MainActor func test15_dietIdleMono() { capture("diet-idle", as: "diet-idle-mono", extraArguments: ["-skin", "mono"]) }
+    @MainActor func test16_dietIdleFlare() { capture("diet-idle", as: "diet-idle-flare", extraArguments: ["-skin", "flare"]) }
 
     @MainActor
     private func capture(_ fixture: String, as name: String? = nil, extraArguments: [String] = []) {

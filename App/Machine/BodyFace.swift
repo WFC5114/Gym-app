@@ -70,6 +70,7 @@ struct BodyFace: View {
 
             VernierRuler(model: model)
                 .frame(width: rail.controls.width, height: rail.controls.height * 0.62)
+                .background { Color.clear.padding(.horizontal, -10).padding(.vertical, -8).clayPart("body.ruler", .panel) }
                 .position(x: rail.controls.midX, y: rail.controls.minY + rail.controls.height * 0.45)
         }
         .coordinateSpace(name: PrismFace.body.space)
@@ -131,6 +132,15 @@ struct VernierRuler: View {
                     let rect = CGRect(x: x - 0.5, y: top, width: 1, height: k == 0 ? size.height - top : size.height * 0.14)
                     ctx.fill(Path(rect), with: .color(.white.opacity(k == 0 ? 1 : 0.35)))
                 }
+            }
+            .overlay(alignment: .topLeading) {
+                // On clay faces a terracotta slider rides the cursor.
+                let cx = geo.size.width * CGFloat(model.scrubSpring.position) / CGFloat(count)
+                Color.clear
+                    .frame(width: 12, height: 16)
+                    .position(x: cx, y: geo.size.height * 0.3 - 6)
+                    .clayPart("body.knob", .knob)
+                    .allowsHitTesting(false)
             }
             .contentShape(Rectangle())
             .highPriorityGesture(

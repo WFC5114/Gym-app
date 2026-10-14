@@ -238,6 +238,11 @@ final class MachineModel {
     var heroIn3D = true
     /// Where each face's invisible hero text sits, so its 3D glyphs can stand there.
     var heroGlyphs: [PrismFace: HeroGlyphs] = [:]
+    /// Keys and gauges built as clay and glass objects on the faces (clay skins),
+    /// by id; SwiftUI reports them and the scene reads them every frame.
+    @ObservationIgnored var clayParts: [String: ClayPart] = [:]
+    /// How far each clay key is pushed in, 0...1, on the piston spring.
+    @ObservationIgnored var keyPress: [String: SpringState] = [:]
 
     @ObservationIgnored private var link: CADisplayLink?
     @ObservationIgnored private var linkProxy: DisplayLinkProxy?
@@ -373,7 +378,7 @@ final class MachineModel {
             || !figureFat.isSettled(tolerance: 0.005) || !figureLean.isSettled(tolerance: 0.005) || !figureSpin.isSettled(tolerance: 0.001)
             || !figureFlex.isSettled(tolerance: 0.001) || !figureLook.isSettled(tolerance: 0.001) || figureIsAlive
             || !bursts.isEmpty || !heroPunch.isSettled(tolerance: 0.001) || !heroKcal.isSettled(tolerance: 0.5)
-            || !charge.isSettled(tolerance: 0.002)
+            || !charge.isSettled(tolerance: 0.002) || keyPress.values.contains { !$0.isSettled(tolerance: 0.002) }
     }
 
     /// Advances every spring and body by `dt` seconds. Public so tests and
@@ -391,7 +396,16 @@ final class MachineModel {
         stepJuice(dt)
     }
 
+    /// A clay key goes down under the finger and springs back on release.
+    func pressKey(_ id: String, down: Bool) {
+        var spring = keyPress[id] ?? SpringState(position: 0, target: 0)
+        spring.target = down ? 1 : 0
+        keyPress[id] = spring
+        wake()
+    }
+
     private func stepJuice(_ dt: Double) {
+        for id in keyPress.keys { keyPress[id]?.advance(dt, config: reduceMotion ? .calm : .piston) }
         heroPunch.advance(dt, config: reduceMotion ? .calm : .punch)
         heroKcal.target = totals.remainingKcal(target: targets)
         heroKcal.advance(dt, config: reduceMotion ? .calm : .bodyNumbers)

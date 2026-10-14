@@ -207,7 +207,8 @@ enum Geometry {
     /// with increasing angle the way `lathe` lays its rings out, so the outside
     /// faces out. Normals come from the neighbouring points; at a collapsed pole
     /// they point away from the surface's centre.
-    static func surface(_ rings: [[SIMD3<Float>]], name: String) throws -> MeshResource {
+    static func surface(_ rings: [[SIMD3<Float>]], name: String,
+                        uv planar: ((SIMD3<Float>) -> SIMD2<Float>)? = nil) throws -> MeshResource {
         var positions: [SIMD3<Float>] = []
         var normals: [SIMD3<Float>] = []
         var uvs: [SIMD2<Float>] = []
@@ -229,7 +230,7 @@ enum Geometry {
                 if simd_length(nrm) < 1e-9 { nrm = p - centre }
                 normals.append(simd_length(nrm) < 1e-9 ? SIMD3(0, 1, 0) : simd_normalize(nrm))
                 positions.append(p)
-                uvs.append(SIMD2(Float(k) / Float(max(segments, 1)), Float(i) / Float(max(n - 1, 1))))
+                uvs.append(planar?(p) ?? SIMD2(Float(k) / Float(max(segments, 1)), Float(i) / Float(max(n - 1, 1))))
             }
         }
         for i in 0..<(n - 1) {
@@ -290,6 +291,59 @@ enum Geometry {
     static func clayBlock(bottom: Float, top: Float, depth: Float, height: Float, front: Float = 0,
                           round: Float, name: String) throws -> MeshResource {
         try surface(clayBlockRings(bottom: bottom, top: top, depth: depth, height: height, front: front, round: round), name: name)
+    }
+
+    /// A pillowy clay slab facing +z, for the face trays, keys and gauges: a
+    /// rounded-rectangle outline of half sizes `halfWidth` × `halfHeight` and
+    /// corner radius `corner`, `depth` thick from its flat back at z 0, every
+    /// edge rolled by `bevel`, and its front swelling `puff` further at the middle.
+    static func slabRings(halfWidth w: Float, halfHeight h: Float, depth d: Float, corner: Float, bevel: Float,
+                          puff p: Float = 0, arc m: Int = 10) -> [[SIMD3<Float>]] {
+        let c = min(corner, w, h)
+        // A bevel as round as the corner would collapse the front outline to a line.
+        let b = max(min(bevel, 0.85 * c, d / 2), 0)
+        func outline(_ inset: Float, scale s: Float, z: Float) -> [SIMD3<Float>] {
+            let r = max(c - inset, 0)
+            let x = w - inset - r, y = h - inset - r
+            var points: [SIMD3<Float>] = []
+            // Counter-clockwise seen from the front, one quarter arc per corner.
+            for (q, centre) in [SIMD2(x, y), SIMD2(-x, y), SIMD2(-x, -y), SIMD2(x, -y)].enumerated() {
+                for j in 0...m {
+                    let a = (Float(q) + Float(j) / Float(m)) * .pi / 2
+                    let p2 = (centre + r * SIMD2(cos(a), sin(a))) * s
+                    points.append(SIMD3(p2.x, p2.y, z))
+                }
+            }
+            return points + [points[0]]
+        }
+        // Rings run front to back so, laid out counter-clockwise, they face out like `lathe`'s.
+        var rings: [[SIMD3<Float>]] = []
+        let capRows = 6
+        for j in 0..<capRows {
+            let s = Float(j) / Float(capRows)
+            rings.append(outline(b, scale: s, z: d + p * pow(1 - s * s, 2)))
+        }
+        let bevelRows = 7
+        for j in 0...bevelRows {
+            let t = Float.pi / 2 * (1 - Float(j) / Float(bevelRows))
+            rings.append(outline(b * (1 - cos(t)), scale: 1, z: d - b + b * sin(t)))
+        }
+        rings.append(outline(0, scale: 1, z: d / 2))
+        for j in 0...bevelRows {
+            let t = Float.pi / 2 * Float(j) / Float(bevelRows)
+            rings.append(outline(b * (1 - cos(t)), scale: 1, z: b - b * sin(t)))
+        }
+        rings.append(outline(b, scale: 0.5, z: 0))
+        rings.append(outline(b, scale: 0, z: 0))
+        return rings
+    }
+
+    static func slab(halfWidth w: Float, halfHeight h: Float, depth d: Float, corner: Float, bevel: Float,
+                     puff p: Float = 0, name: String) throws -> MeshResource {
+        // Texture laid flat across the front, one tile per 50 pt, so grain never
+        // streaks round the outline or swirls in to the middle.
+        try surface(slabRings(halfWidth: w, halfHeight: h, depth: d, corner: corner, bevel: bevel, puff: p), name: name,
+                    uv: { SIMD2($0.x * 2, $0.y * 2) })
     }
 
     /// A turned limb hanging from y 0 to −length: rounded ends, a swell near the

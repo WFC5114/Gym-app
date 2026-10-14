@@ -111,11 +111,13 @@ struct CoachNote: View {
             }
             if model.activeRest == nil && model.plannedRest != advice.seconds {
                 Button("USE \(RestCoach.format(advice.seconds))") { model.useAdvice() }
-                    .buttonStyle(MachineButtonStyle())
+                    .buttonStyle(MachineButtonStyle(part: "train.useAdvice"))
                     .frame(height: 44)
                     .accessibilityIdentifier("train.useAdvice")
             }
         }
+        // On clay faces the note sits on a low raised plate.
+        .background { Color.clear.padding(-12).clayPart("train.coach", .panel) }
         .accessibilityElement(children: .contain)
     }
 }
@@ -129,19 +131,19 @@ struct TrainControls: View {
             HStack(spacing: 10) {
                 if model.activeRest != nil {
                     Button("+0:30 REST") { model.addRestTime() }
-                        .buttonStyle(MachineButtonStyle())
+                        .buttonStyle(MachineButtonStyle(part: "train.add"))
                         .accessibilityIdentifier("train.addTime")
                     Button("END REST") { model.endRest() }
-                        .buttonStyle(MachineButtonStyle())
+                        .buttonStyle(MachineButtonStyle(part: "train.end"))
                         .accessibilityIdentifier("train.endRest")
                 } else {
                     Button("−0:15") { model.adjustPlannedRest(by: -RestLimits.step) }
-                        .buttonStyle(MachineButtonStyle())
+                        .buttonStyle(MachineButtonStyle(part: "train.shorter"))
                         .accessibilityLabel("Shorter rest")
                         .accessibilityIdentifier("train.restShorter")
                     VStack(spacing: 2) {
                         Engraved(text: "REST", size: 8, color: Ink.text(0.45))
-                        Engraved(text: RestCoach.format(model.plannedRest), size: 13, color: .white, tracking: 0.8)
+                        Engraved(text: RestCoach.format(model.plannedRest), size: 13, color: Ink.text(1), tracking: 0.8)
                     }
                     .frame(minWidth: 70)
                     .accessibilityElement(children: .ignore)
@@ -151,14 +153,14 @@ struct TrainControls: View {
                         model.adjustPlannedRest(by: direction == .increment ? RestLimits.step : -RestLimits.step)
                     }
                     Button("+0:15") { model.adjustPlannedRest(by: RestLimits.step) }
-                        .buttonStyle(MachineButtonStyle())
+                        .buttonStyle(MachineButtonStyle(part: "train.longer"))
                         .accessibilityLabel("Longer rest")
                         .accessibilityIdentifier("train.restLonger")
                 }
             }
             .frame(height: rail.controls.height * 0.4)
             Button("SET DONE") { model.setDone() }
-                .buttonStyle(MachineButtonStyle(primary: true))
+                .buttonStyle(MachineButtonStyle(primary: true, part: "train.setDone"))
                 .accessibilityHint("Logs the set and flips the hourglass")
                 .accessibilityIdentifier("train.setDone")
         }
