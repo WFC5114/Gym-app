@@ -234,35 +234,63 @@ if WHAT == 'hourglass':
                 sleeve = link(lathe('sleeve', [(0, 1e-4), (0, 0.026), (0.006, 0.028), (0.05, 0.024), (0.06, 0.02), (0.06, 1e-4)], 48), pivot, BUTTER)
                 sleeve.location = (px, py, z)
                 sleeve.rotation_euler = (0 if s > 0 else math.pi, 0, 0)
-    # Glass: two round bulbs from a thick wall, a neck ring.
-    knots = [(0, 0.04), (0.06, 0.07), (0.15, 0.27), (0.3, 0.44), (0.5, 0.52), (0.7, 0.5), (0.85, 0.42), (0.95, 0.3), (1.0, 0.2)]
-    k = 0.43 / 1.0
-    outer = [(z * k, r * k * 0.74) for z, r in knots]
+    # Glass (Wei, 14 Oct: smoother, rounder, thicker): two near-round bulbs on a
+    # dense Catmull-Rom profile, turned at 192 segments, with a thick wall
+    # offset along the surface normal and a heavy neck.
+    knots = [(0.0, 0.032), (0.012, 0.036), (0.03, 0.068), (0.06, 0.115), (0.1, 0.158), (0.15, 0.186),
+             (0.21, 0.195), (0.27, 0.186), (0.32, 0.162), (0.36, 0.128), (0.39, 0.096), (0.41, 0.08), (0.425, 0.076)]
+
+    def catmull(pts, n=16):
+        p = [pts[0]] + pts + [pts[-1]]
+        out = []
+        for i in range(1, len(p) - 2):
+            for j in range(n):
+                t = j / n
+                out.append(tuple(0.5 * (2 * p[i][c] + (-p[i - 1][c] + p[i + 1][c]) * t
+                                        + (2 * p[i - 1][c] - 5 * p[i][c] + 4 * p[i + 1][c] - p[i + 2][c]) * t * t
+                                        + (-p[i - 1][c] + 3 * p[i][c] - 3 * p[i + 1][c] + p[i + 2][c]) * t ** 3) for c in (0, 1)))
+        out.append(pts[-1])
+        return out
+    outer = catmull(knots)
+    GW = 0.022  # glass wall
+
+    def offset_in(prof):
+        res = []
+        for i, (z, r) in enumerate(prof):
+            z0, r0 = prof[max(i - 1, 0)]
+            z1, r1 = prof[min(i + 1, len(prof) - 1)]
+            tz, tr = z1 - z0, r1 - r0
+            L = math.hypot(tz, tr) or 1
+            nz, nr = -tr / L, tz / L      # outward normal in (z, r)
+            res.append((z - nz * GW, max(r - nr * GW, 0.007)))
+        return res
     prof = [(-z, r) for z, r in reversed(outer)] + outer[1:]
-    inner = [(z, max(r - 0.009, 0.006)) for z, r in prof]
-    glass = link(lathe('glass', prof + list(reversed(inner)), 96, loop=True), pivot, glass_mat('glass', 0xFFFFFF))
-    ring = link(lathe('neckRing', [(-0.012, 0.016), (-0.012, 0.022), (0.012, 0.022), (0.012, 0.016)], 48, loop=True), pivot, BUTTER)
+    inner = offset_in(prof)
+    glass = link(lathe('glass', prof + list(reversed(inner)), 192, loop=True), pivot, glass_mat('glass', 0xFFFFFF))
+    ring = link(lathe('neckRing', [(-0.012, 0.034), (-0.012, 0.04), (0.012, 0.04), (0.012, 0.034)], 64, loop=True), pivot, BUTTER)
+    inner_top = [(z, r) for z, r in inner if z >= 0]
     # Sand: pale clay, part drained. A mound up top, a heap below, a thin stream.
     SAND = clay('sand', 0xFFF2D6, rough=0.8, coat=0.0, bump=0.25)
 
     def r_at(z):
         z = abs(z)
-        for (z0, r0), (z1, r1) in zip(outer, outer[1:]):
+        pts = sorted(inner_top)
+        for (z0, r0), (z1, r1) in zip(pts, pts[1:]):
             if z0 <= z <= z1:
-                return (r0 + (r1 - r0) * (z - z0) / max(z1 - z0, 1e-6)) - 0.011
-        return 0.01
+                return (r0 + (r1 - r0) * (z - z0) / max(z1 - z0, 1e-6)) - 0.002
+        return 0.008
     top_level = 0.24
     top = [(0.03, 0.008)] + [(z, r_at(z)) for z in [0.03 + i * (top_level - 0.03) / 20 for i in range(1, 21)]]
     top.append((top_level + 0.012, r_at(top_level) * 0.6))
     top.append((top_level + 0.018, 1e-4))
-    link(lathe('sandTop', [(top[0][0], 1e-4)] + top, 64), pivot, SAND)
+    link(lathe('sandTop', [(top[0][0], 1e-4)] + top, 96), pivot, SAND)
     fill = -0.27
-    heap = [(-0.41, 1e-4)]
+    heap = [(-0.4, 1e-4)]
     for i in range(0, 15):
-        z = -0.41 + i * (fill + 0.41) / 14
+        z = -0.4 + i * (fill + 0.4) / 14
         heap.append((z, r_at(z)))
     heap += [(fill + 0.03, r_at(fill) * 0.55), (fill + 0.065, r_at(fill) * 0.15), (fill + 0.075, 1e-4)]
-    link(lathe('sandHeap', heap, 64), pivot, SAND)
+    link(lathe('sandHeap', heap, 96), pivot, SAND)
     link(lathe('stream', [(fill + 0.07, 1e-4), (fill + 0.07, 0.0025), (0.03, 0.0025), (0.03, 1e-4)], 16), pivot, SAND)
     # Base front: raised minute ticks and a knurled knob to set the rest.
     for i in range(7):
@@ -277,7 +305,7 @@ if WHAT == 'hourglass':
 elif WHAT == 'jar':
     backdrop = 0xE8461E
     pivot = empty('pivot', (0, 0, 0), root, rot=(math.radians(8), 0, math.radians(-14)))
-    W, D, H, wall = 0.27, 0.15, 0.36, 0.022
+    W, D, H, wall = 0.292, 0.172, 0.36, 0.045  # Wei: thicker glass; same inside
     base_top = 0.1
     # Glass tank: a rounded box, open at the top, with thick walls.
     bm = bmesh.new()
@@ -323,7 +351,7 @@ elif WHAT == 'jar':
     collar.location = (0, 0, base_top + 2 * H + 0.01)
     seam = link(block('collarSeam', W + 0.027, D + 0.027, 0.0025, bevel=0.002), pivot, RUST)
     seam.location = (0, 0, base_top + 2 * H + 0.01)
-    hole = link(block('mouth', W - 0.005, D - 0.005, 0.03, bevel=0.01), pivot, None)
+    hole = link(block('mouth', W - wall + 0.002, D - wall + 0.002, 0.03, bevel=0.01), pivot, None)
     bo = collar.modifiers.new('mouth', 'BOOLEAN')
     bo.operation, bo.object, bo.solver = 'DIFFERENCE', hole, 'EXACT'
     hole.location = collar.location
@@ -338,11 +366,11 @@ elif WHAT == 'jar':
     for q in range(1, 4):
         z = base_top + 2 * H * 0.74 * q / 4
         t = link(block('grad', 0.03, 0.003, 0.0035, bevel=0.002, sub=1), pivot, PALE)
-        t.location = (W - 0.06, -D - wall - 0.002, z)
+        t.location = (W - 0.06, -D - 0.003, z)
     bar = link(block('targetBar', W * 0.9, 0.003, 0.004, bevel=0.002, sub=1), pivot, BUTTER)
-    bar.location = (0, -D - wall - 0.002, target_z)
+    bar.location = (0, -D - 0.003, target_z)
     flag = link(block('flag', 0.05, 0.004, 0.014, bevel=0.004), pivot, BUTTER)
-    flag.location = (-W + 0.07, -D - wall - 0.004, target_z + 0.024)
+    flag.location = (-W + 0.07, -D - 0.006, target_z + 0.024)
     raised_text('targetText', 'TARGET', 0.014, flag, INDIGO, (0, -0.005, 0), rot=(math.pi / 2, 0, 0), depth=0.0012)
     # Food blocks: chunky clay by main macro, tumbled at angles on a pile.
     macro = {'carb': clay('carb', 0xE9B44C), 'protein': clay('protein', 0xC9874A), 'fat': clay('fat', 0xF6E7C8),
@@ -360,7 +388,7 @@ elif WHAT == 'jar':
         # A raised label strip on each block's front: the tactile bit.
         lab = link(block('label', w * 0.6, 0.004, h * 0.22, bevel=0.003, sub=1), b, PALE)
         lab.location = (0, -0.092, 0)
-    cam_center, ortho = 0.43, 1.0
+    cam_center, ortho = 0.43, 1.1
 
 # ---------------------------------------------------------------------------
 plate = bpy.data.materials.new('plate')
