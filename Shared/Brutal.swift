@@ -64,7 +64,7 @@ struct Skin: Identifiable, Equatable {
         base: Color(hex: 0x000000), accent: Color(hex: 0xF1ECE4), mid: Color(hex: 0xD9774E),
         roughness: 0.55, metalness: 0.0, soundKit: "Anvil",
         unlock: nil,
-        faceColors: [0x211F24, 0x211F24, 0x211F24],
+        faceColors: [0x121115, 0x121115, 0x121115],
         objectColor: 0xF1ECE4,
         glossy: true,
         clayUI: true,

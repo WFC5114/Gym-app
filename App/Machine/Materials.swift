@@ -76,7 +76,9 @@ struct MaterialKit {
             var numeral = object(skin.objectColor)
             numeral.roughness = .init(floatLiteral: 0.3)
             let night = skin.clayUI
-            var tray = ClayKit.material(skin.faceColors?.first ?? 0x211F24, roughness: 0.58, coat: 0.18, grain: clayGrain)
+            // Albedo sits well below the mockup's #211F24: the key, spot and studio
+            // light lift it to graphite on device (c1f3220 rendered #211F24 as #7E7D81).
+            var tray = ClayKit.material(skin.faceColors?.first ?? 0x121115, roughness: 0.58, coat: 0.18, grain: clayGrain)
             tray.textureCoordinateTransform = .init(scale: SIMD2(repeating: 1))
             if night { numeral = ClayKit.material(skin.objectColor, roughness: 0.44, coat: 0.3, grain: clayGrain) }
             // Golden carbs, roasted protein, pale fat, the skin's cream for mixed, amber quick-adds.
@@ -84,7 +86,7 @@ struct MaterialKit {
                                             : [0xE9B44C, 0xC9874A, 0xF6E7C8, skin.objectColor, 0xFFD77A]
             return MaterialKit(
                 chassis: matte(0.07, roughness: 0.7, grainScale: 3),
-                plate: night ? ClayKit.material(0x2E2A31, roughness: 0.5, coat: 0.15, grain: clayGrain) : object(0x2A2A2E),
+                plate: night ? ClayKit.material(0x1C1A1F, roughness: 0.5, coat: 0.15, grain: clayGrain) : object(0x2A2A2E),
                 spring: spring,
                 weight: object(skin.objectColor),
                 unknownWeight: object(0xFFD77A),
@@ -321,7 +323,7 @@ struct ChromeKit {
         return ChromeKit(primary: ClayKit.material(0xEDE5D8, roughness: 0.42, coat: 0.35, grain: grain),
                          secondary: smoked, tube: tube,
                          fills: [0xC9744A, 0xE3B57A, 0xEFE6D6].map { ClayKit.material($0, roughness: 0.45, grain: grain) },
-                         panel: ClayKit.material(0x2C2931, roughness: 0.55, coat: 0.15, grain: grain),
+                         panel: ClayKit.material(0x1E1C22, roughness: 0.55, coat: 0.15, grain: grain),
                          knob: ClayKit.material(0xD9774E, roughness: 0.4, coat: 0.35, grain: grain))
     }
 }

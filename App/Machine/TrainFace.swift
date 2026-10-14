@@ -117,7 +117,7 @@ struct CoachNote: View {
             }
         }
         // On clay faces the note sits on a low raised plate.
-        .background { Color.clear.padding(-12).clayPart("train.coach", .panel) }
+        .background { Color.clear.clayPart("train.coach", .panel).padding(-12) }
         .accessibilityElement(children: .contain)
     }
 }

@@ -70,7 +70,7 @@ struct BodyFace: View {
 
             VernierRuler(model: model)
                 .frame(width: rail.controls.width, height: rail.controls.height * 0.62)
-                .background { Color.clear.padding(.horizontal, -10).padding(.vertical, -8).clayPart("body.ruler", .panel) }
+                .background { Color.clear.clayPart("body.ruler", .panel).padding(.horizontal, -10).padding(.vertical, -8) }
                 .position(x: rail.controls.midX, y: rail.controls.minY + rail.controls.height * 0.45)
         }
         .coordinateSpace(name: PrismFace.body.space)
@@ -138,8 +138,8 @@ struct VernierRuler: View {
                 let cx = geo.size.width * CGFloat(model.scrubSpring.position) / CGFloat(count)
                 Color.clear
                     .frame(width: 12, height: 16)
-                    .position(x: cx, y: geo.size.height * 0.3 - 6)
                     .clayPart("body.knob", .knob)
+                    .position(x: cx, y: geo.size.height * 0.3 - 6)
                     .allowsHitTesting(false)
             }
             .contentShape(Rectangle())
