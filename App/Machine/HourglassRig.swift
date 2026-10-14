@@ -68,9 +68,14 @@ final class HourglassRig {
     private func buildEnd(into end: Entity) {
         typealias H = DeskHourglass
         let u = H.unit
-        add(block(half: [H.slabHalfSide, H.slabHalfThickness, H.slabHalfSide], round: 0.03 * u, "slab"), clay.plinth,
+        // The plates are broad, so their pressed grain is drawn finer: at the
+        // small parts' scale it read as wood figure across the top panel.
+        var slab = clay.plinth, panel = clay.body
+        slab.textureCoordinateTransform = .init(scale: SIMD2(repeating: 18))
+        panel.textureCoordinateTransform = .init(scale: SIMD2(repeating: 18))
+        add(block(half: [H.slabHalfSide, H.slabHalfThickness, H.slabHalfSide], round: 0.03 * u, "slab"), slab,
             to: end, at: [0, -H.slabY, 0])
-        add(block(half: [H.panelHalfSide, H.panelHalfThickness, H.panelHalfSide], round: 0.011 * u, "panel"), clay.body,
+        add(block(half: [H.panelHalfSide, H.panelHalfThickness, H.panelHalfSide], round: 0.011 * u, "panel"), panel,
             to: end, at: [0, -H.panelY, 0])
         // The turned cup the bulb's open end sits in, under the plate.
         let cupLoop: [SIMD2<Float>] = [SIMD2(0, 0.075), SIMD2(0, 0.11), SIMD2(0.01, 0.114), SIMD2(0.022, 0.095), SIMD2(0.03, 0.075)].map { $0 * u }
