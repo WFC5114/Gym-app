@@ -145,8 +145,10 @@ struct LandingGuide: View {
     }
 }
 
-/// The jar's glass, drawn over the blocks: an outline, two highlights and the
-/// etched measuring marks (quarters of the target, then TARGET).
+/// The jar's glass, drawn over the blocks: its outer and inner edges (the
+/// glass is thick), two highlights and the TARGET label's leader. The raised
+/// quarter marks and TARGET bar are clay in the scene. Nothing is drawn over
+/// the collar at the mouth.
 struct JarGlass: View {
     let geometry: JarGeometry
     let targetKcal: Double
@@ -155,29 +157,26 @@ struct JarGlass: View {
         let g = geometry
         let o = g.outer
         ZStack(alignment: .topLeading) {
-            Canvas { ctx, _ in
+            Canvas { ctx, size in
+                var glass = ctx
+                glass.clip(to: Path(CGRect(x: 0, y: o.minY + 9, width: size.width, height: size.height)))
                 let shape = Path(roundedRect: o, cornerRadius: JarGeometry.cornerRadius, style: .continuous)
-                ctx.stroke(shape, with: .color(.white.opacity(0.55)), lineWidth: 2.5)
+                glass.stroke(shape, with: .color(.white.opacity(0.55)), lineWidth: 2.5)
+                let inside = CGRect(x: g.interior.minX, y: o.minY - JarGeometry.cornerRadius, width: g.interior.width,
+                                    height: g.interior.maxY - o.minY + JarGeometry.cornerRadius)
+                glass.stroke(Path(roundedRect: inside, cornerRadius: g.innerRadius, style: .continuous),
+                             with: .color(.white.opacity(0.3)), lineWidth: 1.5)
                 // Light catching the curved front: a broad strip on the left, a thin one on the right.
-                let left = CGRect(x: o.minX + 9, y: o.minY + 18, width: 12, height: o.height - 44)
-                ctx.fill(Path(roundedRect: left, cornerRadius: 6), with: .linearGradient(
+                let left = CGRect(x: o.minX + 14, y: o.minY + 18, width: 12, height: o.height - 44)
+                glass.fill(Path(roundedRect: left, cornerRadius: 6), with: .linearGradient(
                     Gradient(colors: [.white.opacity(0.3), .white.opacity(0.06)]),
                     startPoint: CGPoint(x: left.minX, y: left.midY), endPoint: CGPoint(x: left.maxX, y: left.midY)))
-                let right = CGRect(x: o.maxX - 14, y: o.minY + 24, width: 4, height: o.height - 60)
-                ctx.fill(Path(roundedRect: right, cornerRadius: 2), with: .color(.white.opacity(0.2)))
-                // Measuring marks: quarters of the target.
-                let span = g.floorY - g.targetLineY
-                for q in 1...3 {
-                    let y = g.floorY - span * CGFloat(q) / 4
-                    var tick = Path()
-                    tick.move(to: CGPoint(x: g.interior.minX, y: y))
-                    tick.addLine(to: CGPoint(x: g.interior.minX + 9, y: y))
-                    ctx.stroke(tick, with: .color(.white.opacity(0.45)), lineWidth: 1.5)
-                }
-                // The target line runs in from outside the glass, where its label sits clear of the blocks.
+                let right = CGRect(x: o.maxX - 19, y: o.minY + 24, width: 4, height: o.height - 60)
+                glass.fill(Path(roundedRect: right, cornerRadius: 2), with: .color(.white.opacity(0.2)))
+                // The label's leader runs in to the glass, where the raised TARGET bar takes over.
                 var line = Path()
                 line.move(to: CGPoint(x: o.minX - 12, y: g.targetLineY))
-                line.addLine(to: CGPoint(x: g.interior.minX + 22, y: g.targetLineY))
+                line.addLine(to: CGPoint(x: g.interior.minX + 4, y: g.targetLineY))
                 ctx.stroke(line, with: .color(.white.opacity(0.9)), lineWidth: 2)
             }
             VStack(alignment: .trailing, spacing: 2) {

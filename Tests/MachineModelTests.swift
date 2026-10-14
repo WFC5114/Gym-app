@@ -355,11 +355,27 @@ final class MachineModelTests: XCTestCase {
     func testDeskHourglassStandsOneUnitTallAndSymmetric() {
         typealias H = DeskHourglass
         XCTAssertEqual(2 * (H.nutY + H.nutRadius), 1, accuracy: 0.02, "nut to foot fills the glass height")
-        XCTAssertLessThan(H.bulbEnd, H.collarY, "the collars cap the open bulb ends")
+        XCTAssertGreaterThan(H.bulbEnd, H.collarY - H.collarHeight / 2, "each open bulb end sits in its cup")
+        XCTAssertLessThanOrEqual(H.bulbEnd, H.plateInner, "and stops at the plate")
         XCTAssertLessThan(H.collarY + H.collarHeight / 2, H.plateInner + 0.001)
         for y: Float in [0.1, 0.2, 0.3, 0.4] { XCTAssertEqual(H.outerRadius(y), H.outerRadius(-y)) }
         let widest = H.profile.map(\.y).max()!
         XCTAssertLessThan(widest, H.postOffset * Float(2).squareRoot() - H.postRadius, "the bulbs clear the corner posts")
+        XCTAssertLessThan(widest, H.slabHalfSide, "and stay inside the plates")
+    }
+
+    func testHourglassGlassIsThickAllTheWayRound() {
+        typealias H = DeskHourglass
+        for y in stride(from: Float(0.05), through: 0.35, by: 0.05).map({ $0 * H.unit }) {
+            let gap = H.outerRadius(y) - H.innerRadius(y)
+            XCTAssertGreaterThan(gap, H.wall * 0.6, "at \(y)")
+            XCTAssertLessThan(gap, H.wall * 3, "at \(y)")
+        }
+        XCTAssertGreaterThan(H.innerRadius(0), 0, "sand still passes the neck")
+        XCTAssertLessThan(H.innerRadius(0), H.outerRadius(0) - H.wall * 0.9, "and the neck is heavy glass")
+        let loop = H.glassLoop
+        XCTAssertEqual(loop.first!.x, -H.bulbEnd, accuracy: 0.0001)
+        XCTAssertGreaterThan(loop.count, 300, "dense enough to read smooth and round")
     }
 
     func testSandStaysInsideTheGlass() {

@@ -19,22 +19,14 @@ struct MaterialKit {
     var facePlates: [PhysicallyBasedMaterial]
     /// Food blocks by `FoodTint` (carbs, protein, fat, mixed, quick-add).
     var foods: [PhysicallyBasedMaterial]
-    /// The desk hourglass: clear glass, walnut plates, matte black posts and nuts, brass sleeves.
-    var clearGlass: PhysicallyBasedMaterial
-    var walnut: PhysicallyBasedMaterial
-    var blackMatte: PhysicallyBasedMaterial
-    var brass: PhysicallyBasedMaterial
-    /// The BODY figurine: satin glazed porcelain.
-    var porcelain: PhysicallyBasedMaterial
-    /// Claymorphism: the BODY mannequin, its turntable and hardware.
+    /// Claymorphism: the BODY mannequin, the TRAIN hourglass, the DIET jar and their hardware.
     var clay: ClayKit
 
     func food(_ tint: FoodTint) -> PhysicallyBasedMaterial {
         tint.rawValue < foods.count ? foods[tint.rawValue] : weight
     }
 
-    static func make(skin: Skin, grain: TextureResource?, woodGrain: TextureResource? = nil,
-                     clayGrain: TextureResource? = nil) -> MaterialKit {
+    static func make(skin: Skin, grain: TextureResource?, clayGrain: TextureResource? = nil) -> MaterialKit {
         let clay = ClayKit.make(grain: clayGrain)
         func matte(_ white: CGFloat, roughness: Float, metallic: Float = 0, grainScale: Float = 1) -> PhysicallyBasedMaterial {
             var m = PhysicallyBasedMaterial()
@@ -76,42 +68,6 @@ struct MaterialKit {
         glass.specular = .init(floatLiteral: 0.08)
         glass.blending = .transparent(opacity: .init(floatLiteral: 0.1))
         glass.faceCulling = .none
-        // The desk hourglass is two shells (outer facing out, inner facing in), so
-        // back faces are culled: the near outer wall and the far inner wall show.
-        var clearGlass = PhysicallyBasedMaterial()
-        clearGlass.baseColor = .init(tint: UIColor(white: 0.92, alpha: 1))
-        clearGlass.roughness = .init(floatLiteral: 0.1)
-        clearGlass.metallic = .init(floatLiteral: 0)
-        clearGlass.specular = .init(floatLiteral: 0.7)
-        clearGlass.blending = .transparent(opacity: .init(floatLiteral: 0.12))
-        clearGlass.faceCulling = .back
-        // Walnut from design/assets/wood_texture.py; flat brown if the texture is missing.
-        var walnut = PhysicallyBasedMaterial()
-        if let woodGrain {
-            walnut.baseColor = .init(tint: .white, texture: .init(woodGrain))
-        } else {
-            walnut.baseColor = .init(tint: UIColor(red: 0.17, green: 0.1, blue: 0.065, alpha: 1))
-        }
-        walnut.roughness = .init(floatLiteral: 0.55)
-        walnut.metallic = .init(floatLiteral: 0)
-        walnut.clearcoat = .init(floatLiteral: 0.12)
-        walnut.clearcoatRoughness = .init(floatLiteral: 0.4)
-        var blackMatte = PhysicallyBasedMaterial()
-        blackMatte.baseColor = .init(tint: UIColor(white: 0.055, alpha: 1))
-        blackMatte.roughness = .init(floatLiteral: 0.72)
-        blackMatte.metallic = .init(floatLiteral: 0)
-        blackMatte.specular = .init(floatLiteral: 0.3)
-        var brass = PhysicallyBasedMaterial()
-        brass.baseColor = .init(tint: UIColor(red: 0.88, green: 0.66, blue: 0.29, alpha: 1))
-        brass.roughness = .init(floatLiteral: 0.22)
-        brass.metallic = .init(floatLiteral: 1)
-        var porcelain = PhysicallyBasedMaterial()
-        porcelain.baseColor = .init(tint: UIColor(red: 0.95, green: 0.93, blue: 0.9, alpha: 1))
-        porcelain.roughness = .init(floatLiteral: 0.4)
-        porcelain.metallic = .init(floatLiteral: 0)
-        porcelain.specular = .init(floatLiteral: 0.5)
-        porcelain.clearcoat = .init(floatLiteral: 0.6)
-        porcelain.clearcoatRoughness = .init(floatLiteral: 0.12)
         if skin.glossy {
             var spring = matte(0.75, roughness: 0.22, metallic: 1)
             spring.specular = .init(floatLiteral: 0.6)
@@ -135,8 +91,7 @@ struct MaterialKit {
                 numeral: numeral,
                 facePlates: (skin.faceColors ?? []).map(plate),
                 // Golden carbs, roasted protein, pale fat, the skin's cream for mixed, amber quick-adds.
-                foods: [object(0xE9B44C), object(0xC9874A), object(0xF6E7C8), object(skin.objectColor), object(0xFFD77A)],
-                clearGlass: clearGlass, walnut: walnut, blackMatte: blackMatte, brass: brass, porcelain: porcelain,
+                foods: [0xE9B44C, 0xC9874A, 0xF6E7C8, skin.objectColor, 0xFFD77A].map { ClayKit.material($0, grain: clayGrain) },
                 clay: clay
             )
         }
@@ -162,7 +117,6 @@ struct MaterialKit {
             foods: [matte(0.78, roughness: 0.85, grainScale: 6), matte(0.62, roughness: 0.85, grainScale: 6),
                     matte(0.94, roughness: 0.85, grainScale: 6), matte(0.86, roughness: 0.85, grainScale: 6),
                     matte(0.46, roughness: 0.9, grainScale: 6)],
-            clearGlass: clearGlass, walnut: walnut, blackMatte: blackMatte, brass: brass, porcelain: porcelain,
             clay: clay
         )
     }
@@ -219,11 +173,6 @@ struct MaterialKit {
         UIImage(named: "studio-env")?.cgImage
     }
 
-    /// Walnut grain for the hourglass plates (design/assets/wood_texture.py).
-    static func woodImage() -> CGImage? {
-        UIImage(named: "walnut")?.cgImage
-    }
-
     static func environmentImage(width: Int = 256, height: Int = 128) -> CGImage? {
         var pixels = [UInt8](repeating: 0, count: width * height * 4)
         for y in 0..<height {
@@ -265,26 +214,47 @@ struct ClayKit {
     var plinth: PhysicallyBasedMaterial
     /// Lilac dots and lettering on the dial.
     var tick: PhysicallyBasedMaterial
+    /// Pale, dry hourglass sand.
+    var sand: PhysicallyBasedMaterial
+    /// Thick candy glass for the hourglass and the jar: clear, glossy, a faint
+    /// white so its edges read. Back faces are culled: these are closed shells,
+    /// so the near outside and the far inside of each wall show.
+    var glass: PhysicallyBasedMaterial
 
     static func make(grain: TextureResource?) -> ClayKit {
         func clay(_ hex: UInt32, roughness: Float = 0.42, coat: Float = 0.3) -> PhysicallyBasedMaterial {
-            var m = PhysicallyBasedMaterial()
-            m.baseColor = .init(tint: UIColor(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
-                                              blue: CGFloat(hex & 0xFF) / 255, alpha: 1))
-            m.roughness = .init(floatLiteral: roughness)
-            m.metallic = .init(floatLiteral: 0)
-            m.specular = .init(floatLiteral: 0.45)
-            m.clearcoat = .init(floatLiteral: coat)
-            m.clearcoatRoughness = .init(floatLiteral: 0.3)
-            if let grain {
-                m.normal = .init(texture: .init(grain))
-                m.textureCoordinateTransform = .init(scale: SIMD2(repeating: 3))
-            }
-            return m
+            material(hex, roughness: roughness, coat: coat, grain: grain)
         }
+        var glass = PhysicallyBasedMaterial()
+        glass.baseColor = .init(tint: UIColor(white: 0.97, alpha: 1))
+        glass.roughness = .init(floatLiteral: 0.08)
+        glass.metallic = .init(floatLiteral: 0)
+        glass.specular = .init(floatLiteral: 0.7)
+        glass.clearcoat = .init(floatLiteral: 0.6)
+        glass.clearcoatRoughness = .init(floatLiteral: 0.05)
+        glass.blending = .transparent(opacity: .init(floatLiteral: 0.16))
+        glass.faceCulling = .back
         return ClayKit(body: clay(0xF2C38C), joint: clay(0xF0904E), socket: clay(0xB8703C, roughness: 0.55, coat: 0),
                        hardware: clay(0xFFD27A, roughness: 0.36), rod: clay(0xF4EEE6), dial: clay(0x8F5BF0, roughness: 0.5, coat: 0),
-                       plinth: clay(0x2A1257, roughness: 0.5), tick: clay(0xB894FF, coat: 0.1))
+                       plinth: clay(0x2A1257, roughness: 0.5), tick: clay(0xB894FF, coat: 0.1),
+                       sand: clay(0xFFF2D6, roughness: 0.8, coat: 0), glass: glass)
+    }
+
+    /// One clay colour: satin sheen and, with `grain`, a fine pressed surface.
+    static func material(_ hex: UInt32, roughness: Float = 0.42, coat: Float = 0.3, grain: TextureResource?) -> PhysicallyBasedMaterial {
+        var m = PhysicallyBasedMaterial()
+        m.baseColor = .init(tint: UIColor(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255,
+                                          blue: CGFloat(hex & 0xFF) / 255, alpha: 1))
+        m.roughness = .init(floatLiteral: roughness)
+        m.metallic = .init(floatLiteral: 0)
+        m.specular = .init(floatLiteral: 0.45)
+        m.clearcoat = .init(floatLiteral: coat)
+        m.clearcoatRoughness = .init(floatLiteral: 0.3)
+        if let grain {
+            m.normal = .init(texture: .init(grain))
+            m.textureCoordinateTransform = .init(scale: SIMD2(repeating: 3))
+        }
+        return m
     }
 }
 

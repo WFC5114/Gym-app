@@ -42,6 +42,8 @@ final class MachineScene {
     private var sandMeshes: [Int: MeshResource] = [:]
     private var sandShown: [Int] = [-1, -1]
     private var stream: ModelEntity?
+    /// The clay frame and glass; it shows the REST lettering on the lower slab.
+    private var hourglassRig: HourglassRig?
     /// Sand drawn in this many steps; at a 3:00 rest that is one step every 3.75 s.
     static let sandSteps = 48
 
@@ -67,11 +69,6 @@ final class MachineScene {
 
     func make(content: inout RealityViewCameraContent, model: MachineModel) async {
         content.camera = .virtual
-        var woodGrain: TextureResource?
-        if let woodImage = MaterialKit.woodImage() {
-            woodGrain = try? await TextureResource(image: woodImage, withName: "walnut",
-                                                   options: .init(semantic: .color, mipmapsMode: .allocateAndGenerateAll))
-        }
         // A fainter grain for clay: a fine pressed surface, not crumpled paper.
         var clayGrain: TextureResource?
         if let clayImage = MaterialKit.grainImage(seed: 0xC1A7_0001, strength: 0.3) {
@@ -81,9 +78,9 @@ final class MachineScene {
         if let grainImage = MaterialKit.grainImage(),
            let grain = try? await TextureResource(image: grainImage, withName: "grain",
                                                    options: .init(semantic: .normal, mipmapsMode: .allocateAndGenerateAll)) {
-            materials = MaterialKit.make(skin: Brutal.skin, grain: grain, woodGrain: woodGrain, clayGrain: clayGrain)
+            materials = MaterialKit.make(skin: Brutal.skin, grain: grain, clayGrain: clayGrain)
         } else {
-            materials = MaterialKit.make(skin: Brutal.skin, grain: nil, woodGrain: woodGrain, clayGrain: clayGrain)
+            materials = MaterialKit.make(skin: Brutal.skin, grain: nil, clayGrain: clayGrain)
         }
         if let envImage = MaterialKit.environmentImage(),
            let env = try? await EnvironmentResource(equirectangular: envImage, withName: "studio") {
@@ -203,30 +200,84 @@ final class MachineScene {
         let rail = model.rail
         dietGroup.addChild(jarGroup)
 
-        // The jar, in the desk hourglass's family: clear glass with real wall
-        // thickness (an outer shell seen from outside, an inner shell seen from
-        // inside), a rolled glass lip over a brass band, standing on a walnut
-        // base. The type layer adds the etched marks and highlights on top.
+        // The jar in clay (Wei approved round 2 of design/mockups/clay/objects.py,
+        // 14 Oct 2026): thick candy glass (an outer shell seen from outside, an
+        // inner shell seen from inside), a cream collar round the mouth with a
+        // rust seam, corner screws and a DIET plaque, raised graduations and a
+        // TARGET bar on the front glass, on an indigo plinth with a knurled band.
+        let clay = materials.clay
         let centerZ = Depth.jar / 2 + 2
-        let outerGlass = box(g.outer.size, depth: Depth.jar, radius: JarGeometry.cornerRadius, material: materials.clearGlass)
+        let frontZ = centerZ + Depth.jar / 2
+        let outerGlass = box(g.outer.size, depth: Depth.jar, radius: JarGeometry.cornerRadius, material: clay.glass)
         outerGlass.position = World.point(CGPoint(x: g.outer.midX, y: g.outer.midY), z: centerZ, in: layout)
         jarGroup.addChild(outerGlass)
-        var insideGlass = materials.clearGlass
+        var insideGlass = clay.glass
         insideGlass.faceCulling = .front
         let innerGlass = box(CGSize(width: g.interior.width, height: g.outer.height - JarGeometry.wall),
                              depth: Depth.jar - 2 * JarGeometry.wall, radius: g.innerRadius, material: insideGlass)
         innerGlass.position = World.point(CGPoint(x: g.interior.midX, y: g.outer.minY + (g.outer.height - JarGeometry.wall) / 2 - 1),
                                           z: centerZ, in: layout)
         jarGroup.addChild(innerGlass)
-        let lip = box(CGSize(width: g.outer.width + 6, height: 10), depth: Depth.jar + 6, radius: 5, material: materials.clearGlass)
-        lip.position = World.point(CGPoint(x: g.outer.midX, y: g.outer.minY + 3), z: centerZ, in: layout)
-        jarGroup.addChild(lip)
-        let band = box(CGSize(width: g.outer.width + 1, height: 3), depth: Depth.jar + 1, radius: 1.5, material: materials.brass)
-        band.position = World.point(CGPoint(x: g.outer.midX, y: g.outer.minY + 10), z: centerZ, in: layout)
+
+        // The collar is a frame of four bars, so blocks rising past the mouth pass through it.
+        let collarY = g.outer.minY + 2
+        func frame(height: CGFloat, bar: CGFloat, grow: CGFloat, radius: CGFloat, _ material: PhysicallyBasedMaterial) {
+            let width = g.outer.width + 10 + grow, depth = Depth.jar + 10 + grow
+            for z in [frontZ + 5 - bar / 2 + grow / 2, centerZ - depth / 2 + bar / 2] {
+                let e = box(CGSize(width: width, height: height), depth: bar, radius: radius, material: material)
+                e.position = World.point(CGPoint(x: g.outer.midX, y: collarY), z: z, in: layout)
+                jarGroup.addChild(e)
+            }
+            for x in [g.outer.minX - 5 - grow / 2 + bar / 2, g.outer.maxX + 5 + grow / 2 - bar / 2] {
+                let e = box(CGSize(width: bar, height: height), depth: depth, radius: radius, material: material)
+                e.position = World.point(CGPoint(x: x, y: collarY), z: centerZ, in: layout)
+                jarGroup.addChild(e)
+            }
+        }
+        frame(height: 14, bar: 12, grow: 0, radius: 5, clay.body)
+        frame(height: 2.2, bar: 12, grow: 1, radius: 1, clay.socket)
+        let collarFront = frontZ + 5 + 0.5
+        for x in [g.outer.minX, g.outer.maxX] {
+            jarGroup.addChild(screw(radius: 3, at: World.point(CGPoint(x: x, y: collarY - 3.5), z: collarFront, in: layout)))
+        }
+        let plaque = box(CGSize(width: 46, height: 11), depth: 3, radius: 2.5, material: clay.hardware)
+        plaque.position = World.point(CGPoint(x: g.outer.midX, y: collarY), z: collarFront + 1.5, in: layout)
+        jarGroup.addChild(plaque)
+        let diet = MeshResource.generateText("DIET", extrusionDepth: World.len(1.2), font: .systemFont(ofSize: CGFloat(World.len(7.5)), weight: .heavy))
+        let label = ModelEntity(mesh: diet, materials: [clay.plinth])
+        label.position = World.point(CGPoint(x: g.outer.midX, y: collarY), z: collarFront + 3, in: layout) - SIMD3(diet.bounds.center.x, diet.bounds.center.y, 0)
+        jarGroup.addChild(label)
+        for dx: CGFloat in [-17, 17] {
+            jarGroup.addChild(screw(radius: 1.7, at: World.point(CGPoint(x: g.outer.midX + dx, y: collarY), z: collarFront + 3, in: layout)))
+        }
+
+        // Raised quarter graduations and the TARGET bar on the front glass.
+        let span = g.floorY - g.targetLineY
+        for q in 1...3 {
+            let tick = box(CGSize(width: 16, height: 2.5), depth: 1.6, radius: 0.8, material: clay.rod)
+            tick.position = World.point(CGPoint(x: g.interior.maxX - 14, y: g.floorY - span * CGFloat(q) / 4), z: frontZ + 0.8, in: layout)
+            jarGroup.addChild(tick)
+        }
+        let bar = box(CGSize(width: g.interior.width * 0.92, height: 3), depth: 1.8, radius: 0.9, material: clay.hardware)
+        bar.position = World.point(CGPoint(x: g.interior.midX, y: g.targetLineY), z: frontZ + 0.9, in: layout)
+        jarGroup.addChild(bar)
+
+        // Plinth with a knurled butter band.
+        let baseY = g.outer.maxY + 4
+        let plinth = box(CGSize(width: g.outer.width + 20, height: 9), depth: Depth.jar + 16, radius: 4, material: clay.plinth)
+        plinth.position = World.point(CGPoint(x: g.outer.midX, y: baseY), z: centerZ, in: layout)
+        jarGroup.addChild(plinth)
+        let band = box(CGSize(width: g.outer.width + 22, height: 3.5), depth: Depth.jar + 18, radius: 1.5, material: clay.hardware)
+        band.position = World.point(CGPoint(x: g.outer.midX, y: baseY), z: centerZ, in: layout)
         jarGroup.addChild(band)
-        let base = box(CGSize(width: g.outer.width + 24, height: 8), depth: Depth.jar + 20, radius: 3, material: materials.walnut)
-        base.position = World.point(CGPoint(x: g.outer.midX, y: g.outer.maxY + 4), z: centerZ, in: layout)
-        jarGroup.addChild(base)
+        let ribs = Int((g.outer.width + 16) / 4.5)
+        let rib = MeshResource.generateBox(width: World.len(1.5), height: World.len(5.5), depth: World.len(1.2), cornerRadius: World.len(0.6))
+        for i in 0...ribs {
+            let x = g.outer.midX - (g.outer.width + 16) / 2 + CGFloat(i) * (g.outer.width + 16) / CGFloat(ribs)
+            let e = ModelEntity(mesh: rib, materials: [clay.hardware])
+            e.position = World.point(CGPoint(x: x, y: baseY), z: centerZ + (Depth.jar + 18) / 2 + 0.2, in: layout)
+            jarGroup.addChild(e)
+        }
 
         // The loading rail: a ledge under the quick-add blocks.
         let ledge = box(CGSize(width: rail.controls.width, height: 6), depth: 26, radius: 1.5, material: materials.plate)
@@ -243,6 +294,26 @@ final class MachineScene {
         }
     }
 
+    /// A domed clay screw head with a cross slot, facing the camera.
+    private func screw(radius r: CGFloat, at position: SIMD3<Float>) -> Entity {
+        let holder = Entity()
+        holder.position = position
+        holder.orientation = simd_quatf(from: [0, 1, 0], to: [0, 0, 1])
+        let rr = World.len(r)
+        let dome: [SIMD2<Float>] = [SIMD2(0, 0), SIMD2(0, rr), SIMD2(rr * 0.25, rr * 0.92), SIMD2(rr * 0.45, rr * 0.6), SIMD2(rr * 0.52, 0)]
+        if let mesh = try? Geometry.lathe(dome, segments: 24, name: "screw") {
+            holder.addChild(ModelEntity(mesh: mesh, materials: [materials.clay.hardware]))
+        }
+        let slot = MeshResource.generateBox(width: rr * 1.6, height: rr * 0.4, depth: rr * 0.26)
+        for a in [Float(0), .pi / 2] {
+            let e = ModelEntity(mesh: slot, materials: [materials.clay.socket])
+            e.position = [0, rr * 0.5, 0]
+            e.orientation = simd_quatf(angle: a, axis: [0, 1, 0])
+            holder.addChild(e)
+        }
+        return holder
+    }
+
     /// Chunky rounded food block.
     private func foodBlock(_ size: CGSize, tint: FoodTint) -> ModelEntity {
         box(size, depth: Depth.block, radius: min(10, size.height * 0.3, size.width * 0.3), material: materials.food(tint))
@@ -252,54 +323,15 @@ final class MachineScene {
         typealias H = DeskHourglass
         // Presentation turn on the group; SET DONE flips `glassSpin` about its own z.
         glassGroup.orientation = simd_quatf(angle: H.pitch, axis: SIMD3(1, 0, 0)) * simd_quatf(angle: H.yaw, axis: SIMD3(0, 1, 0))
-
-        // Glass: an outer shell facing out and an inner shell facing in.
-        let upper = H.profile
-        let outer = upper.reversed().map { SIMD2(-$0.x, $0.y) } + upper.dropFirst()
-        let inner = outer.map { SIMD2($0.x, max($0.y - H.wall, 0.004)) }
-        if let outerMesh = try? Geometry.lathe(outer, segments: 72, name: "glassOuter"),
-           let innerMesh = try? Geometry.lathe(Array(inner.reversed()), segments: 72, name: "glassInner") {
-            glassSpin.addChild(ModelEntity(mesh: outerMesh, materials: [materials.clearGlass]))
-            glassSpin.addChild(ModelEntity(mesh: innerMesh, materials: [materials.clearGlass]))
-        }
-
-        // Frame: collars and walnut plates at both ends, four posts with brass
-        // sleeves, dome nuts on top and round feet underneath.
-        for s: Float in [1, -1] {
-            let collar = ModelEntity(mesh: .generateCylinder(height: H.collarHeight, radius: H.collarRadius), materials: [materials.blackMatte])
-            collar.position = SIMD3(0, s * H.collarY, 0)
-            glassSpin.addChild(collar)
-            let plate = ModelEntity(mesh: .generateBox(width: H.plateSide, height: H.plateThickness, depth: H.plateSide,
-                                                       cornerRadius: H.plateThickness * 0.22), materials: [materials.walnut])
-            plate.position = SIMD3(0, s * H.plateY, 0)
-            glassSpin.addChild(plate)
-        }
-        let post = MeshResource.generateCylinder(height: H.postLength, radius: H.postRadius)
-        let sleeve = MeshResource.generateCylinder(height: H.sleeveHeight, radius: H.sleeveRadius)
-        let nut = MeshResource.generateSphere(radius: H.nutRadius)
-        for x: Float in [-H.postOffset, H.postOffset] {
-            for z: Float in [-H.postOffset, H.postOffset] {
-                let p = ModelEntity(mesh: post, materials: [materials.blackMatte])
-                p.position = SIMD3(x, 0, z)
-                glassSpin.addChild(p)
-                for s: Float in [1, -1] {
-                    let sl = ModelEntity(mesh: sleeve, materials: [materials.brass])
-                    sl.position = SIMD3(x, s * H.sleeveY, z)
-                    glassSpin.addChild(sl)
-                    let n = ModelEntity(mesh: nut, materials: [materials.blackMatte])
-                    n.position = SIMD3(x, s * H.nutY, z)
-                    glassSpin.addChild(n)
-                }
-            }
-        }
+        hourglassRig = HourglassRig(clay: materials.clay, into: glassSpin)
 
         // Sand: meshes are made per step on first use (see `sandMesh`).
-        sandA.model = ModelComponent(mesh: .generateSphere(radius: 0.001), materials: [materials.sand])
-        sandB.model = ModelComponent(mesh: .generateSphere(radius: 0.001), materials: [materials.sand])
+        sandA.model = ModelComponent(mesh: .generateSphere(radius: 0.001), materials: [materials.clay.sand])
+        sandB.model = ModelComponent(mesh: .generateSphere(radius: 0.001), materials: [materials.clay.sand])
         sandShown = [-1, -1]
         glassSpin.addChild(sandA)
         glassSpin.addChild(sandB)
-        let stream = ModelEntity(mesh: .generateCylinder(height: 1, radius: 1), materials: [materials.sand])
+        let stream = ModelEntity(mesh: .generateCylinder(height: 1, radius: 1), materials: [materials.clay.sand])
         glassSpin.addChild(stream)
         self.stream = stream
     }
@@ -458,6 +490,7 @@ final class MachineScene {
         // Stand the glass proud of the face so its back half never enters the chassis.
         glassGroup.position = World.point(HourglassGeometry(layout: layout).center(forHeight: heightPoints), z: heightPoints * 0.42 + 8, in: layout)
         glassSpin.orientation = simd_quatf(angle: Float(model.glassAngle.position), axis: SIMD3(0, 0, 1))
+        hourglassRig?.apply(angle: Float(model.glassAngle.position))
 
         // Sand is drawn upright in the world: the world-top bulb shows the draining
         // shape, the world-bottom bulb the pile. After an odd number of flips the
@@ -477,7 +510,7 @@ final class MachineScene {
         if flowing, let stream {
             let apex = DeskHourglass.heapApex(bottomAmount)  // world-upright, below the neck
             let length = max(abs(apex), 0.001)
-            stream.scale = SIMD3(0.0035, length, 0.0035)
+            stream.scale = SIMD3(0.0028, length, 0.0028)
             stream.position = SIMD3(0, (aUp ? 1 : -1) * apex / 2, 0)
         }
     }

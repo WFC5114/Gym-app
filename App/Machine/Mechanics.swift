@@ -1,5 +1,6 @@
 import CoreGraphics
 import Foundation
+import simd
 
 /// Where one food block rests in the jar (face-local points, block centre).
 /// `angle` is in radians, positive turns clockwise on screen.
@@ -46,7 +47,8 @@ struct JarGeometry {
     var mech: CGRect { layout.mechanismRect }
     /// Space above the jar mouth for an over-target pile.
     static let overflowRoom: CGFloat = 70
-    static let wall: CGFloat = 7
+    /// Thick glass (Wei, 14 Oct 2026); the outer jar grows with it so the inside keeps its size.
+    static let wall: CGFloat = 12
     static let cornerRadius: CGFloat = 30
     /// Share of the interior height the target line sits at.
     static let targetFraction: CGFloat = 0.74
@@ -56,7 +58,7 @@ struct JarGeometry {
     static let column: CGFloat = 2
 
     var outer: CGRect {
-        let w = (layout.contentWidth * 0.58).rounded()
+        let w = (layout.contentWidth * 0.58).rounded() + 2 * (Self.wall - 7)
         let top = mech.minY + Self.overflowRoom
         return CGRect(x: layout.faceWidth / 2 - w / 2, y: top, width: w, height: mech.maxY - 8 - top)
     }
@@ -414,29 +416,35 @@ struct FigureGeometry {
     }
 }
 
-/// TRAIN's desk hourglass (Wei's pick, 13 Oct 2026, from reference photos): square
-/// wood plates, four black posts with brass sleeves and dome nuts, round clear
-/// bulbs and fine sand. Glass units: height 1 from the feet to the top nuts,
-/// centred on the origin, y up. It mirrors concept G in
-/// design/mockups/train/scene.py divided by that model's 2.48 height.
+/// TRAIN's desk hourglass (Wei's pick, 13 Oct 2026, from reference photos), in
+/// clay (Wei, 14 Oct 2026, approved round 2 of design/mockups/clay/objects.py):
+/// layered indigo and cream plates, four turned orange posts in butter sleeves,
+/// dome nuts, and round, smooth, thick glass with a heavy neck. Glass units:
+/// height 1 from the bottom nuts to the top nuts, centred on the origin, y up;
+/// the mockup's numbers times `unit`.
 enum DeskHourglass {
-    static let unit: Float = 1 / 2.48
+    static let unit: Float = 1 / 1.088
 
-    /// Outer bulb profile from the neck (y 0) to the bulb's end, as (y, radius).
+    /// Outer bulb profile from the neck (y 0) to the bulb's open end, as (y, radius).
     static let knots: [SIMD2<Float>] = [
-        SIMD2(0, 0.04), SIMD2(0.06, 0.07), SIMD2(0.15, 0.27), SIMD2(0.3, 0.44), SIMD2(0.5, 0.52),
-        SIMD2(0.7, 0.5), SIMD2(0.85, 0.42), SIMD2(0.95, 0.3), SIMD2(1.0, 0.2),
+        SIMD2(0, 0.032), SIMD2(0.012, 0.036), SIMD2(0.03, 0.068), SIMD2(0.06, 0.115), SIMD2(0.1, 0.158),
+        SIMD2(0.15, 0.186), SIMD2(0.21, 0.195), SIMD2(0.27, 0.186), SIMD2(0.32, 0.162), SIMD2(0.36, 0.128),
+        SIMD2(0.39, 0.096), SIMD2(0.41, 0.08), SIMD2(0.425, 0.076),
     ].map { $0 * unit }
-    static let wall: Float = 0.03 * unit
+    /// The glass is this thick, measured along the surface normal, so it stays
+    /// heavy through the neck and round the shoulders.
+    static let wall: Float = 0.022 * unit
+    static let narrowest: Float = 0.007 * unit
     static var bulbEnd: Float { knots.last!.x }
 
     /// The outer profile, densely sampled along a Catmull-Rom spline through the knots.
     static let profile: [SIMD2<Float>] = {
         let p = [knots[0]] + knots + [knots[knots.count - 1]]
         var out: [SIMD2<Float>] = []
+        let steps = 10
         for i in 1..<(p.count - 2) {
-            for k in 0..<12 {
-                let t = Float(k) / 12, t2 = t * t, t3 = t2 * t
+            for k in 0..<steps {
+                let t = Float(k) / Float(steps), t2 = t * t, t3 = t2 * t
                 let a = 2 * p[i], b = p[i + 1] - p[i - 1]
                 let c = 2 * p[i - 1] - 5 * p[i] + 4 * p[i + 1] - p[i + 2]
                 let d = -p[i - 1] + 3 * p[i] - 3 * p[i + 1] + p[i + 2]
@@ -447,28 +455,61 @@ enum DeskHourglass {
         return out
     }()
 
-    /// Outer radius at height `y` (either bulb; the glass is symmetric about the neck).
-    static func outerRadius(_ y: Float) -> Float {
-        let h = min(abs(y), bulbEnd)
-        guard let i = profile.firstIndex(where: { $0.x >= h }), i > 0 else { return profile[0].y }
-        let a = profile[i - 1], b = profile[i]
+    /// The inner surface: the outer profile moved in along its normal by `wall`
+    /// (mirrored through the neck, where the glass is symmetric), kept rising in y.
+    static let innerProfile: [SIMD2<Float>] = {
+        var out: [SIMD2<Float>] = []
+        for i in profile.indices {
+            let prev = i == 0 ? SIMD2(-profile[1].x, profile[1].y) : profile[i - 1]
+            let next = profile[min(i + 1, profile.count - 1)]
+            let t = next - prev
+            let length = max(simd_length(t), 1e-6)
+            let normal = SIMD2(-t.y, t.x) / length  // outward, as (dy, dr)
+            let p = SIMD2(profile[i].x - normal.x * wall, max(profile[i].y - normal.y * wall, narrowest))
+            if let last = out.last, p.x <= last.x { continue }
+            out.append(p)
+        }
+        return out
+    }()
+
+    private static func interpolate(_ curve: [SIMD2<Float>], at y: Float) -> Float {
+        let h = abs(y)
+        guard let i = curve.firstIndex(where: { $0.x >= h }) else { return curve[curve.count - 1].y }
+        guard i > 0 else { return curve[0].y }
+        let a = curve[i - 1], b = curve[i]
         let t = b.x > a.x ? (h - a.x) / (b.x - a.x) : 0
         return a.y + (b.y - a.y) * t
     }
 
-    static func innerRadius(_ y: Float) -> Float { max(outerRadius(y) - wall, 0.004) }
+    /// Outer radius at height `y` (either bulb; the glass is symmetric about the neck).
+    static func outerRadius(_ y: Float) -> Float { interpolate(profile, at: min(abs(y), bulbEnd)) }
+
+    static func innerRadius(_ y: Float) -> Float { interpolate(innerProfile, at: y) }
+
+    /// The glass's whole cross-section as one closed loop for `Geometry.ring`:
+    /// up the outside, in across the top end, down the inside, out across the bottom.
+    static var glassLoop: [SIMD2<Float>] {
+        func full(_ half: [SIMD2<Float>]) -> [SIMD2<Float>] {
+            half.reversed().map { SIMD2(-$0.x, $0.y) } + half.dropFirst()
+        }
+        return full(profile) + full(innerProfile).reversed()
+    }
 
     // Frame, from the mockup's numbers.
-    static let collarRadius: Float = 0.24 * unit, collarHeight: Float = 0.05 * unit, collarY: Float = 1.02 * unit
-    static let plateSide: Float = 1.22 * unit, plateThickness: Float = 0.13 * unit
-    static let plateInner: Float = 1.045 * unit
-    static var plateY: Float { plateInner + plateThickness / 2 }
-    static let postOffset: Float = 0.5 * unit, postRadius: Float = 0.032 * unit
+    /// Inner faces of the plates.
+    static let plateInner: Float = 0.43 * unit
+    static let slabHalfSide: Float = 0.27 * unit, slabHalfThickness: Float = 0.035 * unit
+    static var slabY: Float { plateInner + slabHalfThickness }
+    static let panelHalfSide: Float = 0.235 * unit, panelHalfThickness: Float = 0.012 * unit
+    static var panelY: Float { plateInner + 2 * slabHalfThickness + 0.008 * unit }
+    /// The turned cup each bulb end sits in, under its plate.
+    static let collarHeight: Float = 0.03 * unit
+    static var collarY: Float { plateInner - collarHeight / 2 }
+    static let postOffset: Float = 0.195 * unit, postRadius: Float = 0.016 * unit
     static var postLength: Float { 2 * plateInner }
-    static let sleeveRadius: Float = 0.042 * unit, sleeveHeight: Float = 0.13 * unit
-    static var sleeveY: Float { plateInner - sleeveHeight / 2 }
-    static let nutRadius: Float = 0.055 * unit
-    static var nutY: Float { plateInner + plateThickness + 0.01 * unit }
+    /// Dome nuts on the post ends, top and bottom alike so the glass looks the same after a flip.
+    static let nutRadius: Float = 0.024 * unit, nutWidth: Float = 0.03 * unit
+    static var nutY: Float { panelY + panelHalfThickness }
 
     /// Resting presentation: turned so all four posts show and tipped toward the
     /// camera so the plates' tops read in the orthographic view.
@@ -477,11 +518,11 @@ enum DeskHourglass {
 
     // Sand. Both shapes are drawn upright in the world: the draining sand in the
     // top bulb (y > 0) and the pile in the bottom bulb (y < 0).
-    static let neckY: Float = 0.05 * unit
-    static let floorY: Float = -0.97 * unit
+    static let neckY: Float = 0.03 * unit
+    static let floorY: Float = -0.4 * unit
     /// A full load fills the top bulb from the neck to this height.
-    static let fullLevel: Float = 0.6 * unit
-    static let sandInset: Float = 0.006 * unit
+    static let fullLevel: Float = 0.28 * unit
+    static let sandInset: Float = 0.003 * unit
 
     static func sandRadius(_ y: Float) -> Float { max(innerRadius(y) - sandInset, 0) }
 
@@ -515,7 +556,7 @@ enum DeskHourglass {
     static func drainProfile(_ amount: Float) -> [SIMD2<Float>] {
         let a = min(max(amount, 0), 1)
         let top = level(from: neckY, holding: a * fullVolume, limit: fullLevel + 0.05 * unit)
-        let dish = min(0.07 * unit, (top - neckY) * 0.5)
+        let dish = min(0.03 * unit, (top - neckY) * 0.5)
         var pts: [SIMD2<Float>] = [SIMD2(neckY, 0)]
         let rings = 24
         for i in 0...rings {
@@ -532,9 +573,9 @@ enum DeskHourglass {
     /// from the floor carrying a cone that peaks under the neck.
     static func heapProfile(_ amount: Float) -> [SIMD2<Float>] {
         let b = min(max(amount, 0), 1)
-        let fill = level(from: floorY, holding: 0.72 * b * fullVolume, limit: -neckY - 0.1 * unit)
+        let fill = level(from: floorY, holding: 0.72 * b * fullVolume, limit: -neckY - 0.14 * unit)
         let rFill = sandRadius(fill)
-        let cone = rFill > 0 ? min(3 * 0.28 * b * fullVolume / (.pi * rFill * rFill), 0.32 * unit) : 0
+        let cone = rFill > 0 ? min(3 * 0.28 * b * fullVolume / (.pi * rFill * rFill), 0.1 * unit) : 0
         var pts: [SIMD2<Float>] = [SIMD2(floorY, 0)]
         let rings = 24
         for i in 0...rings {
