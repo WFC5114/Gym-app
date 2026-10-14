@@ -8,6 +8,7 @@ numbers are sample data and every sheet is labelled MOCKUP.
 | `diet/` | DIET options: Plate, Gauge, Jar (HTML) | Jar (13 Oct 2026) |
 | `jar/` | `pile.py`: prototype of the deterministic block pile (Pillow) | — |
 | `body/` | BODY options: Figurine, Stacks, Dial (HTML from `make.py`) | Figurine (13 Oct 2026) |
+| `body/motion.py` | BODY motion test: a detailed beech artist's mannequin (Wei: "IKEA figurine", "soulless", "extremely high quality and detailed") with breathing, weight shift and a squash-and-spring touch (`motion.mp4`) | pending (14 Oct 2026) |
 | `train/` | TRAIN round 1 in Blender: Lab glass, Candy capsule, Gimbal (`options.jpg`, concepts A–C) | none (Wei: "elegant but minimal") |
 | `train/` | TRAIN round 2, minimal: Teardrop, Orbit, Column (`options-minimal.jpg`, concepts D–F, `make_minimal.py`) | none |
 | `train/` | TRAIN desk hourglass from Wei's reference photos: wood plates, four black posts, brass collars (`desk.jpg`, concept G, `make_desk.py`) | **picked** (Wei, 13 Oct 2026: "I like this one") |
@@ -34,3 +35,6 @@ front of the face, the same as the app's `World`. The studio lighting (one soft
 key, fill, two rim strips, top light) and materials are what the app's
 RealityKit scene is meant to copy. Renders are offline path-traced, so the live
 app will look somewhat less polished than these stills.
+
+BODY motion test: `python3 body/motion.py <out dir> 120 24 0.8`, then
+`ffmpeg -framerate 30 -i <out dir>/f%04d.png -c:v libx264 -pix_fmt yuv420p body/motion.mp4`.
