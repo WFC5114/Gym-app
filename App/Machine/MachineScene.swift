@@ -200,14 +200,30 @@ final class MachineScene {
         let rail = model.rail
         dietGroup.addChild(jarGroup)
 
-        // The jar: a deep glass body with a bright lip at the mouth. The type
-        // layer adds the etched marks and the glass highlights on top.
-        let glass = box(g.outer.size, depth: Depth.jar, radius: JarGeometry.cornerRadius, material: materials.glass)
-        glass.position = World.point(CGPoint(x: g.outer.midX, y: g.outer.midY), z: Depth.jar / 2 + 2, in: layout)
-        jarGroup.addChild(glass)
-        let lip = box(CGSize(width: g.outer.width + 8, height: 9), depth: Depth.jar + 8, radius: 4, material: materials.spring)
-        lip.position = World.point(CGPoint(x: g.outer.midX, y: g.outer.minY + 2), z: Depth.jar / 2 + 2, in: layout)
+        // The jar, in the desk hourglass's family: clear glass with real wall
+        // thickness (an outer shell seen from outside, an inner shell seen from
+        // inside), a rolled glass lip over a brass band, standing on a walnut
+        // base. The type layer adds the etched marks and highlights on top.
+        let centerZ = Depth.jar / 2 + 2
+        let outerGlass = box(g.outer.size, depth: Depth.jar, radius: JarGeometry.cornerRadius, material: materials.clearGlass)
+        outerGlass.position = World.point(CGPoint(x: g.outer.midX, y: g.outer.midY), z: centerZ, in: layout)
+        jarGroup.addChild(outerGlass)
+        var insideGlass = materials.clearGlass
+        insideGlass.faceCulling = .front
+        let innerGlass = box(CGSize(width: g.interior.width, height: g.outer.height - JarGeometry.wall),
+                             depth: Depth.jar - 2 * JarGeometry.wall, radius: g.innerRadius, material: insideGlass)
+        innerGlass.position = World.point(CGPoint(x: g.interior.midX, y: g.outer.minY + (g.outer.height - JarGeometry.wall) / 2 - 1),
+                                          z: centerZ, in: layout)
+        jarGroup.addChild(innerGlass)
+        let lip = box(CGSize(width: g.outer.width + 6, height: 10), depth: Depth.jar + 6, radius: 5, material: materials.clearGlass)
+        lip.position = World.point(CGPoint(x: g.outer.midX, y: g.outer.minY + 3), z: centerZ, in: layout)
         jarGroup.addChild(lip)
+        let band = box(CGSize(width: g.outer.width + 1, height: 3), depth: Depth.jar + 1, radius: 1.5, material: materials.brass)
+        band.position = World.point(CGPoint(x: g.outer.midX, y: g.outer.minY + 10), z: centerZ, in: layout)
+        jarGroup.addChild(band)
+        let base = box(CGSize(width: g.outer.width + 24, height: 8), depth: Depth.jar + 20, radius: 3, material: materials.walnut)
+        base.position = World.point(CGPoint(x: g.outer.midX, y: g.outer.maxY + 4), z: centerZ, in: layout)
+        jarGroup.addChild(base)
 
         // The loading rail: a ledge under the quick-add blocks.
         let ledge = box(CGSize(width: rail.controls.width, height: 6), depth: 26, radius: 1.5, material: materials.plate)
@@ -295,10 +311,19 @@ final class MachineScene {
             faces[2].addChild(figureRoot)
             figureRoot.addChild(figureTurn)
             // Tipped toward the camera so the orthographic view sees its top.
-            let disc = ModelEntity(mesh: .generateCylinder(height: 0.04, radius: 0.27), materials: [materials.plate])
-            disc.orientation = simd_quatf(angle: 0.3, axis: SIMD3(1, 0, 0))
-            disc.position = SIMD3(0, -0.025, 0)
-            figureRoot.addChild(disc)
+            // A walnut turntable with a brass rim on a black plinth, like the hourglass.
+            let tilt = simd_quatf(angle: 0.3, axis: SIMD3(1, 0, 0))
+            let parts: [(MeshResource, PhysicallyBasedMaterial, Float)] = [
+                (.generateCylinder(height: 0.04, radius: 0.27), materials.walnut, -0.025),
+                (.generateCylinder(height: 0.012, radius: 0.274), materials.brass, -0.025),
+                (.generateCylinder(height: 0.016, radius: 0.24), materials.blackMatte, -0.048),
+            ]
+            for (mesh, material, y) in parts {
+                let e = ModelEntity(mesh: mesh, materials: [material])
+                e.orientation = tilt
+                e.position = tilt.act(SIMD3(0, y + 0.025, 0)) - SIMD3(0, 0.025, 0)
+                figureRoot.addChild(e)
+            }
             for part in FigureShape.neutral.parts {
                 let s = part.size
                 let mesh: MeshResource
@@ -312,7 +337,7 @@ final class MachineScene {
                 case .rod:
                     mesh = .generateCylinder(height: 1, radius: 0.5)
                 }
-                let e = ModelEntity(mesh: mesh, materials: [materials.weight])
+                let e = ModelEntity(mesh: mesh, materials: [materials.porcelain])
                 figureTurn.addChild(e)
                 figureParts.append((e, base))
             }
