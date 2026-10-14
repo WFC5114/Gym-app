@@ -338,12 +338,14 @@ enum Geometry {
         return rings
     }
 
+    /// `centred` moves the slab so its walls straddle z 0, like a generated box.
     static func slab(halfWidth w: Float, halfHeight h: Float, depth d: Float, corner: Float, bevel: Float,
-                     puff p: Float = 0, name: String) throws -> MeshResource {
+                     puff p: Float = 0, centred: Bool = false, name: String) throws -> MeshResource {
+        var rings = slabRings(halfWidth: w, halfHeight: h, depth: d, corner: corner, bevel: bevel, puff: p)
+        if centred { rings = rings.map { $0.map { $0 - SIMD3(0, 0, d / 2) } } }
         // Texture laid flat across the front, one tile per 50 pt, so grain never
         // streaks round the outline or swirls in to the middle.
-        try surface(slabRings(halfWidth: w, halfHeight: h, depth: d, corner: corner, bevel: bevel, puff: p), name: name,
-                    uv: { SIMD2($0.x * 2, $0.y * 2) })
+        return try surface(rings, name: name, uv: { SIMD2($0.x * 2, $0.y * 2) })
     }
 
     /// A turned limb hanging from y 0 to −length: rounded ends, a swell near the

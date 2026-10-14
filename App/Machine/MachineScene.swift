@@ -328,7 +328,7 @@ final class MachineScene {
 
         for kcal in QuickAdd.weights {
             let size = rail.quickBlockSize(kcal: kcal)
-            let block = box(size, depth: Depth.block, radius: 6, material: materials.food(.quick))
+            let block = Brutal.skin.clayUI ? foodBlock(size, tint: .quick) : box(size, depth: Depth.block, radius: 6, material: materials.food(.quick))
             block.position = World.point(rail.quickBlockHome(kcal: kcal), z: Depth.block / 2 + 6, in: layout)
             dietGroup.addChild(block)
             railBlocks[kcal] = block
@@ -357,7 +357,15 @@ final class MachineScene {
 
     /// Chunky rounded food block.
     private func foodBlock(_ size: CGSize, tint: FoodTint) -> ModelEntity {
-        box(size, depth: Depth.block, radius: min(10, size.height * 0.3, size.width * 0.3), material: materials.food(tint))
+        let round = min(10, size.height * 0.3, size.width * 0.3)
+        // Clay skins: a puffy clay block with rolled edges, as in the Night mockup.
+        if Brutal.skin.clayUI,
+           let mesh = try? Geometry.slab(halfWidth: World.len(size.width / 2), halfHeight: World.len(size.height / 2), depth: World.len(Depth.block),
+                                         corner: World.len(min(13, size.height * 0.36, size.width * 0.36)), bevel: World.len(round),
+                                         puff: World.len(min(3, size.height * 0.08)), centred: true, name: "foodBlock") {
+            return ModelEntity(mesh: mesh, materials: [materials.food(tint)])
+        }
+        return box(size, depth: Depth.block, radius: round, material: materials.food(tint))
     }
 
     private func buildHourglass() {

@@ -241,7 +241,9 @@ struct PieceLabel: View {
                 Text(kcal).font(TypeKit.label(size, weight: .heavy))
             }
         }
-        .foregroundStyle(Color(red: 0.24, green: 0.13, blue: 0.05).opacity(0.85))
+        // Dark ink on pale clay; the roasted protein clay of the clay skins takes ivory.
+        .foregroundStyle(Brutal.skin.clayUI && piece.tint == .protein
+                         ? Color(hex: 0xF4ECE0).opacity(0.92) : Color(red: 0.24, green: 0.13, blue: 0.05).opacity(0.85))
         .minimumScaleFactor(0.7)
         .allowsHitTesting(false)
     }

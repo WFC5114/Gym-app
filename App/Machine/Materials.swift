@@ -78,11 +78,14 @@ struct MaterialKit {
             let night = skin.clayUI
             // Albedo sits well below the mockup's #211F24: the key, spot and studio
             // light lift it to graphite on device (c1f3220 rendered #211F24 as #7E7D81).
-            var tray = ClayKit.material(skin.faceColors?.first ?? 0x121115, roughness: 0.58, coat: 0.18, grain: clayGrain)
+            // Matte, with a low specular: at 0.45 specular the studio softboxes
+            // sheened it to mid grey whatever the albedo (6c50d88).
+            var tray = ClayKit.material(skin.faceColors?.first ?? 0x121115, roughness: 0.78, coat: 0, grain: clayGrain)
+            tray.specular = .init(floatLiteral: 0.12)
             tray.textureCoordinateTransform = .init(scale: SIMD2(repeating: 1))
             if night { numeral = ClayKit.material(skin.objectColor, roughness: 0.44, coat: 0.3, grain: clayGrain) }
             // Golden carbs, roasted protein, pale fat, the skin's cream for mixed, amber quick-adds.
-            let foodHexes: [UInt32] = night ? [0xD9A55B, 0xB86E48, 0xEFE6D6, 0xC8B79A, 0xE3CB98]
+            let foodHexes: [UInt32] = night ? [0xC8924E, 0xA9623F, 0xE4D9C6, 0xB9A88C, 0xCDBFA5]
                                             : [0xE9B44C, 0xC9874A, 0xF6E7C8, skin.objectColor, 0xFFD77A]
             return MaterialKit(
                 chassis: matte(0.07, roughness: 0.7, grainScale: 3),
@@ -240,13 +243,15 @@ struct ClayKit {
             material(hex, roughness: roughness, coat: coat, grain: grain)
         }
         var glass = PhysicallyBasedMaterial()
-        glass.baseColor = .init(tint: UIColor(white: 0.97, alpha: 1))
+        // NIGHT glass is clear: a dark tint, so stacked walls stay see-through
+        // and only the reflections show (white at 16% read milky in 6c50d88).
+        glass.baseColor = .init(tint: UIColor(white: night ? 0.3 : 0.97, alpha: 1))
         glass.roughness = .init(floatLiteral: 0.08)
         glass.metallic = .init(floatLiteral: 0)
         glass.specular = .init(floatLiteral: 0.7)
         glass.clearcoat = .init(floatLiteral: 0.6)
         glass.clearcoatRoughness = .init(floatLiteral: 0.05)
-        glass.blending = .transparent(opacity: .init(floatLiteral: 0.16))
+        glass.blending = .transparent(opacity: .init(floatLiteral: night ? 0.1 : 0.16))
         glass.faceCulling = .back
         if night {
             // NIGHT (Wei, 14 Oct 2026): ivory clay, terracotta joints, brass
@@ -320,7 +325,7 @@ struct ChromeKit {
         smoked.faceCulling = .back
         var tube = glass
         tube.blending = .transparent(opacity: .init(floatLiteral: 0.22))
-        return ChromeKit(primary: ClayKit.material(0xEDE5D8, roughness: 0.42, coat: 0.35, grain: grain),
+        return ChromeKit(primary: ClayKit.material(0xD6CAB6, roughness: 0.45, coat: 0.3, grain: grain),
                          secondary: smoked, tube: tube,
                          fills: [0xC9744A, 0xE3B57A, 0xEFE6D6].map { ClayKit.material($0, roughness: 0.45, grain: grain) },
                          panel: ClayKit.material(0x1E1C22, roughness: 0.55, coat: 0.15, grain: grain),
