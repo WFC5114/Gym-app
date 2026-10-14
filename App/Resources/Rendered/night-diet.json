@@ -1,0 +1,1305 @@
+{
+ "layout": {
+  "face": [
+   420.0,
+   852.0
+  ],
+  "gauges": {
+   "carbs": [
+    154.79,
+    261.97,
+    106.17,
+    17.84
+   ],
+   "fat": [
+    282.2,
+    261.97,
+    106.17,
+    17.84
+   ],
+   "protein": [
+    27.38,
+    261.97,
+    106.17,
+    17.84
+   ]
+  },
+  "hero": {
+   "centerY": 132.11,
+   "fontSize": 67.52,
+   "x": 21.01
+  },
+  "jar": {
+   "interior": [
+    135.17,
+    333.91,
+    186.34,
+    240.48
+   ],
+   "outer": [
+    118.51,
+    333.91,
+    219.89,
+    257.21
+   ],
+   "targetY": 396.43
+  },
+  "keys": {
+   "discard": [
+    280.07,
+    768.73,
+    114.67,
+    49.26
+   ],
+   "load": [
+    31.63,
+    768.73,
+    229.33,
+    49.26
+   ],
+   "log": [
+    31.63,
+    768.73,
+    229.33,
+    49.26
+   ],
+   "undo": [
+    280.07,
+    768.73,
+    114.67,
+    49.26
+   ]
+  },
+  "labels": {
+   "caption": {
+    "align": "left",
+    "size": 7.04,
+    "weight": "medium",
+    "x": 27.38,
+    "y": 56.59
+   },
+   "eaten": {
+    "align": "left",
+    "size": 8.21,
+    "weight": "medium",
+    "x": 27.38,
+    "y": 211.7
+   },
+   "heroLabel": {
+    "align": "left",
+    "size": 8.73,
+    "weight": "bold",
+    "x": 27.38,
+    "y": 195.38
+   },
+   "macro.carbs.name": {
+    "align": "left",
+    "size": 6.4,
+    "weight": "bold",
+    "x": 154.79,
+    "y": 238.24
+   },
+   "macro.carbs.value": {
+    "align": "left",
+    "size": 7.62,
+    "weight": "medium",
+    "x": 154.79,
+    "y": 252.52
+   },
+   "macro.fat.name": {
+    "align": "left",
+    "size": 6.4,
+    "weight": "bold",
+    "x": 282.2,
+    "y": 238.24
+   },
+   "macro.fat.value": {
+    "align": "left",
+    "size": 7.62,
+    "weight": "medium",
+    "x": 282.2,
+    "y": 252.52
+   },
+   "macro.protein.name": {
+    "align": "left",
+    "size": 6.4,
+    "weight": "bold",
+    "x": 27.38,
+    "y": 238.24
+   },
+   "macro.protein.value": {
+    "align": "left",
+    "size": 7.62,
+    "weight": "medium",
+    "x": 27.38,
+    "y": 252.52
+   },
+   "nav": {
+    "align": "right",
+    "size": 7.57,
+    "weight": "bold",
+    "x": 392.62,
+    "y": 40.27
+   },
+   "target.name": {
+    "align": "left",
+    "size": 5.82,
+    "weight": "bold",
+    "x": 23.14,
+    "y": 388.79
+   },
+   "target.value": {
+    "align": "left",
+    "size": 8.79,
+    "weight": "medium",
+    "x": 23.14,
+    "y": 404.92
+   },
+   "title": {
+    "align": "left",
+    "size": 12.22,
+    "weight": "bold",
+    "x": 27.38,
+    "y": 38.23
+   },
+   "unknownMacros": {
+    "align": "left",
+    "size": 6.45,
+    "weight": "medium",
+    "x": 27.38,
+    "y": 289.26
+   }
+  },
+  "quick": {
+   "100": [
+    125.49,
+    659.49,
+    72.2,
+    47.56
+   ],
+   "250": [
+    219.34,
+    652.7,
+    76.44,
+    54.36
+   ],
+   "50": [
+    31.63,
+    664.59,
+    67.95,
+    42.47
+   ],
+   "500": [
+    313.2,
+    644.2,
+    80.69,
+    62.85
+   ]
+  },
+  "railY": 707.06
+ },
+ "pointsPerUnit": 424.68619246861925,
+ "scale": 3,
+ "sprites": {
+  "night-diet-backdrop": {
+   "rect": [
+    0,
+    0,
+    420.0,
+    852.0
+   ]
+  },
+  "night-food-carbs-12": {
+   "object": [
+    180.0,
+    401.0,
+    60.0,
+    50.0
+   ],
+   "rect": [
+    166,
+    387,
+    108,
+    98
+   ]
+  },
+  "night-food-carbs-16": {
+   "object": [
+    170.0,
+    401.0,
+    80.0,
+    50.0
+   ],
+   "rect": [
+    156,
+    387,
+    128,
+    98
+   ]
+  },
+  "night-food-carbs-20": {
+   "object": [
+    160.0,
+    401.0,
+    100.0,
+    50.0
+   ],
+   "rect": [
+    146,
+    387,
+    148,
+    98
+   ]
+  },
+  "night-food-fat-12": {
+   "object": [
+    180.0,
+    401.0,
+    60.0,
+    50.0
+   ],
+   "rect": [
+    166,
+    387,
+    108,
+    98
+   ]
+  },
+  "night-food-fat-16": {
+   "object": [
+    170.0,
+    401.0,
+    80.0,
+    50.0
+   ],
+   "rect": [
+    156,
+    387,
+    128,
+    98
+   ]
+  },
+  "night-food-fat-20": {
+   "object": [
+    160.0,
+    401.0,
+    100.0,
+    50.0
+   ],
+   "rect": [
+    146,
+    387,
+    148,
+    98
+   ]
+  },
+  "night-food-mixed-12": {
+   "object": [
+    180.0,
+    401.0,
+    60.0,
+    50.0
+   ],
+   "rect": [
+    166,
+    387,
+    108,
+    98
+   ]
+  },
+  "night-food-mixed-16": {
+   "object": [
+    170.0,
+    401.0,
+    80.0,
+    50.0
+   ],
+   "rect": [
+    156,
+    387,
+    128,
+    98
+   ]
+  },
+  "night-food-mixed-20": {
+   "object": [
+    160.0,
+    401.0,
+    100.0,
+    50.0
+   ],
+   "rect": [
+    146,
+    387,
+    148,
+    98
+   ]
+  },
+  "night-food-protein-12": {
+   "object": [
+    180.0,
+    401.0,
+    60.0,
+    50.0
+   ],
+   "rect": [
+    166,
+    387,
+    108,
+    98
+   ]
+  },
+  "night-food-protein-16": {
+   "object": [
+    170.0,
+    401.0,
+    80.0,
+    50.0
+   ],
+   "rect": [
+    156,
+    387,
+    128,
+    98
+   ]
+  },
+  "night-food-protein-20": {
+   "object": [
+    160.0,
+    401.0,
+    100.0,
+    50.0
+   ],
+   "rect": [
+    146,
+    387,
+    148,
+    98
+   ]
+  },
+  "night-food-quick-12": {
+   "object": [
+    180.0,
+    401.0,
+    60.0,
+    50.0
+   ],
+   "rect": [
+    166,
+    387,
+    108,
+    98
+   ]
+  },
+  "night-food-quick-16": {
+   "object": [
+    170.0,
+    401.0,
+    80.0,
+    50.0
+   ],
+   "rect": [
+    156,
+    387,
+    128,
+    98
+   ]
+  },
+  "night-food-quick-20": {
+   "object": [
+    160.0,
+    401.0,
+    100.0,
+    50.0
+   ],
+   "rect": [
+    146,
+    387,
+    148,
+    98
+   ]
+  },
+  "night-gauge-carbs-00": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-01": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-02": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-03": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-04": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-05": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-06": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-07": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-08": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-09": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-10": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-11": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-12": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-13": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-14": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-15": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-16": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-17": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-18": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-19": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-carbs-20": {
+   "rect": [
+    148,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-00": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-01": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-02": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-03": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-04": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-05": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-06": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-07": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-08": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-09": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-10": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-11": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-12": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-13": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-14": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-15": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-16": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-17": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-18": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-19": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-fat-20": {
+   "rect": [
+    276,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-00": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-01": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-02": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-03": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-04": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-05": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-06": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-07": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-08": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-09": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-10": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-11": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-12": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-13": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-14": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-15": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-16": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-17": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-18": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-19": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-gauge-protein-20": {
+   "rect": [
+    21,
+    255,
+    129,
+    41
+   ]
+  },
+  "night-glyph-G": {
+   "character": "G",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-O": {
+   "character": "O",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-colon": {
+   "character": ":",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-comma": {
+   "character": ",",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-eight": {
+   "character": "8",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-emdash": {
+   "character": "—",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-five": {
+   "character": "5",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-four": {
+   "character": "4",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-hyphen": {
+   "character": "-",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-minus": {
+   "character": "−",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-nine": {
+   "character": "9",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-one": {
+   "character": "1",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-period": {
+   "character": ".",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-seven": {
+   "character": "7",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-six": {
+   "character": "6",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-three": {
+   "character": "3",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-times": {
+   "character": "×",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-two": {
+   "character": "2",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-glyph-zero": {
+   "character": "0",
+   "fontSize": 67.52,
+   "origin": [
+    177.51,
+    458.49
+   ],
+   "rect": [
+    166.68,
+    355.61,
+    124.54,
+    135.37
+   ]
+  },
+  "night-jar-back": {
+   "rect": [
+    84,
+    273,
+    299,
+    363
+   ]
+  },
+  "night-jar-front": {
+   "rect": [
+    84,
+    273,
+    299,
+    363
+   ]
+  },
+  "night-key-discard": {
+   "rect": [
+    272,
+    760,
+    149,
+    88
+   ]
+  },
+  "night-key-discard-down": {
+   "rect": [
+    272,
+    760,
+    149,
+    88
+   ]
+  },
+  "night-key-load": {
+   "rect": [
+    23,
+    760,
+    264,
+    88
+   ]
+  },
+  "night-key-load-down": {
+   "rect": [
+    23,
+    760,
+    264,
+    88
+   ]
+  },
+  "night-key-log": {
+   "rect": [
+    23,
+    760,
+    264,
+    88
+   ]
+  },
+  "night-key-log-down": {
+   "rect": [
+    23,
+    760,
+    264,
+    88
+   ]
+  },
+  "night-key-undo": {
+   "rect": [
+    272,
+    760,
+    149,
+    88
+   ]
+  },
+  "night-key-undo-down": {
+   "rect": [
+    272,
+    760,
+    149,
+    88
+   ]
+  },
+  "night-quick-100": {
+   "rect": [
+    109,
+    643,
+    129,
+    105
+   ]
+  },
+  "night-quick-250": {
+   "rect": [
+    203,
+    636,
+    133,
+    112
+   ]
+  },
+  "night-quick-50": {
+   "rect": [
+    15,
+    648,
+    125,
+    100
+   ]
+  },
+  "night-quick-500": {
+   "rect": [
+    297,
+    628,
+    137,
+    120
+   ]
+  }
+ }
+}
