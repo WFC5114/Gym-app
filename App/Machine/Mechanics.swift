@@ -116,10 +116,11 @@ struct JarGeometry {
     func emptySurface() -> [CGFloat] {
         let r = innerRadius
         return columnXs.map { (x: CGFloat) -> CGFloat in
-            let d = min(x - interior.minX, interior.maxX - x)
+            // The last column can poke past the wall when the width is not a whole number of columns.
+            let d = max(min(x - interior.minX, interior.maxX - x), 0)
             guard d < r else { return floorY }
             let dx = r - d
-            return floorY - (r - (r * r - dx * dx).squareRoot())
+            return floorY - (r - max(r * r - dx * dx, 0).squareRoot())
         }
     }
 

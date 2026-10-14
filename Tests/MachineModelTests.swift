@@ -151,6 +151,14 @@ final class MachineModelTests: XCTestCase {
         }
     }
 
+    func testEmptyJarFloorIsAlwaysANumber() {
+        // The rendered jar's width is not a whole number of pile columns; the last column pokes past the wall.
+        let g = makeModel().jarGeometry
+        let floor = g.emptySurface()
+        XCTAssertFalse(floor.contains { $0.isNaN }, "interior width \(g.interior.width)")
+        XCTAssertTrue(floor.allSatisfy { $0 <= g.floorY + 0.001 })
+    }
+
     func testTheSameDayAlwaysPilesTheSameWay() {
         let entries = sampleEntries()
         XCTAssertEqual(makeModel(foods: entries).pile, makeModel(foods: entries).pile)
