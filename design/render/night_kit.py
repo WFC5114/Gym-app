@@ -340,6 +340,9 @@ def shoot(name, rect, groups, catch=True, ghosts=(), fade=0, px=PX):
     caught shadow at the picture's edge."""
     if ONLY and not name.startswith(ONLY):
         return
+    if os.environ.get('NIGHT_DRY'):   # record the rects only, to rebuild the JSON after an interrupted run
+        SPRITES[name] = dict(rect=[round(v, 2) for v in rect])
+        return
     x, y, w, h = rect
     show(groups, ghosts)
     catcher.hide_render = not catch

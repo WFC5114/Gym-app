@@ -42,10 +42,12 @@ for i, (key, kind) in enumerate([('protein', 'protein'), ('carbs', 'carbs'), ('f
     tube.location = (x + GAUGE_LEN / 2, FRONT - GAUGE_R - 0.004, zc)
     gauges[key] = (x, zc, kind)
 
-# --- The jar, as in the mockup, fitted.
-JAR_Z = Z(-0.49)
-jar = empty('jar', (0.07, -0.17, JAR_Z), rot=(math.radians(6), 0, math.radians(-8)))
-JS = 0.88
+# --- The jar, as in the mockup, fitted: bigger and centred on the face (Wei,
+# 15 Oct 2026: "all objects should be bigger and in the center"), standing a
+# little lower so it clears the macro gauges.
+JAR_Z = Z(-0.49) - 15 * U
+jar = empty('jar', (-0.003, -0.17, JAR_Z), rot=(math.radians(6), 0, math.radians(-8)))
+JS = 0.96
 JW, JD, JH, wall_t = 0.292 * JS, 0.172 * JS, 0.36 * JS * K, 0.045 * JS
 base_top = 0.09 * JS
 
@@ -113,11 +115,12 @@ LAYOUT['jar'] = dict(
     outer=rect_of([project((sx * JW, -JD, z)) for sx in (-1, 1) for z in (base_top, base_top + 2 * JH)]),
     interior=rect_of([project((sx * (JW - wall_t), -JD, z)) for sx in (-1, 1) for z in (floor_z, base_top + 2 * JH)]),
     targetY=round(project((0, -JD, target_z))[1], 2))
-target_world_z = ZC + (FACE_H / 2 - LAYOUT['jar']['targetY']) * U
-label_anchor('target.name', -0.44, target_world_z + 0.018, 0.02)
-label_anchor('target.value', -0.44, target_world_z - 0.02, 0.03, weight='medium')
-lead = link(block('leader', 0.03, 0.002, 0.0018, bevel=0.0012, sub=1), None, INK, group='backdrop')
-lead.location = (-0.29, FRONT - 0.003, target_world_z)
+# TARGET and its number sit on the glass just above the etched line, at its left end.
+ix, ty = LAYOUT['jar']['interior'][0], LAYOUT['jar']['targetY']
+LAYOUT['labels']['target.name'] = dict(x=round(ix + 10, 2), y=round(ty - 10, 2), size=round(0.02 * PT * EM[LABEL_FONT.name], 2),
+                                       align='left', weight='bold')
+LAYOUT['labels']['target.value'] = dict(x=round(ix + 52, 2), y=round(ty - 10, 2), size=round(0.026 * PT * EM[BODY_FONT.name], 2),
+                                        align='left', weight='medium')
 
 # --- The rail and its quick-add blocks.
 rail_z = Z(-0.72)

@@ -177,30 +177,50 @@ final class MachineModelTests: XCTestCase {
         }
     }
 
-    func testDroppedBlockTumblesIntoItsPlaceInThePile() throws {
+    func testDroppedBlockFallsAndComesToRestInTheJar() throws {
         let model = makeModel(foods: sampleEntries())
         drop(250, on: model, at: jarPoint(model))
         run(model, seconds: 4)
         XCTAssertEqual(model.today.count, 6)
         let last = try XCTUnwrap(model.today.last)
-        let pose = try XCTUnwrap(model.pile.poses.last)
-        let motion = try XCTUnwrap(model.pieces[last.id])
-        XCTAssertEqual(motion.x.position, Double(pose.center.x), accuracy: 0.5)
-        XCTAssertEqual(motion.y.position, Double(pose.center.y), accuracy: 0.5)
-        XCTAssertEqual(motion.angle.position, pose.angle, accuracy: 0.01)
+        let body = try XCTUnwrap(model.jar.body(last.id), "the logged block is a body in the jar")
+        let g = model.jarGeometry
+        XCTAssertTrue(model.jar.isAtRest, "the pile comes to rest")
+        XCTAssertLessThan(body.center.y, g.floorY)
+        XCTAssertGreaterThan(body.center.x, g.interior.minX)
+        XCTAssertLessThan(body.center.x, g.interior.maxX)
     }
 
-    func testDeletingABlockLetsTheOnesAboveSettle() throws {
+    func testJarBlocksStackWithoutSinkingIntoEachOther() throws {
+        let model = makeModel(foods: sampleEntries())
+        let g = model.jarGeometry
+        let bodies = model.jar.blockIDs.compactMap { model.jar.body($0) }
+        XCTAssertEqual(bodies.count, 5)
+        for (i, a) in bodies.enumerated() {
+            // Every corner inside the glass, give or take the solver's slop.
+            for corner in JarGeometry.corners(of: JarPose(center: a.center, angle: a.angle, size: a.size)) {
+                XCTAssertGreaterThanOrEqual(corner.x, g.interior.minX - 2)
+                XCTAssertLessThanOrEqual(corner.x, g.interior.maxX + 2)
+                XCTAssertLessThanOrEqual(corner.y, g.floorY + 2, "nothing sinks through the floor")
+            }
+            for b in bodies[(i + 1)...] {
+                let depth = JarWorld.collide(a, b).map { -$0.separation }.max() ?? 0
+                XCTAssertLessThan(depth, 3, "blocks rest on each other, not inside each other")
+            }
+        }
+    }
+
+    func testDeletingABlockLetsTheOnesAboveFall() throws {
         let model = makeModel(foods: sampleEntries())
         let first = try XCTUnwrap(model.today.first)
         model.deleteFood(first.id)
         run(model, seconds: 4)
-        XCTAssertNil(model.pieces[first.id])
-        XCTAssertEqual(model.pieces.count, 4)
-        XCTAssertTrue(model.pieces.values.allSatisfy(\.isSettled))
+        XCTAssertNil(model.jar.body(first.id))
+        XCTAssertEqual(model.jar.blockIDs.count, 4)
+        XCTAssertTrue(model.jar.isAtRest)
         model.undoFood()
         run(model, seconds: 4)
-        XCTAssertEqual(model.pieces.count, 5, "undo drops it back in")
+        XCTAssertEqual(model.jar.blockIDs.count, 5, "undo drops it back in")
     }
 
     func testTappingABlockOpensThatFood() throws {
@@ -309,10 +329,11 @@ final class MachineModelTests: XCTestCase {
         XCTAssertGreaterThan(model.glassHeight.target, before)
     }
 
-    func testSetDoneFlipsTheGlassAndLogsTheRest() throws {
+    func testStartRestFlipsTheGlassAndLogsOnlyTheRest() throws {
         let model = makeModel()
         model.plannedRest = 90
-        model.setDone()
+        model.startRest()
+        XCTAssertTrue(model.store.data.sets.isEmpty, "TRAIN logs rests only, no sets")
         XCTAssertEqual(model.glassParity, 1)
         XCTAssertEqual(model.glassAngle.target, .pi, accuracy: 1e-9)
         let rest = try XCTUnwrap(model.activeRest)
@@ -335,15 +356,76 @@ final class MachineModelTests: XCTestCase {
         XCTAssertEqual(model.store.data.rests.last?.endReason, .elapsed)
     }
 
-    func testSecondSetFlipsBackTheOtherWay() {
+    func testSecondRestFlipsBackTheOtherWay() {
         let model = makeModel()
-        model.setDone()
+        model.startRest()
         clock = clock.addingTimeInterval(200)
         model.step(1.0 / 240)
-        model.setDone()
+        model.startRest()
         XCTAssertEqual(model.glassParity, 2)
         XCTAssertTrue(model.aIsUp)
-        XCTAssertEqual(model.store.data.sets.count, 2)
+        XCTAssertEqual(model.store.data.rests.count, 2)
+        XCTAssertEqual(model.store.data.rests.last?.afterSet, 2, "the second rest today for this body part")
+        XCTAssertTrue(model.store.data.sets.isEmpty)
+    }
+
+    func testPickingABodyPartChangesTheCoachsAdvice() {
+        let model = makeModel()
+        model.selectBodyPart(.core)
+        XCTAssertEqual(model.exercise.bodyPart, .core)
+        XCTAssertEqual(model.advice.bodyPart, .core)
+        model.startRest()
+        XCTAssertEqual(model.activeRest?.bodyPart, .core)
+    }
+
+    // MARK: Sand
+
+    func makeSand() throws -> SandGlass {
+        let glass = try XCTUnwrap(RenderedArt.trainLayout?.glass, "TRAIN's rendered layout is bundled")
+        return try XCTUnwrap(SandGlass(glass: glass), "the layout carries the glass's inner wall")
+    }
+
+    func grains(_ sand: SandGlass) -> Int { sand.grid.reduce(0) { $0 + Int($1) } }
+
+    func testSandGrainsAreNeverMadeOrLost() throws {
+        let sand = try makeSand()
+        sand.settle(top: sand.total, aIsUp: true)
+        XCTAssertEqual(grains(sand), sand.total)
+        // Free flow, a flip and back, a sideways glass: still every grain.
+        for angle in [0.0, 0.8, 1.6, 2.4, .pi, .pi / 2, 0] {
+            for _ in 0..<60 { sand.step(1.0 / 60, angle: angle, upperTarget: nil) }
+            XCTAssertEqual(grains(sand), sand.total, "angle \(angle)")
+        }
+    }
+
+    func testSandRunsOnlyAsFastAsTheRest() throws {
+        let sand = try makeSand()
+        sand.settle(top: sand.total, aIsUp: true)
+        let target = sand.total * 3 / 4
+        for _ in 0..<600 { sand.step(1.0 / 60, angle: 0, upperTarget: target) }
+        XCTAssertEqual(sand.upperCount(angle: 0), target, "the upper bulb keeps the rest's remaining share")
+        for _ in 0..<1200 { sand.step(1.0 / 60, angle: 0, upperTarget: nil) }
+        XCTAssertLessThan(sand.upperCount(angle: 0), sand.total / 50, "with no rest running it runs freely")
+    }
+
+    func testTurnedOverGlassPoursTheOtherWay() throws {
+        let sand = try makeSand()
+        sand.settle(top: 0, aIsUp: true)
+        XCTAssertLessThan(sand.countA, sand.total / 100, "all the sand below, in B")
+        for _ in 0..<1800 { sand.step(1.0 / 60, angle: .pi, upperTarget: nil) }
+        XCTAssertGreaterThan(sand.countA, sand.total * 98 / 100, "turned over, it pours into A")
+    }
+
+    func testRunningRestKeepsTheSandOnTheClock() throws {
+        let model = makeModel()
+        let sand = try XCTUnwrap(model.sand)
+        model.plannedRest = 120
+        model.startRest()
+        run(model, seconds: 2)
+        clock = clock.addingTimeInterval(60)
+        run(model, seconds: 3)
+        let half = Double(sand.upperCount(angle: model.glassAngle.position)) / Double(sand.total)
+        XCTAssertEqual(half, 0.5, accuracy: 0.05, "half the sand above at half time")
     }
 
     func testGlassKeepsClearOfTheCoachNoteAndInsideTheFace() {
@@ -353,16 +435,22 @@ final class MachineModelTests: XCTestCase {
         for h in stride(from: g.minHeight, through: g.maxHeight, by: 10) {
             let c = g.center(forHeight: h)
             let half = h * HourglassGeometry.aspect / 2
-            XCTAssertGreaterThanOrEqual(c.x - half, l.side + l.contentWidth * HourglassGeometry.noteShare, "height \(h)")
+            // The rendered glass stands centred under the coach's plate instead.
+            if !RenderedArt.on(.train) {
+                XCTAssertGreaterThanOrEqual(c.x - half, l.side + l.contentWidth * HourglassGeometry.noteShare, "height \(h)")
+            }
             XCTAssertLessThanOrEqual(c.x + half, l.side + l.contentWidth + 0.5, "height \(h)")
         }
     }
 
-    func testRenderedGlassStandsClearOfTheCoachPlateOnTheTray() throws {
+    func testRenderedGlassStandsBigAndCentredBelowTheCoachPlate() throws {
         // night_train.py places the largest glass; the app only scales it down about its base.
         let art = try XCTUnwrap(RenderedArt.trainLayout, "TRAIN's rendered layout is bundled")
         let glass = art.glass.rect, plate = art.coach
-        XCTAssertGreaterThanOrEqual(glass[0], plate[0] + plate[2] + 4, "glass clear of the coach plate")
+        let use = try XCTUnwrap(art.keys["use"])
+        XCTAssertGreaterThanOrEqual(glass[1], max(plate[1] + plate[3], use[1] + use[3]) + 4, "glass below the coach plate and its key")
+        XCTAssertEqual(glass[0] + glass[2] / 2, art.face[0] / 2, accuracy: 1, "centred")
+        XCTAssertGreaterThan(glass[3], art.face[1] * 0.45, "big: nearly half the face tall")
         XCTAssertLessThanOrEqual(glass[0] + glass[2], art.face[0] - 7, "glass inside the tray")
         XCTAssertEqual(glass[1] + glass[3], art.glass.baseY, accuracy: 0.01)
         let keysTop = art.keys.filter { $0.key != "use" }.values.map { $0[1] }.min() ?? 0

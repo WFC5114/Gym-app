@@ -68,30 +68,6 @@ struct FlyingBlock: Identifiable, Equatable {
     }
 }
 
-/// A logged food's block in the jar, springing toward its place in the pile.
-struct PieceMotion: Equatable {
-    var x: SpringState
-    var y: SpringState
-    var angle: SpringState
-
-    init(center: CGPoint, angle: Double) {
-        x = SpringState(position: Double(center.x), target: Double(center.x))
-        y = SpringState(position: Double(center.y), target: Double(center.y))
-        self.angle = SpringState(position: angle, target: angle)
-    }
-
-    mutating func advance(_ dt: Double, toward pose: JarPose, config: SpringConfig) {
-        x.target = Double(pose.center.x)
-        y.target = Double(pose.center.y)
-        angle.target = pose.angle
-        x.advance(dt, config: config)
-        y.advance(dt, config: config)
-        angle.advance(dt, config: config)
-    }
-
-    var isSettled: Bool { x.isSettled(tolerance: 0.1) && y.isSettled(tolerance: 0.1) && angle.isSettled(tolerance: 0.001) }
-}
-
 /// What the scene and the labels draw for one logged food.
 struct JarPiece: Identifiable {
     var entry: FoodEntry
@@ -175,7 +151,10 @@ final class MachineModel {
     /// The jar sinks a little under each block and bounces back.
     var jarBob = SpringState(position: 0, target: 0)
     var blocks: [FlyingBlock] = []
-    var pieces: [UUID: PieceMotion] = [:]
+    /// Logged foods' blocks as rigid bodies in the jar (JarWorld).
+    @ObservationIgnored var jar = JarWorld()
+    /// Bumped when a block in the jar moves, so the face redraws.
+    var jarVersion = 0
     @ObservationIgnored private var piecesLayout: MachineLayout?
     @ObservationIgnored var dropInfo: [UUID: DropInfo] = [:]
     @ObservationIgnored private var pileCache: (items: [JarItem], geometry: JarGeometryKey, pile: JarPile)?
@@ -196,6 +175,10 @@ final class MachineModel {
     var glassHeight = SpringState(position: 200, target: 200)
     var sandA = SpringState(position: 0, target: 0)
     var sandB = SpringState(position: 1, target: 1)
+    /// The rendered glass's sand as real grains (SandGlass); nil when TRAIN is drawn in code.
+    @ObservationIgnored private(set) var sand: SandGlass?
+    /// Bumped when a grain moves, so the glass redraws.
+    var sandVersion = 0
     @ObservationIgnored private var flipSeatPending = false
     @ObservationIgnored private var announcedRestDone: UUID?
     var restJustEnded: RestPeriod?
@@ -252,18 +235,21 @@ final class MachineModel {
         self.store = store
         self.now = now
         self.isFixture = isFixture
-        let ex = Exercise.named(store.data.currentExercise) ?? Exercise.library[0]
+        // Rests are kept per body part (TRAIN is a rest timer, Wei 15 Oct 2026).
+        let ex = Exercise.rest(for: (Exercise.named(store.data.currentExercise) ?? Exercise.library[0]).bodyPart)
         self.exercise = ex
         let memory = store.memory(for: ex.name)
         self.loadKg = memory?.loadKg ?? 60
         self.reps = memory?.reps ?? 8
-        self.advice = RestCoach.recommend(for: ex, setNumber: 1, history: store.data.rests, readiness: .unknown, now: now())
+        let restNumber = store.restsToday(bodyPart: ex.bodyPart, now: now()).count + 1
+        self.advice = RestCoach.recommend(for: ex, setNumber: restNumber, history: store.data.rests, readiness: .unknown, now: now())
         self.plannedRest = memory?.restSeconds ?? advice.seconds
         let left = totals.remainingKcal(target: targets)
         heroKcal = SpringState(position: left, target: left)
         scrubSpring = SpringState(position: Double(bodyHistory.count - 1), target: Double(bodyHistory.count - 1))
         bodyNumbers = scrubSpring
         syncFigureImmediately()
+        if RenderedArt.on(.train), let glass = RenderedArt.trainLayout?.glass { sand = SandGlass(glass: glass) }
         syncGlassImmediately()
         syncPiecesImmediately()
     }
@@ -311,22 +297,41 @@ final class MachineModel {
         for (entry, pose) in zip(entries, poses) {
             var center = pose.center
             var angle = pose.angle
-            if useMotion, let m = pieces[entry.id] {
-                center = CGPoint(x: m.x.position, y: m.y.position)
-                angle = m.angle.position
+            var size = pose.size
+            if useMotion, let body = jar.body(entry.id) {
+                center = body.center
+                // A box turned half over is the same box: draw it the way up
+                // that keeps its label readable.
+                angle = body.angle - .pi * (body.angle / .pi).rounded()
+                size = body.size
             }
             center.y += bob
-            out.append(JarPiece(entry: entry, center: center, angle: angle, size: pose.size, tint: FoodTint.of(entry.nutrients)))
+            out.append(JarPiece(entry: entry, center: center, angle: angle, size: size, tint: FoodTint.of(entry.nutrients)))
         }
         return out
     }
 
-    /// Puts every block straight in its place (launch, fixtures, layout changes).
+    /// Puts every block straight in its place (launch, fixtures, layout
+    /// changes): each starts where the laid-out pile has it and the physics
+    /// lets the pile come to rest before anything is drawn.
     func syncPiecesImmediately() {
-        var next: [UUID: PieceMotion] = [:]
-        for (entry, pose) in zip(today, pile.poses) { next[entry.id] = PieceMotion(center: pose.center, angle: pose.angle) }
-        pieces = next
+        let g = jarGeometry
+        var world = JarWorld()
+        world.setGlass(interior: g.interior, ceiling: g.ceilingY)
+        for (entry, pose) in zip(today, pile.poses) {
+            world.add(entry.id, center: pose.center, size: bodySize(pose), angle: pose.angle)
+        }
+        world.settle()
+        jar = world
         piecesLayout = layout
+        jarVersion = jar.version
+    }
+
+    /// A tipped, loose pile takes more room than the laid-out one: when the
+    /// blocks were already shrunk to fit, they shrink a little more.
+    private func bodySize(_ pose: JarPose) -> CGSize {
+        let k: CGFloat = pile.scaled ? 0.9 : 1
+        return CGSize(width: pose.size.width * k, height: pose.size.height * k)
     }
 
     var isAnyBlockOverLanding: Bool {
@@ -372,8 +377,9 @@ final class MachineModel {
     var needsFrames: Bool {
         isRotating || !yaw.isSettled(tolerance: 0.005) || !jarBob.isSettled(tolerance: 0.02)
             || blocks.contains { $0.phase != .resting || !$0.lift.isSettled(tolerance: 0.002) || !$0.tilt.isSettled(tolerance: 0.001) }
-            || pieces.values.contains { !$0.isSettled } || !glassAngle.isSettled(tolerance: 0.0005) || !glassHeight.isSettled(tolerance: 0.1)
+            || !jar.isAtRest || !glassAngle.isSettled(tolerance: 0.0005) || !glassHeight.isSettled(tolerance: 0.1)
             || !sandA.isSettled(tolerance: 0.0005) || !sandB.isSettled(tolerance: 0.0005) || activeRest != nil
+            || !(sand?.isStill ?? true)
             || !scrubSpring.isSettled(tolerance: 0.001) || !bodyNumbers.isSettled(tolerance: 0.001) || !shake.isSettled(tolerance: 0.02)
             || !figureFat.isSettled(tolerance: 0.005) || !figureLean.isSettled(tolerance: 0.005) || !figureSpin.isSettled(tolerance: 0.001)
             || !figureFlex.isSettled(tolerance: 0.001) || !figureLook.isSettled(tolerance: 0.001) || figureIsAlive
@@ -694,7 +700,6 @@ final class MachineModel {
         jarBob.advance(dt, config: reduceMotion ? .calm : .jar)
 
         let gravity: CGFloat = 2600
-        let surface = pile.surface
         var landed: [Int] = []
         for i in blocks.indices {
             blocks[i].lift.advance(dt, config: .piston)
@@ -712,8 +717,9 @@ final class MachineModel {
                 // The glass walls keep it inside.
                 let half = blocks[i].drawnSize.width / 2
                 blocks[i].position.x = min(max(blocks[i].position.x, g.interior.minX + half), max(g.interior.maxX - half, g.interior.minX + half))
-                let bottom = blocks[i].position.y + blocks[i].drawnSize.height / 2
-                if blocks[i].velocity.dy > 0, bottom >= g.surfaceTop(surface, x: blocks[i].position.x, width: blocks[i].drawnSize.width) + CGFloat(jarBob.position) {
+                // Contact with the floor or a block in the jar (the jar's bodies don't bob).
+                let inJar = CGPoint(x: blocks[i].position.x, y: blocks[i].position.y - CGFloat(jarBob.position))
+                if blocks[i].velocity.dy > 0, jar.touches(center: inJar, size: blocks[i].drawnSize, angle: blocks[i].tilt.position) {
                     landed.append(i)
                 }
             case .returning:
@@ -736,22 +742,28 @@ final class MachineModel {
         stepPieces(dt)
     }
 
-    /// Each logged block springs toward its place in the pile. A block that
-    /// reappears (undoing a delete) drops back in from the mouth.
+    /// The jar's bodies follow today's log: a new or returning food drops in
+    /// from the mouth, a deleted one leaves (the blocks above fall into its
+    /// place), a changed one takes its new size; then the physics steps.
     private func stepPieces(_ dt: Double) {
         if piecesLayout != layout { syncPiecesImmediately(); return }
         let entries = today
         let poses = pile.poses
-        let config: SpringConfig = reduceMotion ? .calm : .tumble
         var live = Set<UUID>()
         for (entry, pose) in zip(entries, poses) {
             live.insert(entry.id)
-            if pieces[entry.id] == nil {
-                pieces[entry.id] = PieceMotion(center: CGPoint(x: pose.center.x, y: jarGeometry.outer.minY - pose.size.height), angle: 0)
+            let size = bodySize(pose)
+            if let body = jar.body(entry.id) {
+                if abs(body.size.width - size.width) > 1 || abs(body.size.height - size.height) > 1 { jar.resize(entry.id, to: size) }
+            } else {
+                jar.add(entry.id, center: CGPoint(x: pose.center.x, y: jarGeometry.outer.minY - size.height), size: size, angle: 0,
+                        velocity: CGVector(dx: 0, dy: 300))
             }
-            pieces[entry.id]?.advance(dt, toward: pose, config: config)
         }
-        if pieces.count != live.count { pieces = pieces.filter { live.contains($0.key) } }
+        for id in jar.blockIDs where !live.contains(id) { jar.remove(id) }
+        // Reduce Motion: the pile comes to rest at once.
+        if reduceMotion { jar.settle() } else { jar.step(dt) }
+        if jar.version != jarVersion { jarVersion = jar.version }
     }
 
     /// Contact: commit once, hand the block to the pile, fire the impact.
@@ -774,23 +786,10 @@ final class MachineModel {
         dropInfo[entry.id] = DropInfo(x: block.dropX ?? center.x, seed: block.seed)
         lastLanded = entry.id
         let strength = Float(min(max(impact / 1600, 0.25), 1))
-        // The block carries on from where it hit; its place in the pile pulls it in with one bounce.
-        var motion = PieceMotion(center: CGPoint(x: center.x, y: center.y - CGFloat(jarBob.position)), angle: block.tilt.position)
-        motion.x.velocity = Double(block.velocity.dx) * 0.3
-        motion.y.velocity = impact * 0.18
-        motion.angle.velocity = block.spin * 0.5
-        pieces[entry.id] = motion
-        // Blocks near the contact get knocked and settle back.
-        let contact = CGPoint(x: center.x, y: center.y + size.height / 2)
-        let reach = Double(size.width) * 1.2 + 40
-        for (id, piece) in pieces where id != entry.id {
-            let dx = piece.x.position - Double(contact.x), dy = piece.y.position - Double(contact.y)
-            let distance = (dx * dx + dy * dy).squareRoot()
-            guard distance < reach else { continue }
-            let k = (1 - distance / reach) * Double(strength)
-            pieces[id]?.angle.velocity += (dx < 0 ? -1.2 : 1.2) * k
-            pieces[id]?.y.velocity += 60 * k
-        }
+        // The block carries on as a body in the jar with its speed and spin:
+        // it bounces a little, knocks the blocks it hits and settles among them.
+        jar.add(entry.id, center: CGPoint(x: center.x, y: center.y - CGFloat(jarBob.position)), size: size,
+                angle: block.tilt.position, velocity: block.velocity, spin: block.spin)
         // Heavier food and faster drops sink the jar further.
         let share = min(max(block.kcal / 700, 0.05), 0.75)
         jarBob.velocity += impact * share * 0.1
@@ -818,7 +817,7 @@ final class MachineModel {
 
     func undoFood() {
         guard let undone = store.undoFood() else { return }
-        if case .added(let id) = undone { pieces[id] = nil }
+        if case .added(let id) = undone { jar.remove(id) }
         HapticEngine.shared.tick(intensity: 0.5, sharpness: 0.5)
         publishSnapshot()
         wake()
@@ -866,8 +865,16 @@ final class MachineModel {
     var setsToday: [SetRecord] { store.setsToday(exercise: exercise.name, now: now()) }
     var nextSetNumber: Int { setsToday.count + 1 }
 
+    /// Which of today's rests for this body part comes next.
+    var nextRestNumber: Int { store.restsToday(bodyPart: exercise.bodyPart, now: now()).count + 1 }
+
     func refreshAdvice() {
-        advice = RestCoach.recommend(for: exercise, setNumber: nextSetNumber, history: store.data.rests, readiness: readiness, now: now())
+        advice = RestCoach.recommend(for: exercise, setNumber: nextRestNumber, history: store.data.rests, readiness: readiness, now: now())
+    }
+
+    /// Picks the body part the next rest is for; the coach advises for it.
+    func selectBodyPart(_ part: BodyPart) {
+        selectExercise(Exercise.rest(for: part))
     }
 
     func selectExercise(_ ex: Exercise) {
@@ -907,11 +914,11 @@ final class MachineModel {
         wake()
     }
 
-    /// SET DONE: log the set, flip the glass, start the rest.
-    func setDone() {
+    /// START REST: flip the glass and start the rest (TRAIN logs rests only,
+    /// no sets: Wei, 15 Oct 2026).
+    func startRest() {
         let at = now()
-        let rest = store.completeSet(exercise: exercise, loadKg: loadKg, reps: reps, restSeconds: plannedRest,
-                                     recommendedSeconds: advice.seconds, at: at)
+        let rest = store.startRest(exercise: exercise, restSeconds: plannedRest, recommendedSeconds: advice.seconds, at: at)
         announcedRestDone = nil
         restJustEnded = nil
         glassParity += 1
@@ -962,6 +969,37 @@ final class MachineModel {
         let h = Double(glassGeometry.height(forSeconds: glassSeconds))
         glassHeight = SpringState(position: h, target: h)
         glassAngle = SpringState(position: Double(glassParity) * .pi, target: Double(glassParity) * .pi)
+        settleSand()
+    }
+
+    /// Puts the grains where the clock says, at rest; while a rest runs, a few
+    /// are let through first so the stream is falling.
+    private func settleSand() {
+        guard let sand else { return }
+        guard let target = sandTarget(sand) else {
+            sand.settle(top: 0, aIsUp: aIsUp)
+            sandVersion = sand.version
+            return
+        }
+        sand.settle(top: min(target + 24, sand.total), aIsUp: aIsUp)
+        for _ in 0..<90 { sand.step(1.0 / 60, angle: glassAngle.position, upperTarget: target) }
+        sandVersion = sand.version
+    }
+
+    /// Grains the upper bulb must still hold while a rest runs.
+    private func sandTarget(_ sand: SandGlass) -> Int? {
+        activeRest.map { Int((Double(sand.total) * $0.remainingFraction(at: now())).rounded()) }
+    }
+
+    private func stepSand(_ dt: Double) {
+        guard let sand else { return }
+        let target = sandTarget(sand)
+        // After a jump in time (the app was away) the grains go where the clock says.
+        if let target, glassAngle.isSettled(tolerance: 0.01), abs(sand.upperCount(angle: glassAngle.position) - target) > sand.total / 6 {
+            sand.settle(top: target, aIsUp: aIsUp)
+        }
+        sand.step(dt, angle: glassAngle.position, upperTarget: target)
+        if sand.version != sandVersion { sandVersion = sand.version }
     }
 
     private func stepTrain(_ dt: Double) {
@@ -993,6 +1031,7 @@ final class MachineModel {
         sandB.advance(dt, config: .follow)
         glassHeight.target = Double(glassGeometry.height(forSeconds: glassSeconds))
         glassHeight.advance(dt, config: reduceMotion ? .calm : .bodyNumbers)
+        stepSand(dt)
     }
 
     // MARK: BODY

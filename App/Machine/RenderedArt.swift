@@ -6,8 +6,9 @@ import UIKit
 /// reactions, feel and functionalities"). design/render/night_diet.py and
 /// night_train.py render the Night scene, fitted to the face, in pieces:
 /// backdrops, the jar in two layers, quick-add blocks, keys up and pressed,
-/// gauges at 21 fills, food blocks, hero glyphs, the hourglass at 21 sand
-/// levels upright and turned over, each with its soft shadow. night-<face>.json
+/// gauges at 21 fills, food blocks, hero glyphs, the hourglass upright and
+/// turned over, empty and full of sand (the grains show the full one through),
+/// with its soft shadow. night-<face>.json
 /// gives every picture's rect on the reference face (420 × 852 pt) and the
 /// layout the behaviour needs. On a rendered face the app lays these pictures
 /// out and moves them; it draws no objects of its own, and the face's
@@ -66,6 +67,14 @@ enum RenderedArt {
         var baseY: CGFloat
         var maxHeight: CGFloat
         var minShare: CGFloat
+        /// For the simulated sand (SandGlass): points per glass unit of radius,
+        /// the glass's axis toward its A bulb in points per unit (pose a,
+        /// largest glass), its inner wall as (z, r) from the neck out, and how
+        /// far up one bulb a full load of sand reaches.
+        var unitPoints: CGFloat?
+        var axis: [CGFloat]?
+        var inner: [[CGFloat]]?
+        var sandLine: CGFloat?
     }
 
     struct TrainLayout: Decodable {

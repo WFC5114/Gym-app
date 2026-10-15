@@ -150,15 +150,16 @@ enum Fixtures {
             let entry = FoodEntry.quickAdd(kcal: 250, at: date)
             model.store.commitFood(entry)
             model.syncPiecesImmediately()
-            if let pose = zip(model.today, model.pile.poses).first(where: { $0.0.id == entry.id })?.1 {
-                model.pieces[entry.id] = PieceMotion(center: CGPoint(x: pose.center.x - 14, y: pose.center.y - 22), angle: pose.angle + 0.35)
-                model.bursts = [ImpactBurst(origin: CGPoint(x: pose.center.x - 14, y: pose.center.y - 22 - pose.size.height / 2), strength: 0.7,
+            if let body = model.jar.body(entry.id) {
+                let hit = CGPoint(x: body.center.x - 14, y: body.center.y - 22)
+                model.jar.place(entry.id, center: hit, angle: body.angle + 0.35)
+                model.bursts = [ImpactBurst(origin: CGPoint(x: hit.x, y: hit.y - body.size.height / 2), strength: 0.7,
                                             seed: 0x9E37_79B9_7F4A_7C15, face: .diet, progress: SpringState(position: 0.32, target: 1))]
             }
-            for (id, motion) in model.pieces where id != entry.id {
-                var knocked = motion
-                knocked.angle.position += (Int(knocked.x.position) % 2 == 0 ? 0.05 : -0.05)
-                model.pieces[id] = knocked
+            for id in model.jar.blockIDs where id != entry.id {
+                if let body = model.jar.body(id) {
+                    model.jar.place(id, center: body.center, angle: body.angle + (Int(body.center.x) % 2 == 0 ? 0.05 : -0.05))
+                }
             }
             model.jarBob = SpringState(position: 7, target: 0)
             // The number mid-count and mid-punch.
@@ -175,7 +176,7 @@ enum Fixtures {
             model.yaw = SpringState(position: 120, target: 120)
             let started = date.addingTimeInterval(-52)
             model.now = { started }
-            model.setDone()
+            model.startRest()
             model.now = { date }
             if name == "train-rest-added" { model.addRestTime() }
             model.syncGlassImmediately()

@@ -435,10 +435,14 @@ struct FigureGeometry {
     var layout: MachineLayout
 
     var mech: CGRect { layout.mechanismRect }
+    /// The rendered face gives the mannequin the whole middle of the face
+    /// (Wei, 15 Oct 2026: bigger and centred); design/render/night_body.py
+    /// mirrors these numbers for the baked shadows.
+    var rendered: Bool { RenderedArt.on(.body) }
     /// Points per figure unit.
-    var unit: CGFloat { mech.height * 0.80 }
+    var unit: CGFloat { mech.height * (rendered ? 0.972 : 0.80) }
     /// The feet, in face-local points; the turntable sits just under them.
-    var feet: CGPoint { CGPoint(x: layout.faceWidth / 2, y: mech.maxY - 40) }
+    var feet: CGPoint { CGPoint(x: layout.faceWidth / 2, y: mech.maxY - (rendered ? 26 : 40)) }
     /// The figure stands this far proud of the face.
     static let depth: CGFloat = 90
     /// Resting three-quarter turn, so the orthographic camera sees its depth

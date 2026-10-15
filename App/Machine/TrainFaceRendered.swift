@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// TRAIN drawn from Blender (see `RenderedArt`, design/render/night_train.py):
-/// the tray and coach's plate, the keys and the clay hourglass are rendered
-/// pictures where the Blender layout put them. The glass is one of 21 renders
-/// by sand level, crossfaded as the rest runs, upright or turned over; it
-/// scales about its base with the rest length and turns about its centre on
-/// the flip spring. Code keeps the timer, the springs, sound, haptics and data.
+/// TRAIN drawn from Blender (see `RenderedArt`, design/render/night_train.py),
+/// a rest timer (Wei, 15 Oct 2026: rests only, no sets): the tray and coach's
+/// plate, the keys and the clay hourglass are rendered pictures where the
+/// Blender layout put them. The glass is big and centred; it scales about its
+/// base with the rest length and turns about its centre on the flip spring.
+/// Its sand is real grains (`SandGlass`): the "full" render shows through
+/// wherever a grain is, over the "empty" one. Code keeps the timer, the
+/// springs, the sand, sound, haptics and data.
 struct RenderedTrainFace: View {
     let model: MachineModel
     let layout: MachineLayout
@@ -30,10 +32,6 @@ struct RenderedTrainFace: View {
 
             coach(art, place)
             hourglass(art)
-            place.label("glass.value", RestCoach.format(Int(model.glassSeconds)), ArtPlacer.ink)
-                .accessibilityHidden(true)
-            place.label("glass.name", model.activeRest == nil ? "NEXT REST" : "THIS REST", ArtPlacer.muted, tracking: 0.13)
-                .accessibilityHidden(true)
             ImpactRays(model: model, face: .train)
 
             keys(art, place)
@@ -60,7 +58,7 @@ struct RenderedTrainFace: View {
             place.label("line1", lines.first, ArtPlacer.ink, tracking: 0.13)
             place.label("line2", lines.second, ArtPlacer.muted)
 
-            // The hero and its lines change the exercise, load and reps.
+            // The hero and its lines pick the body part the rest is for.
             let bottom = place.point(0, (art.labels["line2"]?.y ?? 212) + 10).y
             Button { model.openInset(.exercise) } label: { Color.clear.contentShape(Rectangle()) }
                 .buttonStyle(.plain)
@@ -68,27 +66,26 @@ struct RenderedTrainFace: View {
                 .position(x: layout.faceWidth / 2, y: (origin.y - size * 0.9 + bottom) / 2)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel("\(lines.text). \(lines.first.lowercased()). \(lines.second.lowercased())")
-                .accessibilityHint("Change exercise, load and reps")
+                .accessibilityHint("Choose the body part you are resting")
                 .accessibilityAddTraits(.isButton)
                 .accessibilityIdentifier("train.hero")
         }
     }
 
-    /// The hero readout, the reference it is sized for, and its two lines.
+    /// The hero readout (the rest clock), the reference it is sized for, and its two lines.
     private func heroLines(now: Date) -> (text: String, reference: String, first: String, second: String) {
+        let part = model.exercise.bodyPart.label
         if let rest = model.activeRest {
             let second = rest.addedSeconds > 0
-                ? "SET \(RestCoach.format(rest.plannedSeconds)) + \(RestCoach.format(rest.addedSeconds)) ADDED"
-                : "SET \(RestCoach.format(rest.plannedSeconds))"
-            return (Readout.clock(rest.remaining(at: now)), "8:88",
-                    "REST AFTER SET \(rest.afterSet) · \(rest.exercise.uppercased())", second)
+                ? "SET TO \(RestCoach.format(rest.plannedSeconds)) + \(RestCoach.format(rest.addedSeconds)) ADDED"
+                : "SET TO \(RestCoach.format(rest.plannedSeconds))"
+            return (Readout.clock(rest.remaining(at: now)), "8:88", "RESTING · \(rest.bodyPart.label) · REST \(rest.afterSet)", second)
         }
         if let ended = model.restJustEnded {
-            return ("GO", "8:88", "RESTED \(RestCoach.format(ended.actualSeconds ?? ended.totalSeconds)) · SET \(model.nextSetNumber) NEXT",
-                    "\(Readout.load(model.loadKg)) KG × \(model.reps) · \(model.exercise.name.uppercased())")
+            return ("GO", "8:88", "RESTED \(RestCoach.format(ended.actualSeconds ?? ended.totalSeconds)) · \(ended.bodyPart.label)",
+                    "NEXT: REST \(model.nextRestNumber) · \(RestCoach.format(model.plannedRest))")
         }
-        return ("\(Readout.load(model.loadKg))×\(model.reps)", "88×8", "KG × REPS · SET \(model.nextSetNumber)",
-                model.exercise.name.uppercased() + " · " + model.exercise.bodyPart.label)
+        return (RestCoach.format(model.plannedRest), "8:88", "NEXT REST · \(part) · REST \(model.nextRestNumber)", "TAP TO CHANGE BODY PART")
     }
 
     // MARK: Coach
@@ -106,7 +103,8 @@ struct RenderedTrainFace: View {
                     Text(reason)
                         .font(ArtPlacer.font(reasons.weight, reasons.size))
                         .foregroundStyle(ArtPlacer.muted)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                 }
             }
             .frame(width: plate.maxX - 14 - place.point(reasons.x, 0).x, height: max(plate.maxY - 10 - top, 0), alignment: .topLeading)
@@ -137,20 +135,13 @@ struct RenderedTrainFace: View {
         let seat = Int((theta / .pi).rounded())
         let turn = theta - Double(seat) * .pi
         let pose = seat % 2 == 0 ? "a" : "b"
-        // Sand in the world-top bulb; before the half-turn the glass still holds it the old way up.
-        let worldTop = model.aIsUp ? model.sandA.position : model.sandB.position
-        let top = min(max(seat == model.glassParity ? worldTop : 1 - worldTop, 0), 1)
-        let level = top * 20
-        let low = Int(level.rounded(.down)), high = min(low + 1, 20)
-        let mix = level - Double(low)
         return ZStack(alignment: .topLeading) {
             scaled("night-hourglass-shadow", about: base, share: share, s: s)
                 .opacity(1 - 0.5 * abs(sin(turn)))
             ZStack(alignment: .topLeading) {
-                scaled(String(format: "night-hourglass-%@-%02d", pose, low), about: base, share: share, s: s)
-                    .opacity(1 - mix)
-                scaled(String(format: "night-hourglass-%@-%02d", pose, high), about: base, share: share, s: s)
-                    .opacity(mix)
+                scaled("night-hourglass-\(pose)-empty", about: base, share: share, s: s)
+                scaled("night-hourglass-\(pose)-full", about: base, share: share, s: s)
+                    .mask(alignment: .topLeading) { sandMask(glass, centre: centre, share: share, s: s, turned: pose == "b") }
             }
             .frame(width: layout.faceWidth, height: layout.faceHeight, alignment: .topLeading)
             .rotationEffect(.radians(-turn), anchor: UnitPoint(x: centre.x / max(layout.faceWidth, 1), y: centre.y / max(layout.faceHeight, 1)))
@@ -158,6 +149,26 @@ struct RenderedTrainFace: View {
         .allowsHitTesting(false)
         .accessibilityElement()
         .accessibilityLabel("Hourglass, \(RestCoach.format(Int(model.glassSeconds))) rest")
+    }
+
+    /// Where the grains are, laid over the glass: the grid in the glass's own
+    /// frame, its A end along the glass's axis (pointing down when turned over).
+    @ViewBuilder
+    private func sandMask(_ glass: RenderedArt.Glass, centre: CGPoint, share: CGFloat, s: CGSize, turned: Bool) -> some View {
+        let _ = model.sandVersion
+        if let sand = model.sand, let mask = sand.mask(), let axis = glass.axis, axis.count == 2, let unit = glass.unitPoints {
+            let along = (axis[0] * axis[0] + axis[1] * axis[1]).squareRoot()
+            let lean = atan2(Double(axis[0]), Double(-axis[1]))
+            let cell = CGFloat(SandGlass.cell)
+            Image(decorative: mask, scale: 1)
+                .resizable()
+                .interpolation(.medium)
+                .luminanceToAlpha()
+                .frame(width: CGFloat(sand.cols) * cell * unit * s.width * share,
+                       height: CGFloat(sand.rows) * cell * along * s.height * share)
+                .rotationEffect(.radians(lean + (turned ? .pi : 0)))
+                .position(centre)
+        }
     }
 
     /// A picture scaled by `share` about `point` (the glass's base), in face points.
@@ -180,10 +191,16 @@ struct RenderedTrainFace: View {
 
     @ViewBuilder
     private func keys(_ art: RenderedArt.TrainLayout, _ place: ArtPlacer) -> some View {
-        if model.activeRest != nil {
+        if let rest = model.activeRest {
             place.key("night-train-key-add", rect: art.keys["add"] ?? [], label: "Add 30 seconds of rest") { model.addRestTime() }
                 .accessibilityIdentifier("train.addTime")
-            place.key("night-train-key-end", rect: art.keys["end"] ?? [], label: "End rest") { model.endRest() }
+            ZStack(alignment: .topLeading) {
+                place.label("added.name", "ADDED", ArtPlacer.muted, tracking: 0.13)
+                place.label("added.value", "+" + RestCoach.format(rest.addedSeconds), ArtPlacer.ink, tracking: 0.05)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Added \(rest.addedSeconds) seconds")
+            place.key("night-train-key-stop", rect: art.keys["stop"] ?? [], label: "End rest") { model.endRest() }
                 .accessibilityIdentifier("train.endRest")
         } else {
             place.key("night-train-key-shorter", rect: art.keys["shorter"] ?? [], label: "Shorter rest") {
@@ -204,9 +221,9 @@ struct RenderedTrainFace: View {
                 model.adjustPlannedRest(by: RestLimits.step)
             }
             .accessibilityIdentifier("train.restLonger")
+            place.key("night-train-key-start", rect: art.keys["start"] ?? [], label: "Start rest") { model.startRest() }
+                .accessibilityHint("Flips the hourglass and starts the rest")
+                .accessibilityIdentifier("train.startRest")
         }
-        place.key("night-train-key-setdone", rect: art.keys["setdone"] ?? [], label: "Set done") { model.setDone() }
-            .accessibilityHint("Logs the set and flips the hourglass")
-            .accessibilityIdentifier("train.setDone")
     }
 }

@@ -101,6 +101,8 @@ struct FoodSearchInset: View {
     let model: MachineModel
     @State private var search = FoodSearch()
     @State private var scanning = false
+    /// The camera reads a barcode, or a nutrition panel.
+    @State private var readsLabel = false
     @State private var barcode = ""
     @State private var lookupMessage: String?
     @FocusState private var focused: Bool
@@ -127,7 +129,28 @@ struct FoodSearchInset: View {
                     .accessibilityIdentifier("intake.scan")
             }
             if scanning {
-                BarcodePanel(barcode: $barcode, message: lookupMessage) { code in lookUp(code) }
+                HStack(spacing: 8) {
+                    Button("BARCODE") { readsLabel = false }
+                        .buttonStyle(MachineButtonStyle())
+                        .frame(height: 40)
+                        .opacity(readsLabel ? 0.6 : 1)
+                        .accessibilityAddTraits(readsLabel ? [] : .isSelected)
+                    Button("LABEL") { readsLabel = true }
+                        .buttonStyle(MachineButtonStyle())
+                        .frame(height: 40)
+                        .opacity(readsLabel ? 1 : 0.6)
+                        .accessibilityAddTraits(readsLabel ? .isSelected : [])
+                        .accessibilityLabel("Read a nutrition label")
+                        .accessibilityIdentifier("intake.label")
+                }
+                if readsLabel {
+                    LabelPanel { label in
+                        scanning = false
+                        model.openInset(.serving(label.item(name: search.query.isEmpty ? "Scanned label" : search.query)))
+                    }
+                } else {
+                    BarcodePanel(barcode: $barcode, message: lookupMessage) { code in lookUp(code) }
+                }
             }
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2) {
@@ -458,46 +481,38 @@ struct LedgerRow: View {
 struct ExerciseInset: View {
     let model: MachineModel
 
+    /// TRAIN keeps rests only (Wei, 15 Oct 2026): pick the body part the next
+    /// rest is for; the coach advises a rest for each.
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            InsetHeader(title: "SET", close: { model.closeInset() })
-            HStack(spacing: 10) {
-                stepper("LOAD", Readout.load(model.loadKg) + " KG", minus: { model.adjustLoad(-2.5) }, plus: { model.adjustLoad(2.5) })
-                stepper("REPS", "\(model.reps)", minus: { model.adjustReps(-1) }, plus: { model.adjustReps(1) })
-            }
+            InsetHeader(title: "REST FOR", close: { model.closeInset() })
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 2) {
                     ForEach(BodyPart.allCases) { part in
-                        Engraved(text: part.label, size: 9, color: .white.opacity(0.4)).padding(.top, 10)
-                        ForEach(Exercise.library.filter { $0.bodyPart == part }) { ex in
-                            Button { model.selectExercise(ex) } label: {
-                                HStack {
-                                    Text(ex.name.uppercased()).font(TypeKit.label(12, weight: .heavy))
-                                    Spacer()
-                                    if ex == model.exercise { Engraved(text: "SELECTED", size: 9, color: .white) }
-                                }
-                                .foregroundStyle(.white.opacity(ex == model.exercise ? 1 : 0.75))
-                                .frame(minHeight: 44)
-                                .contentShape(Rectangle())
+                        let selected = part == model.exercise.bodyPart
+                        let advice = RestCoach.recommend(for: Exercise.rest(for: part), setNumber: 1, history: model.store.data.rests,
+                                                         readiness: model.readiness, now: model.now())
+                        Button {
+                            model.selectBodyPart(part)
+                            model.closeInset()
+                        } label: {
+                            HStack {
+                                Text(part.label).font(TypeKit.label(13, weight: .heavy))
+                                Spacer()
+                                Engraved(text: "COACH \(RestCoach.format(advice.seconds))", size: 9, color: .white.opacity(0.5))
+                                if selected { Engraved(text: "SELECTED", size: 9, color: .white) }
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityAddTraits(ex == model.exercise ? .isSelected : [])
+                            .foregroundStyle(.white.opacity(selected ? 1 : 0.75))
+                            .frame(minHeight: 48)
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("\(part.label.lowercased()), coach says \(RestCoach.format(advice.seconds))")
+                        .accessibilityAddTraits(selected ? .isSelected : [])
+                        .accessibilityIdentifier("train.part.\(part.rawValue)")
                     }
                 }
             }
         }
-    }
-
-    private func stepper(_ title: String, _ value: String, minus: @escaping () -> Void, plus: @escaping () -> Void) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Engraved(text: title, size: 8.5, color: .white.opacity(0.45))
-            HStack(spacing: 6) {
-                Button("−", action: minus).buttonStyle(MachineButtonStyle()).frame(width: 44, height: 44)
-                Engraved(text: value, size: 13, color: .white, tracking: 0.4).frame(maxWidth: .infinity)
-                Button("+", action: plus).buttonStyle(MachineButtonStyle()).frame(width: 44, height: 44)
-            }
-        }
-        .frame(maxWidth: .infinity)
     }
 }

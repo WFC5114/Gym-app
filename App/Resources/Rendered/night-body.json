@@ -39,60 +39,60 @@
     "y": 40.27
    },
    "reading.fat.name": {
-    "align": "center",
-    "size": 7.86,
+    "align": "right",
+    "size": 7.27,
     "weight": "bold",
-    "x": 118.0,
-    "y": 685.0
+    "x": 402.0,
+    "y": 104.0
    },
    "reading.fat.value": {
-    "align": "center",
+    "align": "right",
     "size": 10.55,
     "weight": "medium",
-    "x": 118.0,
-    "y": 702.0
+    "x": 402.0,
+    "y": 120.0
    },
    "reading.lean.name": {
-    "align": "center",
-    "size": 7.86,
+    "align": "right",
+    "size": 7.27,
     "weight": "bold",
-    "x": 210.0,
-    "y": 685.0
+    "x": 402.0,
+    "y": 146.0
    },
    "reading.lean.value": {
-    "align": "center",
+    "align": "right",
     "size": 10.55,
     "weight": "medium",
-    "x": 210.0,
-    "y": 702.0
+    "x": 402.0,
+    "y": 162.0
    },
    "reading.source.name": {
-    "align": "center",
-    "size": 7.86,
+    "align": "right",
+    "size": 7.27,
     "weight": "bold",
-    "x": 302.0,
-    "y": 685.0
+    "x": 402.0,
+    "y": 188.0
    },
    "reading.source.value": {
-    "align": "center",
+    "align": "right",
     "size": 10.55,
     "weight": "medium",
-    "x": 302.0,
-    "y": 702.0
+    "x": 402.0,
+    "y": 204.0
    },
    "schematic": {
     "align": "center",
-    "size": 8.15,
+    "size": 7.57,
     "weight": "bold",
     "x": 210.0,
-    "y": 268.0
+    "y": 234.0
    },
    "sources": {
     "align": "center",
-    "size": 7.33,
+    "size": 7.04,
     "weight": "medium",
     "x": 210.0,
-    "y": 285.0
+    "y": 248.0
    },
    "title": {
     "align": "left",
@@ -110,13 +110,13 @@
    }
   },
   "ruler": {
-   "baseY": 808.0,
-   "cursorTop": 762.0,
+   "baseY": 816.0,
+   "cursorTop": 770.0,
    "rect": [
     26.0,
-    718.0,
+    734.0,
     368.0,
-    106.0
+    96.0
    ],
    "track": [
     46.0,

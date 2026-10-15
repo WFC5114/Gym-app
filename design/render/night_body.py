@@ -34,16 +34,18 @@ label_anchor('unit', 0, 0, 0.034)
 HERO_SIZE = 0.255
 LAYOUT['hero'] = dict(x=round(face_pt(-0.445, 0)[0], 2), centerY=round(face_pt(0, Z(0.70))[1], 2),
                       fontSize=round(HERO_SIZE * PT * EM[HERO_FONT.name], 2))
-label_anchor('schematic', *at(210, 268), 0.028, align='center')
-label_anchor('sources', *at(210, 285), 0.025, align='center', weight='medium')
+# Bigger, centred mannequin (Wei, 15 Oct 2026): the schematic note sits just
+# under the date line, and the readings move up into a column beside the hero.
+label_anchor('schematic', *at(210, 234), 0.026, align='center')
+label_anchor('sources', *at(210, 248), 0.024, align='center', weight='medium')
 for i, key in enumerate(('fat', 'lean', 'source')):
-    label_anchor('reading.%s.name' % key, *at(118 + i * 92, 685), 0.027, align='center')
-    label_anchor('reading.%s.value' % key, *at(118 + i * 92, 702), 0.036, align='center', weight='medium')
+    label_anchor('reading.%s.name' % key, *at(402, 104 + i * 42), 0.025, align='right')
+    label_anchor('reading.%s.value' % key, *at(402, 120 + i * 42), 0.036, align='right', weight='medium')
 
 # --- The ruler's plate: a raised graphite clay plate held by four brass screws.
-RULER = [26.0, 718.0, 368.0, 106.0]
+RULER = [26.0, 734.0, 368.0, 96.0]
 TRACK = [46.0, 374.0]         # first and last day's x
-BASE_Y = RULER[1] + RULER[3] - 16
+BASE_Y = RULER[1] + RULER[3] - 14
 TICK = dict(day=(2.0, 14.0), week=(2.2, 24.0), scan=(2.6, 40.0))
 FINE = (1.4, 10.0)
 CURSOR_TOP = BASE_Y - 46
@@ -69,8 +71,8 @@ LAYOUT['ruler'] = dict(rect=RULER, track=TRACK, baseY=BASE_Y, cursorTop=CURSOR_T
 # FigureGeometry): they only cast the shadows baked into the backdrop.
 FACE_H_REF = 852.0
 MECH_Y, MECH_H = FACE_H_REF * 0.30, FACE_H_REF * 0.50
-UNIT = MECH_H * 0.80 * U          # one figure unit, in Blender units
-FEET = (210.0, MECH_Y + MECH_H - 40)
+UNIT = MECH_H * 0.972 * U         # one figure unit, in Blender units
+FEET = (210.0, MECH_Y + MECH_H - 26)
 PROUD = 90 * U
 fx, fz = at(*FEET)
 stand = empty('stand', (fx, FRONT - PROUD, fz), group='figure')

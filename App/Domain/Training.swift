@@ -39,7 +39,16 @@ struct Exercise: Codable, Equatable, Hashable, Identifiable {
         Exercise(name: "Hanging leg raise", bodyPart: .core, isCompound: false),
     ]
 
-    static func named(_ name: String) -> Exercise? { library.first { $0.name == name } }
+    static func named(_ name: String) -> Exercise? {
+        library.first { $0.name == name } ?? BodyPart.allCases.map(rest(for:)).first { $0.name == name }
+    }
+
+    /// TRAIN is a rest timer (Wei, 15 Oct 2026: "I don't need to add sets or
+    /// record sets, only rest times"): rests are logged per body part, as if
+    /// for that part's main lift.
+    static func rest(for part: BodyPart) -> Exercise {
+        Exercise(name: part.label.capitalized, bodyPart: part, isCompound: part != .arms && part != .core)
+    }
 }
 
 struct SetRecord: Codable, Equatable, Identifiable {

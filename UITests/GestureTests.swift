@@ -59,10 +59,10 @@ final class GestureTests: XCTestCase {
         pause(2.0)
         attachScreenshot(named: "gesture-04-train")
 
-        // Step 5: SET DONE fires the piston and starts the rest.
-        tap("train.setDone", in: app)
+        // Step 5: START REST flips the glass and starts the rest.
+        tap("train.startRest", in: app)
         pause(2.0)
-        attachScreenshot(named: "gesture-05-set-done")
+        attachScreenshot(named: "gesture-05-start-rest")
 
         // Step 6: add rest time.
         tap("train.addTime", in: app)

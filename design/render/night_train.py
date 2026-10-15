@@ -1,19 +1,25 @@
 # TRAIN straight from Blender (Wei, 14 Oct 2026: "none of the objects should
-# be created from code, all straight from blender"). The Night tray with the
-# coach's plate, the keys and the clay desk hourglass (design/mockups/clay/
-# objects.py hourglass, in the Night palette), laid out like DIET on the
-# 420 x 852 pt face and rendered in pieces:
+# be created from code, all straight from blender"). A rest timer (Wei, 15 Oct:
+# "I don't need to add sets or record sets, only rest times"): the Night tray
+# with the coach's plate beside the hero, the keys and the clay desk hourglass
+# (design/mockups/clay/objects.py hourglass, in the Night palette) big and
+# centred, laid out like DIET on the 420 x 852 pt face and rendered in pieces:
 #   night-train-backdrop        the tray and the coach's plate, with the still
 #                               keys' shadows baked in
 #   night-train-key-<id>[-down] the keys, up and pressed
-#   night-hourglass-<p>-<nn>    the whole hourglass with nn/20 of its sand in the
-#                               top bulb; pose a upright, pose b turned over (the
-#                               glass flips about the line of sight, so b is the
-#                               same object lit as it really is upside down)
+#   night-hourglass-<p>-empty   the whole hourglass with no sand; pose a upright,
+#                               pose b turned over (the glass flips about the line
+#                               of sight, so b is the same object lit as it
+#                               really is upside down)
+#   night-hourglass-<p>-full    the same with both bulbs packed full of sand
 #   night-hourglass-shadow      its soft shadow on the tray, drawn under it
-# The hero reuses DIET's glyphs (night_diet.py). night-train.json gives every
-# picture's rect and the layout: text anchors, the coach plate, the glass's
-# centre, base and largest height (the app scales it down for short rests).
+# The sand is simulated in the app (SandGlass.swift): falling grains, piling,
+# the stream through the neck, sloshing in the flip. Where a grain is, the app
+# shows the full picture, elsewhere the empty one, so every grain is Blender's
+# sand seen through Blender's glass. night-train.json gives the glass's centre,
+# axis and inner profile for that, plus every picture's rect and the layout:
+# text anchors, the coach plate, the glass's base and largest height (the app
+# scales it down for short rests). The hero reuses DIET's glyphs (night_diet.py).
 #   python3 night_train.py <out dir> [samples] [only-prefix]
 import bpy, bmesh, math, os
 from mathutils import Vector, Quaternion
@@ -35,9 +41,9 @@ HERO_SIZE = 0.255
 LAYOUT['hero'] = dict(x=round(face_pt(-0.445, 0)[0], 2), centerY=round(face_pt(0, Z(0.70))[1], 2),
                       fontSize=round(HERO_SIZE * PT * EM[HERO_FONT.name], 2))
 
-# --- The coach's plate: a raised graphite clay plate held by four brass
-# screws, COACH pressed into it. The app prints the advice on it.
-COACH = [27.38, 250.0, 144.0, 128.0]
+# --- The coach's plate, right of the hero: a raised graphite clay plate held by
+# four brass screws, COACH pressed into it. The app prints the advice on it.
+COACH = [244.0, 88.0, 150.0, 92.0]
 cx, cz = at(COACH[0] + COACH[2] / 2, COACH[1] + COACH[3] / 2)
 PLATE = clay('plate', 0x2B2930, rough=0.55, coat=0.1, bump=0.06, grain=220)
 MUTED = clay('muted', S['muted'], rough=0.5)
@@ -52,21 +58,23 @@ for o in scene.objects:
 lx, lz = at(COACH[0] + 14, COACH[1] + 20)
 text('coachLabel', 'COACH', 0.02, LABEL_FONT, MUTED, (lx, FRONT - 0.025, lz), None, depth=0.002, spacing=1.2, group='backdrop')
 LAYOUT['coach'] = COACH
-label_anchor('coach.title', *at(COACH[0] + 14, COACH[1] + 44), 0.034)
-label_anchor('coach.reasons', *at(COACH[0] + 14, COACH[1] + 66), 0.021, weight='medium')
+label_anchor('coach.title', *at(COACH[0] + 14, COACH[1] + 40), 0.032)
+label_anchor('coach.reasons', *at(COACH[0] + 14, COACH[1] + 58), 0.02, weight='medium')
 
-# --- Keys. Row one changes with the state: +0:30 REST / END REST while
-# resting, −0:15 / +0:15 round the planned rest otherwise. SET DONE and the
-# coach's USE key (blank: the app prints the advised time on it).
+# --- Keys. Row one changes with the state: +0:30 REST while resting (the
+# time added so far beside it), −0:15 / +0:15 round the planned rest
+# otherwise. START REST becomes END REST while resting (same key, so one baked
+# shadow). The coach's USE key is blank: the app prints the advised time on it.
 LAYOUT['keys'] = {}
-ROW1_Y, ROW1_H = 700.0, 44.0
+ROW1_Y, ROW1_H = 704.0, 44.0
+PRIMARY = [31.63, 768.73, 363.11, 49.26]
 KEYS = [  # id, label, face rect, clay key?
     ('add', '+0:30 REST', [31.63, ROW1_Y, 176.0, ROW1_H], False),
-    ('end', 'END REST', [218.74, ROW1_Y, 176.0, ROW1_H], False),
     ('shorter', '−0:15', [31.63, ROW1_Y, 94.0, ROW1_H], False),
     ('longer', '+0:15', [300.74, ROW1_Y, 94.0, ROW1_H], False),
-    ('setdone', 'SET DONE', [31.63, 768.73, 363.11, 49.26], True),
-    ('use', '', [COACH[0], COACH[1] + COACH[3] + 12, COACH[2], 44.0], False),
+    ('start', 'START REST', PRIMARY, True),
+    ('stop', 'END REST', PRIMARY, True),
+    ('use', '', [COACH[0], COACH[1] + COACH[3] + 8, COACH[2], 40.0], False),
 ]
 for key, label, r, primary in KEYS:
     x, z = at(r[0] + r[2] / 2, r[1] + r[3] / 2)
@@ -83,13 +91,16 @@ for key, label, r, primary in KEYS:
     LAYOUT['keys'][key] = r
 LAYOUT['labels']['rest.name'] = dict(x=213.19, y=ROW1_Y + 14, size=round(0.02 * PT * EM[LABEL_FONT.name], 2), align='center', weight='bold')
 LAYOUT['labels']['rest.value'] = dict(x=213.19, y=ROW1_Y + 31, size=round(0.032 * PT * EM[BODY_FONT.name], 2), align='center', weight='medium')
+# While resting, the time added so far, right of +0:30 REST.
+LAYOUT['labels']['added.name'] = dict(x=306.0, y=ROW1_Y + 14, size=round(0.02 * PT * EM[LABEL_FONT.name], 2), align='center', weight='bold')
+LAYOUT['labels']['added.value'] = dict(x=306.0, y=ROW1_Y + 31, size=round(0.032 * PT * EM[BODY_FONT.name], 2), align='center', weight='medium')
 
 # --- The hourglass (design/mockups/clay/objects.py), Night palette: graphite
 # plates with ivory panels, terracotta turned posts and cups, brass sleeves,
 # feet, nuts, ticks and knurled knobs, thick round glass, pale clay sand.
 DIAL = clay('dial', 0x3A3540, rough=0.45)
 SAND = clay('sand', 0xF3E9D8, rough=0.8, coat=0.0, bump=0.25)
-GLASS_X, BASE_Y, H_MAX = 292.0, 652.0, 300.0
+GLASS_X, BASE_Y, H_MAX = 210.0, 680.0, 410.0
 pivot = empty('pivot', (0, 0, 0), group='glass')
 pivot.rotation_mode = 'QUATERNION'
 QA = (Quaternion((0, 0, 1), math.radians(-28)) @ Quaternion((1, 0, 0), math.radians(10)))
@@ -225,7 +236,7 @@ for i in range(7):
 text('restLabel', 'REST', 0.028, LABEL_FONT, HARD, (0, -side - 0.001, zb - thick - 0.02), pivot, align='CENTER',
      depth=0.003, rot=(math.pi / 2, 0, 0))
 
-# Place it: the largest glass (6 min rest) is H_MAX tall with its base on BASE_Y.
+# Place it: the largest glass (6 min rest) is H_MAX tall with its base on BASE_Y, centred.
 INNER_TOP = sorted((z, r) for z, r in inner if z >= 0)
 
 
@@ -260,101 +271,64 @@ cx0, cy0 = r1[0] + r1[2] / 2, r1[1] + r1[3] / 2
 pivot.location = (gx - (cx0 - FACE_W / 2) * U, FRONT - 0.42 * pivot.scale[0], gz + (cy0 - FACE_H / 2) * U)
 r2 = glass_rect()
 centre = face_pt(pivot.location.x, pivot.location.z)
+
+def projected(local):
+    """A point in glass units, in face points (pose a, largest glass)."""
+    w = pivot.matrix_world @ Vector(local)
+    return face_pt(w.x, w.z)
+
+
+bpy.context.view_layer.update()
+c0, c1 = projected((0, 0, 0)), projected((0, 0, 1))
 LAYOUT['glass'] = dict(rect=r2, centre=[round(centre[0], 2), round(centre[1], 2)], baseY=round(r2[1] + r2[3], 2),
-                       maxHeight=round(r2[3], 2), minShare=0.6)
-label_anchor('glass.value', *at(GLASS_X, BASE_Y + 18), 0.03, align='center', weight='medium')
-label_anchor('glass.name', *at(GLASS_X, BASE_Y + 34), 0.02, align='center')
-print('glass rect', r2, 'centre', centre)
+                       maxHeight=round(r2[3], 2), minShare=0.6,
+                       # For the sand: one glass unit of radius in points, the glass's
+                       # axis (+z, toward the A bulb) in points per unit, the inner wall
+                       # as (z, r) from the neck out, and the sand's line when one bulb is full.
+                       unitPoints=round(pivot.scale[0] * PT, 3),
+                       axis=[round(c1[0] - c0[0], 3), round(c1[1] - c0[1], 3)],
+                       inner=[[round(z, 4), round(max(r - 0.002, 0.004), 4)] for z, r in INNER_TOP[::3] + INNER_TOP[-1:]],
+                       sandLine=0.34)
+print('glass rect', r2, 'centre', centre, 'axis', LAYOUT['glass']['axis'])
 
-# --- Sand: pale clay, upright in the world whichever way the glass is turned.
-# Its own pivot shares the glass's centre and axis.
-sand_pivot = empty('sandPivot', pivot.location, group='sand')
-sand_pivot.rotation_mode = 'QUATERNION'
-sand_pivot.scale = pivot.scale
-
-
-def volume(z0, z1, n=200):
-    dz = (z1 - z0) / n
-    return sum(math.pi * r_at(z0 + (i + 0.5) * dz) ** 2 * dz for i in range(n))
-
-
-NECK, TOP_FULL, FLOOR = 0.03, 0.34, -0.40
-CAPACITY = volume(NECK, TOP_FULL)
+# --- Sand: pale clay packed into both bulbs, for the "full" pictures.
+def full_sand():
+    zs = [x[0] for x in INNER_TOP]
+    prof = [(-zs[-1], 1e-4)] + [(-z, r_at(z) - 0.001) for z in reversed(zs)] + [(z, r_at(z) - 0.001) for z in zs[1:]] + [(zs[-1], 1e-4)]
+    return link(lathe('sandFull', prof, 128), pivot, SAND, group='sandPiece')
 
 
-def level(z0, target):
-    """The height above z0 that holds `target` of sand."""
-    lo, hi = z0, 0.42
-    for _ in range(40):
-        mid = (lo + hi) / 2
-        lo, hi = (mid, hi) if volume(z0, mid) < target else (lo, mid)
-    return (lo + hi) / 2
+# 1. Backdrop: tray and coach plate, with the shadows of START REST (always there) baked in.
+shoot('night-train-backdrop', [0, 0, FACE_W, FACE_H], ['backdrop'], catch=False, ghosts=['key-start'])
 
-
-def make_sand(share):
-    """Sand with `share` of it in the top bulb: a draining top with a dimple, a
-    heap below with its cone, and the thin stream between while it runs."""
-    made = []
-    if share > 0.001:
-        h = level(NECK, share * CAPACITY)
-        top = [(NECK, 1e-4)] + [(NECK + i * (h - NECK) / 24, r_at(NECK + i * (h - NECK) / 24)) for i in range(25)]
-        top += [(h - 0.012, r_at(h) * 0.45), (h - 0.022, 1e-4)]
-        made.append(link(lathe('sandTop', top, 96), sand_pivot, SAND, group='sandPiece'))
-    bottom = (1 - share) * CAPACITY
-    hb = FLOOR
-    if bottom > 1e-5:
-        hb = level(FLOOR, bottom)
-        cone = min(0.075, 0.02 + 0.06 * (1 - share))
-        heap = [(FLOOR, 1e-4)] + [(FLOOR + i * (hb - FLOOR) / 20, r_at(FLOOR + i * (hb - FLOOR) / 20)) for i in range(21)]
-        heap += [(hb + cone * 0.4, r_at(hb) * 0.55), (hb + cone * 0.87, r_at(hb) * 0.15), (hb + cone, 1e-4)]
-        made.append(link(lathe('sandHeap', heap, 96), sand_pivot, SAND, group='sandPiece'))
-    if share > 0.001:
-        made.append(link(lathe('stream', [(hb, 1e-4), (hb, 0.0025), (NECK, 0.0025), (NECK, 1e-4)], 16), sand_pivot, SAND,
-                         group='sandPiece'))
-    return made
-
-
-def axis_up(q):
-    """The sand pivot for a glass turned by q: z along the glass's axis, pointing up."""
-    a = q @ Vector((0, 0, 1))
-    if a.z < 0:
-        a = -a
-    return a.to_track_quat('Z', 'Y')
-
-
-# 1. Backdrop: tray and coach plate, with the shadows of SET DONE (always there) baked in.
-shoot('night-train-backdrop', [0, 0, FACE_W, FACE_H], ['backdrop'], catch=False, ghosts=['key-setdone'])
-
-# 2. Keys. SET DONE's shadow is in the backdrop; the others come and go with
-# the state, so they carry their own.
+# 2. Keys. The primary key's shadow is in the backdrop; the others come and go
+# with the state, so they carry their own.
 for key, label, r, primary in KEYS:
     for down in ('', '-down'):
-        if key == 'setdone':
-            shoot('night-train-key-%s%s' % (key, down), around(r, 8, 8, 26, 30), ['key-%s%s' % (key, down)], catch=False)
+        name = 'night-train-key-%s%s' % (key, down)
+        if ONLY and not name.startswith(ONLY):
+            continue
+        if primary:
+            shoot(name, around(r, 8, 8, 26, 30), ['key-%s%s' % (key, down)], catch=False)
         else:
-            shoot('night-train-key-%s%s' % (key, down), around(r, 14, 14, 34, 36), ['key-%s%s' % (key, down)], fade=12)
+            shoot(name, around(r, 14, 14, 34, 36), ['key-%s%s' % (key, down)], fade=12)
 
 # 3. The hourglass's shadow, from the glass seen by nothing but the tray.
-sand_pivot.rotation_quaternion = axis_up(QA)
-make_sand(0.0)
-shoot('night-hourglass-shadow', around(r2, 30, 30, 90, 90), [], ghosts=['glass', 'sandPiece'], fade=40)
-for o in list(GROUPS.get('sandPiece', [])):
-    bpy.data.objects.remove(o, do_unlink=True)
-GROUPS['sandPiece'] = []
+if not ONLY or 'night-hourglass-shadow'.startswith(ONLY):
+    shoot('night-hourglass-shadow', around(r2, 30, 30, 90, 90), [], ghosts=['glass'], fade=40)
 
-# 4. The hourglass at 21 sand levels, upright (a) and turned over (b). Lower
-# resolution than the rest (2 px/pt): it is shown scaled down for most rests.
+# 4. The hourglass empty and packed full, upright (a) and turned over (b).
 glass_frame = around(r2, 16, 16, 16, 16)
 for pose, q in (('a', QA), ('b', QB)):
     pivot.rotation_quaternion = q
-    sand_pivot.rotation_quaternion = axis_up(q)
-    for n in range(21):
-        name = 'night-hourglass-%s-%02d' % (pose, n)
+    for fill in ('empty', 'full'):
+        name = 'night-hourglass-%s-%s' % (pose, fill)
         if ONLY and not name.startswith(ONLY):
             continue
-        make_sand(n / 20)
-        shoot(name, glass_frame, ['glass', 'sandPiece'], catch=False, px=2)
-        for o in list(GROUPS['sandPiece']):
+        if fill == 'full':
+            full_sand()
+        shoot(name, glass_frame, ['glass', 'sandPiece'], catch=False)
+        for o in list(GROUPS.get('sandPiece', [])):
             bpy.data.objects.remove(o, do_unlink=True)
         GROUPS['sandPiece'] = []
 

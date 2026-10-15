@@ -160,6 +160,27 @@ final class LogStore {
         data.sets.filter { $0.exercise == exercise && calendar.isDate($0.completedAt, inSameDayAs: now) }
     }
 
+    func restsToday(bodyPart: BodyPart, now: Date) -> [RestPeriod] {
+        data.rests.filter { $0.bodyPart == bodyPart && calendar.isDate($0.startedAt, inSameDayAs: now) }
+    }
+
+    /// START REST: closes any running rest (the next one starting early counts
+    /// as starting the next set early) and starts a new one. No set is logged.
+    @discardableResult
+    func startRest(exercise: Exercise, restSeconds: Int, recommendedSeconds: Int?, at now: Date) -> RestPeriod {
+        let number = restsToday(bodyPart: exercise.bodyPart, now: now).count + 1
+        closeRests(at: now, reason: .nextSet, nextSetAt: now)
+        let rest = RestPeriod(id: UUID(), exercise: exercise.name, bodyPart: exercise.bodyPart, afterSet: number,
+                              startedAt: now, plannedSeconds: RestLimits.clamp(restSeconds),
+                              recommendedSeconds: recommendedSeconds)
+        data.rests.append(rest)
+        var memory = data.memory[exercise.name] ?? ExerciseMemory(loadKg: 0, reps: 0, restSeconds: RestLimits.clamp(restSeconds))
+        memory.restSeconds = RestLimits.clamp(restSeconds)
+        data.memory[exercise.name] = memory
+        save()
+        return rest
+    }
+
     /// SET DONE: records the set, closes any running rest, and starts the next one.
     /// Returns the new rest.
     @discardableResult

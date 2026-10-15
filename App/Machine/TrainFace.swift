@@ -66,26 +66,26 @@ struct TrainHero: View {
                     let remaining = rest.remaining(at: now)
                     let text = Readout.clock(remaining)
                     hero(text, reference: "8:88")
-                    Engraved(text: "REST AFTER SET \(rest.afterSet) · \(rest.exercise.uppercased())", size: 10.5, color: Ink.text(0.85))
+                    Engraved(text: "RESTING · \(rest.bodyPart.label) · REST \(rest.afterSet)", size: 10.5, color: Ink.text(0.85))
                     if rest.addedSeconds > 0 {
-                        Engraved(text: "SET \(RestCoach.format(rest.plannedSeconds)) + \(RestCoach.format(rest.addedSeconds)) ADDED", size: 10)
+                        Engraved(text: "SET TO \(RestCoach.format(rest.plannedSeconds)) + \(RestCoach.format(rest.addedSeconds)) ADDED", size: 10)
                     } else {
-                        Engraved(text: "SET \(RestCoach.format(rest.plannedSeconds))", size: 10)
+                        Engraved(text: "SET TO \(RestCoach.format(rest.plannedSeconds))", size: 10)
                     }
                 } else if let ended = model.restJustEnded {
                     hero("GO", reference: "8:88")
-                    Engraved(text: "RESTED \(RestCoach.format(ended.actualSeconds ?? ended.totalSeconds)) · SET \(model.nextSetNumber) NEXT", size: 10.5, color: Ink.text(0.85))
-                    Engraved(text: "\(Readout.load(model.loadKg)) KG × \(model.reps) · \(model.exercise.name.uppercased())", size: 10)
+                    Engraved(text: "RESTED \(RestCoach.format(ended.actualSeconds ?? ended.totalSeconds)) · \(ended.bodyPart.label)", size: 10.5, color: Ink.text(0.85))
+                    Engraved(text: "NEXT: REST \(model.nextRestNumber) · \(RestCoach.format(model.plannedRest))", size: 10)
                 } else {
-                    hero("\(Readout.load(model.loadKg))×\(model.reps)", reference: "88×8")
-                    Engraved(text: "KG × REPS · SET \(model.nextSetNumber)", size: 10.5, color: Ink.text(0.85))
-                    Engraved(text: model.exercise.name.uppercased() + " · " + model.exercise.bodyPart.label, size: 10)
+                    hero(RestCoach.format(model.plannedRest), reference: "8:88")
+                    Engraved(text: "NEXT REST · \(model.exercise.bodyPart.label) · REST \(model.nextRestNumber)", size: 10.5, color: Ink.text(0.85))
+                    Engraved(text: "TAP TO CHANGE BODY PART", size: 10)
                 }
             }
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
-        .accessibilityHint("Change exercise, load and reps")
+        .accessibilityHint("Choose the body part you are resting")
         .accessibilityIdentifier("train.hero")
     }
 
@@ -168,10 +168,10 @@ struct TrainControls: View {
                 }
             }
             .frame(height: rail.controls.height * 0.4)
-            Button("SET DONE") { model.setDone() }
+            Button(model.activeRest == nil ? "START REST" : "RESTART REST") { model.startRest() }
                 .buttonStyle(MachineButtonStyle(primary: true, part: "train.setDone"))
-                .accessibilityHint("Logs the set and flips the hourglass")
-                .accessibilityIdentifier("train.setDone")
+                .accessibilityHint("Flips the hourglass and starts the rest")
+                .accessibilityIdentifier("train.startRest")
         }
     }
 }

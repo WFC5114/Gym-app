@@ -28,6 +28,8 @@ enum FoodSource: String, Codable, Equatable, Hashable {
     case openFoodFacts = "OPEN FOOD FACTS"
     case quickAdd = "QUICK ADD"
     case manual = "MANUAL"
+    /// Read off a nutrition facts panel by the camera, on the phone.
+    case label = "LABEL SCAN"
 }
 
 /// A catalogue food: values per 100 g plus an optional named serving.
