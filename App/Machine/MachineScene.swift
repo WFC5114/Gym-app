@@ -98,9 +98,13 @@ final class MachineScene {
         // Reflections come from the studio the Blender mockups are lit by
         // (design/assets/studio_env.py). It lights the prism only; the skybox
         // above stays black where the orthographic camera looks, so the void stays #000.
+        // Clay skins light the live objects (BODY's mannequin) to the rendered
+        // jar's and hourglass's exposure: measured on CI frames (15 Oct, d7e4978)
+        // the mannequin's ivory still sat ~0.7 stops above the hourglass's cream.
+        let exposure: Float = Brutal.skin.clayUI ? 0.62 : 1
         if let studio = MaterialKit.studioImage(),
            let env = try? await EnvironmentResource(equirectangular: studio, withName: "studio-softboxes") {
-            studioLight.components.set(ImageBasedLightComponent(source: .single(env), intensityExponent: -0.6))
+            studioLight.components.set(ImageBasedLightComponent(source: .single(env), intensityExponent: -0.6 + log2(exposure)))
             root.addChild(studioLight)
             prismRoot.components.set(ImageBasedLightReceiverComponent(imageBasedLight: studioLight))
         }
@@ -116,7 +120,7 @@ final class MachineScene {
         // mechanisms drop soft contact shadows onto the face.
         // Lux kept low enough that the ivory clay mannequin sits at the Night
         // render's exposure instead of glowing (Wei, 15 Oct 2026).
-        let keyLux: Float = 3200
+        let keyLux: Float = 3200 * exposure
         let key = Entity()
         let keyFrom = SIMD3<Float>(-2.4, 3.4, 5.0)
         if #available(iOS 27, *) {
@@ -149,7 +153,7 @@ final class MachineScene {
         root.addChild(key)
 
         let fill = Entity()
-        fill.components.set(DirectionalLightComponent(color: .white, intensity: 600))
+        fill.components.set(DirectionalLightComponent(color: .white, intensity: 600 * exposure))
         fill.look(at: .zero, from: SIMD3(3.5, -1.0, 4.0), relativeTo: nil)
         root.addChild(fill)
 
