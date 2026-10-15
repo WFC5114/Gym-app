@@ -10,3 +10,6 @@ xcuserdata/
 *.xcuserstate
 .swiftpm/
 .claude/worktrees/
+
+# Blender render scripts
+design/render/__pycache__/

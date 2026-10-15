@@ -1,16 +1,17 @@
 import SwiftUI
 import UIKit
 
-/// DIET straight from Blender (Wei, 14 Oct 2026: "none of the objects should
+/// Faces straight from Blender (Wei, 14 Oct 2026: "none of the objects should
 /// be created from code, all straight from blender; coding controls the
-/// reactions, feel and functionalities"). design/render/night_diet.py renders
-/// the Night mockup scene, fitted to the face, in pieces: a backdrop, the jar
-/// in two layers, quick-add blocks, keys up and pressed, gauges at 21 fills,
-/// food blocks and hero glyphs, each 3 px per point with its soft shadow.
-/// night-diet.json gives every picture's rect on the reference face (420 × 852
-/// pt) and the layout the behaviour needs. On a rendered face the app lays
-/// these pictures out and moves them; it draws no objects of its own, and the
-/// face's RealityKit content is hidden.
+/// reactions, feel and functionalities"). design/render/night_diet.py and
+/// night_train.py render the Night scene, fitted to the face, in pieces:
+/// backdrops, the jar in two layers, quick-add blocks, keys up and pressed,
+/// gauges at 21 fills, food blocks, hero glyphs, the hourglass at 21 sand
+/// levels upright and turned over, each with its soft shadow. night-<face>.json
+/// gives every picture's rect on the reference face (420 × 852 pt) and the
+/// layout the behaviour needs. On a rendered face the app lays these pictures
+/// out and moves them; it draws no objects of its own, and the face's
+/// RealityKit content is hidden.
 enum RenderedArt {
     struct Sprite: Decodable {
         /// The picture's rect on the reference face, in points.
@@ -54,30 +55,59 @@ enum RenderedArt {
         var gauges: [String: [CGFloat]]
     }
 
-    private struct Meta: Decodable {
-        var layout: Layout
+    struct Glass: Decodable {
+        /// The largest glass's rect, its centre (the flip turns about it), the
+        /// foot of its base, and its height; short rests show it scaled down
+        /// about the base to `minShare` of that.
+        var rect: [CGFloat]
+        var centre: [CGFloat]
+        var baseY: CGFloat
+        var maxHeight: CGFloat
+        var minShare: CGFloat
+    }
+
+    struct TrainLayout: Decodable {
+        var face: [CGFloat]
+        var labels: [String: Label]
+        var hero: Hero
+        var coach: [CGFloat]
+        var keys: [String: [CGFloat]]
+        var glass: Glass
+    }
+
+    private struct Meta<L: Decodable>: Decodable {
+        var layout: L
         var sprites: [String: Sprite]
     }
 
-    private static let meta: Meta? = {
-        guard let url = Bundle.main.url(forResource: "night-diet", withExtension: "json"),
+    private static func load<L: Decodable>(_ name: String, as type: L.Type) -> Meta<L>? {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "json"),
               let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(Meta.self, from: data)
-    }()
+        return try? JSONDecoder().decode(Meta<L>.self, from: data)
+    }
+
+    private static let diet = load("night-diet", as: Layout.self)
+    private static let train = load("night-train", as: TrainLayout.self)
+    /// Every picture of every face, by name (TRAIN's hero uses DIET's glyphs).
+    private static let sprites: [String: Sprite] = (diet?.sprites ?? [:]).merging(train?.sprites ?? [:]) { a, _ in a }
 
     @MainActor private static var images: [String: UIImage] = [:]
 
-    /// Faces drawn from Blender. TRAIN follows; BODY's mannequin stays live 3D.
-    static let faces: Set<PrismFace> = [.diet]
+    /// Faces drawn from Blender, when their pictures are bundled. BODY's
+    /// mannequin moves too much to pre-render and stays live 3D.
+    static func on(_ face: PrismFace) -> Bool {
+        guard Brutal.skin.clayUI else { return false }
+        switch face {
+        case .diet: return diet != nil
+        case .train: return train != nil && diet != nil
+        case .body: return false
+        }
+    }
 
-    /// The Night skin with its pictures bundled.
-    static var isOn: Bool { Brutal.skin.clayUI && meta != nil }
+    static var layout: Layout? { diet?.layout }
+    static var trainLayout: TrainLayout? { train?.layout }
 
-    static func on(_ face: PrismFace) -> Bool { isOn && faces.contains(face) }
-
-    static var layout: Layout? { meta?.layout }
-
-    static func sprite(_ name: String) -> Sprite? { meta?.sprites[name] }
+    static func sprite(_ name: String) -> Sprite? { sprites[name] }
 
     @MainActor
     static func image(_ name: String) -> UIImage? {
@@ -90,7 +120,7 @@ enum RenderedArt {
     /// Reference-face points to this device's face: the pictures were rendered
     /// for the iPhone 18 Pro Max face and stretch a little on other phones.
     static func scale(_ layout: MachineLayout) -> CGSize {
-        let face = meta?.layout.face ?? [420, 852]
+        let face = diet?.layout.face ?? [420, 852]
         return CGSize(width: layout.faceWidth / face[0], height: layout.faceHeight / face[1])
     }
 
@@ -109,7 +139,7 @@ enum RenderedArt {
 
     /// Whether every character of a hero readout has a rendered glyph (spaces are just advance).
     static func covers(_ text: String) -> Bool {
-        isOn && text.allSatisfy { $0 == " " || glyphName($0).flatMap(sprite) != nil }
+        diet != nil && text.allSatisfy { $0 == " " || glyphName($0).flatMap(sprite) != nil }
     }
 
     static func foodName(_ tint: FoodTint, aspect: CGFloat) -> String {

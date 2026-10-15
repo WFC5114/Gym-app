@@ -376,17 +376,31 @@ struct HourglassGeometry {
     var layout: MachineLayout
 
     var mech: CGRect { layout.mechanismRect }
+    /// The rendered glass where Blender put it (TRAIN drawn from Blender).
+    private var art: RenderedArt.Glass? { RenderedArt.on(.train) ? RenderedArt.trainLayout?.glass : nil }
     /// Space kept clear above the tallest glass for the coach's note.
     static let coachClearance: CGFloat = 128
-    var minHeight: CGFloat { mech.height * 0.38 }
+    var minHeight: CGFloat {
+        if let art { return art.maxHeight * art.minShare * RenderedArt.scale(layout).height }
+        return mech.height * 0.38
+    }
     /// Space under the glass for its engraved rest length.
     static let labelClearance: CGFloat = 34
-    var maxHeight: CGFloat { max(mech.height - Self.coachClearance - Self.labelClearance, minHeight) }
+    var maxHeight: CGFloat {
+        if let art { return art.maxHeight * RenderedArt.scale(layout).height }
+        return max(mech.height - Self.coachClearance - Self.labelClearance, minHeight)
+    }
 
     /// The glass stands near the bottom of the mechanism and grows upward. It
     /// keeps clear of the coach's note on the left (34% of the content width),
     /// so it sits right of centre when it is wide, without leaving the face.
+    /// The rendered glass grows from its base where Blender stood it.
     func center(forHeight h: CGFloat) -> CGPoint {
+        if let art, art.centre.count == 2 {
+            let s = RenderedArt.scale(layout)
+            let base = art.baseY * s.height
+            return CGPoint(x: art.centre[0] * s.width, y: base - (base - art.centre[1] * s.height) * h / max(maxHeight, 1))
+        }
         let half = h * Self.aspect / 2
         let clearOfNote = layout.side + layout.contentWidth * Self.noteShare + 12 + half
         let rightLimit = layout.side + layout.contentWidth - half
@@ -398,7 +412,10 @@ struct HourglassGeometry {
     static let noteShare: CGFloat = 0.34
 
     /// Centre of the engraved rest length under the glass.
-    var labelY: CGFloat { mech.maxY - Self.labelClearance / 2 + 2 }
+    var labelY: CGFloat {
+        if art != nil, let a = RenderedArt.trainLayout?.labels["glass.value"] { return a.y * RenderedArt.scale(layout).height }
+        return mech.maxY - Self.labelClearance / 2 + 2
+    }
     static let sizeRange = 30.0...360.0
 
     /// Height for a total rest length: 30 s is the smallest glass, 6 min the largest.

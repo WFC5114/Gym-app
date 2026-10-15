@@ -358,6 +358,17 @@ final class MachineModelTests: XCTestCase {
         }
     }
 
+    func testRenderedGlassStandsClearOfTheCoachPlateOnTheTray() throws {
+        // night_train.py places the largest glass; the app only scales it down about its base.
+        let art = try XCTUnwrap(RenderedArt.trainLayout, "TRAIN's rendered layout is bundled")
+        let glass = art.glass.rect, plate = art.coach
+        XCTAssertGreaterThanOrEqual(glass[0], plate[0] + plate[2] + 4, "glass clear of the coach plate")
+        XCTAssertLessThanOrEqual(glass[0] + glass[2], art.face[0] - 7, "glass inside the tray")
+        XCTAssertEqual(glass[1] + glass[3], art.glass.baseY, accuracy: 0.01)
+        let keysTop = art.keys.filter { $0.key != "use" }.values.map { $0[1] }.min() ?? 0
+        XCTAssertLessThan(art.glass.baseY, keysTop, "glass above the keys")
+    }
+
     // MARK: Desk hourglass
 
     func testDeskHourglassStandsOneUnitTallAndSymmetric() {

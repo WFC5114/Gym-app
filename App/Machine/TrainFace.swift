@@ -8,10 +8,19 @@ struct TrainFace: View {
     let layout: MachineLayout
 
     var body: some View {
+        if RenderedArt.on(.train) {
+            RenderedTrainFace(model: model, layout: layout)
+        } else {
+            drawnFace
+        }
+    }
+
+    /// The face drawn in code (skins without rendered art).
+    private var drawnFace: some View {
         let rail = model.rail
         let glass = model.glassGeometry
         let glassHeight = CGFloat(model.glassHeight.position)
-        ZStack(alignment: .topLeading) {
+        return ZStack(alignment: .topLeading) {
             Color.clear.contentShape(Rectangle()).modifier(FaceSwipe(model: model))
 
             FaceHeader(model: model, layout: layout, face: .train, caption: model.dataCaption)

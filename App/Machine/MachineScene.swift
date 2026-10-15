@@ -435,6 +435,9 @@ final class MachineScene {
         let dietRendered = RenderedArt.on(.diet)
         dietGroup.isEnabled = !dietRendered
         if !facePlates.isEmpty { facePlates[0].isEnabled = !dietRendered }
+        let trainRendered = RenderedArt.on(.train)
+        glassGroup.isEnabled = !trainRendered
+        if facePlates.count > 1 { facePlates[1].isEnabled = !trainRendered }
         applyDiet(model, layout: layout)
         for (face, n) in numerals {
             let glyphs = model.heroGlyphs[face]
