@@ -34,11 +34,11 @@ label_anchor('unit', 0, 0, 0.034)
 HERO_SIZE = 0.255
 LAYOUT['hero'] = dict(x=round(face_pt(-0.445, 0)[0], 2), centerY=round(face_pt(0, Z(0.70))[1], 2),
                       fontSize=round(HERO_SIZE * PT * EM[HERO_FONT.name], 2))
-label_anchor('schematic', *at(210, 270), 0.021, align='center')
-label_anchor('sources', *at(210, 285), 0.018, align='center', weight='medium')
+label_anchor('schematic', *at(210, 268), 0.028, align='center')
+label_anchor('sources', *at(210, 285), 0.025, align='center', weight='medium')
 for i, key in enumerate(('fat', 'lean', 'source')):
-    label_anchor('reading.%s.name' % key, *at(118 + i * 92, 686), 0.019, align='center')
-    label_anchor('reading.%s.value' % key, *at(118 + i * 92, 702), 0.03, align='center', weight='medium')
+    label_anchor('reading.%s.name' % key, *at(118 + i * 92, 685), 0.027, align='center')
+    label_anchor('reading.%s.value' % key, *at(118 + i * 92, 702), 0.036, align='center', weight='medium')
 
 # --- The ruler's plate: a raised graphite clay plate held by four brass screws.
 RULER = [26.0, 718.0, 368.0, 106.0]

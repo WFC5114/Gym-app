@@ -121,7 +121,8 @@ struct RenderedBodyFace: View {
                 StandingSprite(name: "night-body-tick-" + (obs.isScan ? "scan" : i % 7 == 0 ? "week" : "day"),
                                foot: CGPoint(x: x(Double(i)), y: base), scale: s)
             }
-            ForEach([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5], id: \.self) { k in
+            // The vernier stops at the ends of the track.
+            ForEach([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5].filter { (0...Double(count)).contains(cursor + Double($0) * 0.9) }, id: \.self) { k in
                 StandingSprite(name: "night-body-fine", foot: CGPoint(x: x(cursor + Double(k) * 0.9), y: fineFoot), scale: s)
             }
             StandingSprite(name: "night-body-cursor", foot: CGPoint(x: x(cursor), y: base), scale: s)

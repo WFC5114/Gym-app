@@ -40,56 +40,56 @@
    },
    "reading.fat.name": {
     "align": "center",
-    "size": 5.53,
+    "size": 7.86,
     "weight": "bold",
     "x": 118.0,
-    "y": 686.0
+    "y": 685.0
    },
    "reading.fat.value": {
     "align": "center",
-    "size": 8.79,
+    "size": 10.55,
     "weight": "medium",
     "x": 118.0,
     "y": 702.0
    },
    "reading.lean.name": {
     "align": "center",
-    "size": 5.53,
+    "size": 7.86,
     "weight": "bold",
     "x": 210.0,
-    "y": 686.0
+    "y": 685.0
    },
    "reading.lean.value": {
     "align": "center",
-    "size": 8.79,
+    "size": 10.55,
     "weight": "medium",
     "x": 210.0,
     "y": 702.0
    },
    "reading.source.name": {
     "align": "center",
-    "size": 5.53,
+    "size": 7.86,
     "weight": "bold",
     "x": 302.0,
-    "y": 686.0
+    "y": 685.0
    },
    "reading.source.value": {
     "align": "center",
-    "size": 8.79,
+    "size": 10.55,
     "weight": "medium",
     "x": 302.0,
     "y": 702.0
    },
    "schematic": {
     "align": "center",
-    "size": 6.11,
+    "size": 8.15,
     "weight": "bold",
     "x": 210.0,
-    "y": 270.0
+    "y": 268.0
    },
    "sources": {
     "align": "center",
-    "size": 5.28,
+    "size": 7.33,
     "weight": "medium",
     "x": 210.0,
     "y": 285.0
