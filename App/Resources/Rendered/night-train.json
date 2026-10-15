@@ -1,0 +1,603 @@
+{
+ "layout": {
+  "coach": [
+   27.38,
+   250.0,
+   144.0,
+   128.0
+  ],
+  "face": [
+   420.0,
+   852.0
+  ],
+  "glass": {
+   "baseY": 660.5,
+   "centre": [
+    292.0,
+    511.04
+   ],
+   "maxHeight": 300.0,
+   "minShare": 0.6,
+   "rect": [
+    180.04,
+    360.5,
+    223.92,
+    300.0
+   ]
+  },
+  "hero": {
+   "centerY": 132.11,
+   "fontSize": 67.52,
+   "x": 21.01
+  },
+  "keys": {
+   "add": [
+    31.63,
+    700.0,
+    176.0,
+    44.0
+   ],
+   "end": [
+    218.74,
+    700.0,
+    176.0,
+    44.0
+   ],
+   "longer": [
+    300.74,
+    700.0,
+    94.0,
+    44.0
+   ],
+   "setdone": [
+    31.63,
+    768.73,
+    363.11,
+    49.26
+   ],
+   "shorter": [
+    31.63,
+    700.0,
+    94.0,
+    44.0
+   ],
+   "use": [
+    27.38,
+    390.0,
+    144.0,
+    44.0
+   ]
+  },
+  "labels": {
+   "caption": {
+    "align": "left",
+    "size": 7.04,
+    "weight": "medium",
+    "x": 27.38,
+    "y": 56.59
+   },
+   "coach.reasons": {
+    "align": "left",
+    "size": 6.16,
+    "weight": "medium",
+    "x": 41.38,
+    "y": 316.0
+   },
+   "coach.title": {
+    "align": "left",
+    "size": 9.89,
+    "weight": "bold",
+    "x": 41.38,
+    "y": 294.0
+   },
+   "glass.name": {
+    "align": "center",
+    "size": 5.82,
+    "weight": "bold",
+    "x": 292.0,
+    "y": 686.0
+   },
+   "glass.value": {
+    "align": "center",
+    "size": 8.79,
+    "weight": "medium",
+    "x": 292.0,
+    "y": 670.0
+   },
+   "line1": {
+    "align": "left",
+    "size": 8.73,
+    "weight": "bold",
+    "x": 27.38,
+    "y": 195.38
+   },
+   "line2": {
+    "align": "left",
+    "size": 8.21,
+    "weight": "medium",
+    "x": 27.38,
+    "y": 211.7
+   },
+   "nav": {
+    "align": "right",
+    "size": 7.57,
+    "weight": "bold",
+    "x": 392.62,
+    "y": 40.27
+   },
+   "rest.name": {
+    "align": "center",
+    "size": 5.82,
+    "weight": "bold",
+    "x": 213.19,
+    "y": 714.0
+   },
+   "rest.value": {
+    "align": "center",
+    "size": 9.38,
+    "weight": "medium",
+    "x": 213.19,
+    "y": 731.0
+   },
+   "title": {
+    "align": "left",
+    "size": 12.22,
+    "weight": "bold",
+    "x": 27.38,
+    "y": 38.23
+   }
+  }
+ },
+ "pointsPerUnit": 424.68619246861925,
+ "scale": 3,
+ "sprites": {
+  "night-hourglass-a-00": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-01": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-02": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-03": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-04": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-05": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-06": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-07": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-08": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-09": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-10": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-11": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-12": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-13": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-14": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-15": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-16": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-17": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-18": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-19": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-a-20": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-00": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-01": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-02": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-03": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-04": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-05": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-06": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-07": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-08": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-09": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-10": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-11": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-12": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-13": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-14": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-15": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-16": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-17": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-18": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-19": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-b-20": {
+   "rect": [
+    164,
+    344,
+    256,
+    333
+   ]
+  },
+  "night-hourglass-shadow": {
+   "rect": [
+    150,
+    330,
+    344,
+    421
+   ]
+  },
+  "night-train-backdrop": {
+   "rect": [
+    0,
+    0,
+    420.0,
+    852.0
+   ]
+  },
+  "night-train-key-add": {
+   "rect": [
+    17,
+    686,
+    225,
+    94
+   ]
+  },
+  "night-train-key-add-down": {
+   "rect": [
+    17,
+    686,
+    225,
+    94
+   ]
+  },
+  "night-train-key-end": {
+   "rect": [
+    204,
+    686,
+    225,
+    94
+   ]
+  },
+  "night-train-key-end-down": {
+   "rect": [
+    204,
+    686,
+    225,
+    94
+   ]
+  },
+  "night-train-key-longer": {
+   "rect": [
+    286,
+    686,
+    143,
+    94
+   ]
+  },
+  "night-train-key-longer-down": {
+   "rect": [
+    286,
+    686,
+    143,
+    94
+   ]
+  },
+  "night-train-key-setdone": {
+   "rect": [
+    23,
+    760,
+    398,
+    88
+   ]
+  },
+  "night-train-key-setdone-down": {
+   "rect": [
+    23,
+    760,
+    398,
+    88
+   ]
+  },
+  "night-train-key-shorter": {
+   "rect": [
+    17,
+    686,
+    143,
+    94
+   ]
+  },
+  "night-train-key-shorter-down": {
+   "rect": [
+    17,
+    686,
+    143,
+    94
+   ]
+  },
+  "night-train-key-use": {
+   "rect": [
+    13,
+    376,
+    193,
+    94
+   ]
+  },
+  "night-train-key-use-down": {
+   "rect": [
+    13,
+    376,
+    193,
+    94
+   ]
+  }
+ }
+}
