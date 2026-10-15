@@ -369,6 +369,27 @@ final class MachineModelTests: XCTestCase {
         XCTAssertLessThan(art.glass.baseY, keysTop, "glass above the keys")
     }
 
+    func testInsetPicturesSliceOutsideTheirObjectsMiddles() throws {
+        // night_inset.py: each picture keeps its corners and stretches its middle.
+        let names = ["night-inset-panel", "night-inset-field", "night-inset-primary", "night-inset-primary-down"]
+            + [40, 44, 56].flatMap { ["night-inset-key-\($0)", "night-inset-key-\($0)-down"] }
+        for name in names {
+            let s = try XCTUnwrap(RenderedArt.sprite(name), "\(name) is bundled")
+            let o = try XCTUnwrap(s.object, name), c = try XCTUnwrap(s.slice, name)
+            XCTAssertLessThan(c[1] + c[3], s.rect[2], "\(name) has a middle column to stretch")
+            XCTAssertLessThan(c[0] + c[2], s.rect[3], "\(name) has a middle row to stretch")
+            XCTAssertGreaterThanOrEqual(c[1], o[0], "\(name) keeps its whole left shadow")
+            XCTAssertGreaterThanOrEqual(c[0], o[1], "\(name) keeps its whole top shadow")
+        }
+        // A square key still fits the stepper's 56 pt square, and the 44 pt key a 44 pt square.
+        for h in [44, 56] {
+            let s = try XCTUnwrap(RenderedArt.sprite("night-inset-key-\(h)"))
+            let o = s.object ?? [], c = s.slice ?? []
+            let rightShadow = s.rect[2] - o[0] - o[2]
+            XCTAssertLessThanOrEqual((c[1] - o[0]) + (c[3] - rightShadow), CGFloat(h))
+        }
+    }
+
     // MARK: Desk hourglass
 
     func testDeskHourglassStandsOneUnitTallAndSymmetric() {

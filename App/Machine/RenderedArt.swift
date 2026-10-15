@@ -22,6 +22,8 @@ enum RenderedArt {
         var character: String?
         var fontSize: CGFloat?
         var origin: [CGFloat]?
+        /// Sliced pictures (the inset's): the corners to keep, in points (top, left, bottom, right).
+        var slice: [CGFloat]?
     }
 
     struct Label: Decodable {
@@ -75,6 +77,11 @@ enum RenderedArt {
         var glass: Glass
     }
 
+    /// The inset's pictures have no layout of their own: they are sliced to fit.
+    struct InsetLayout: Decodable {
+        var face: [CGFloat]
+    }
+
     private struct Meta<L: Decodable>: Decodable {
         var layout: L
         var sprites: [String: Sprite]
@@ -88,8 +95,11 @@ enum RenderedArt {
 
     private static let diet = load("night-diet", as: Layout.self)
     private static let train = load("night-train", as: TrainLayout.self)
+    private static let inset = load("night-inset", as: InsetLayout.self)
     /// Every picture of every face, by name (TRAIN's hero uses DIET's glyphs).
-    private static let sprites: [String: Sprite] = (diet?.sprites ?? [:]).merging(train?.sprites ?? [:]) { a, _ in a }
+    private static let sprites: [String: Sprite] = [diet?.sprites, train?.sprites, inset?.sprites]
+        .compactMap { $0 }
+        .reduce(into: [:]) { all, more in all.merge(more) { a, _ in a } }
 
     @MainActor private static var images: [String: UIImage] = [:]
 
@@ -103,6 +113,9 @@ enum RenderedArt {
         case .body: return false
         }
     }
+
+    /// The in-face inset's well, keys and text slots from Blender (design/render/night_inset.py).
+    static var insetOn: Bool { Brutal.skin.clayUI && inset != nil }
 
     static var layout: Layout? { diet?.layout }
     static var trainLayout: TrainLayout? { train?.layout }
@@ -194,6 +207,58 @@ struct ObjectSprite: View {
                 .frame(width: size.width, height: size.height)
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
+        }
+    }
+}
+
+/// A sliced picture whose object fills the view: its corners (`slice`) keep
+/// their size, its middle stretches (or tiles, for textured clay), and its
+/// shadow spills past the view's edges.
+struct SlicedSprite: View {
+    let name: String
+    var tile = false
+
+    var body: some View {
+        GeometryReader { geo in
+            if let s = RenderedArt.sprite(name), let o = s.object, o.count == 4, let c = s.slice, c.count == 4,
+               s.rect.count == 4, let image = RenderedArt.image(name) {
+                let right = s.rect[2] - o[0] - o[2], bottom = s.rect[3] - o[1] - o[3]
+                Image(uiImage: image)
+                    .resizable(capInsets: EdgeInsets(top: c[0], leading: c[1], bottom: c[2], trailing: c[3]),
+                               resizingMode: tile ? .tile : .stretch)
+                    .frame(width: geo.size.width + o[0] + right, height: geo.size.height + o[1] + bottom)
+                    .offset(x: -o[0], y: -o[1])
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// A blank inset key from Blender, up and pressed, the nearest rendered height to the view's.
+struct RenderedInsetKey: View {
+    let primary: Bool
+    let pressed: Bool
+
+    var body: some View {
+        GeometryReader { geo in
+            let name = primary ? "night-inset-primary"
+                : "night-inset-key-\([40, 44, 56].min { abs(CGFloat($0) - geo.size.height) < abs(CGFloat($1) - geo.size.height) } ?? 44)"
+            ZStack {
+                SlicedSprite(name: name)
+                SlicedSprite(name: name + "-down").opacity(pressed ? 1 : 0)
+            }
+        }
+    }
+}
+
+/// The slot under a text field: the rendered one in the inset, a plain well otherwise.
+struct InsetFieldWell: View {
+    var body: some View {
+        if RenderedArt.insetOn {
+            SlicedSprite(name: "night-inset-field")
+        } else {
+            RoundedRectangle(cornerRadius: 5).fill(Color(white: 0.1))
         }
     }
 }

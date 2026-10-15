@@ -26,7 +26,7 @@ struct BarcodePanel: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 10)
                     .frame(minHeight: 44)
-                    .background(RoundedRectangle(cornerRadius: 5).fill(Color(white: 0.1)))
+                    .background(InsetFieldWell())
                     .accessibilityLabel("Barcode digits")
                 Button("LOOK UP") { onCode(barcode) }
                     .buttonStyle(MachineButtonStyle())

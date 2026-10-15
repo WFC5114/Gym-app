@@ -23,15 +23,21 @@ struct InsetLayer: View {
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color(white: 0.035))
-                        .overlay(
-                            // A machined recess: dark top lip, faint lower edge.
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .strokeBorder(LinearGradient(colors: [.black, Color(white: 0.16)], startPoint: .top, endPoint: .bottom), lineWidth: 1.5)
-                        )
-                )
+                .padding(RenderedArt.insetOn ? 6 : 0)
+                .background {
+                    if RenderedArt.insetOn {
+                        // The recessed graphite well from Blender, sliced to fit.
+                        SlicedSprite(name: "night-inset-panel")
+                    } else {
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color(white: 0.035))
+                            .overlay(
+                                // A machined recess: dark top lip, faint lower edge.
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .strokeBorder(LinearGradient(colors: [.black, Color(white: 0.16)], startPoint: .top, endPoint: .bottom), lineWidth: 1.5)
+                            )
+                    }
+                }
             }
             // Starts under the face header and covers the whole hero: a hero
             // cut in half by the inset edge read as a clipping bug (§14).
@@ -112,7 +118,7 @@ struct FoodSearchInset: View {
                     .focused($focused)
                     .padding(.horizontal, 12)
                     .frame(minHeight: 44)
-                    .background(RoundedRectangle(cornerRadius: 5).fill(Color(white: 0.1)))
+                    .background(InsetFieldWell())
                     .accessibilityIdentifier("intake.search")
                 Button(scanning ? "STOP" : "SCAN") { scanning.toggle(); focused = false }
                     .buttonStyle(MachineButtonStyle())
@@ -270,7 +276,7 @@ struct ServingInset: View {
                         .foregroundStyle(.white)
                         .frame(width: 84, height: 40)
                         .padding(.horizontal, 8)
-                        .background(RoundedRectangle(cornerRadius: 5).fill(Color(white: 0.1)))
+                        .background(InsetFieldWell())
                         .onChange(of: typed) { _, v in
                             if let g = Double(v.replacingOccurrences(of: ",", with: ".")), g > 0 { grams = min(g, 5000) }
                         }

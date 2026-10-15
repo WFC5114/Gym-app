@@ -105,13 +105,17 @@ struct MachineKey: View {
         let inScene = clay && host != nil && part != nil && !(host.map { RenderedArt.on($0.face) } ?? false)
         let pressed = configuration.isPressed
         configuration.label
-            .font(TypeKit.label(13 * min(scale, 1.25), weight: .heavy))
+            .font(clay && RenderedArt.insetOn && !inScene
+                  ? ArtPlacer.font("bold", 12.5 * min(scale, 1.25))
+                  : TypeKit.label(13 * min(scale, 1.25), weight: .heavy))
             .tracking(clay ? 1.1 : 1.4)
             .foregroundStyle(textColor(clay))
             .frame(maxWidth: .infinity, minHeight: 44, maxHeight: .infinity)
             .background {
                 if inScene {
                     Color.clear
+                } else if clay && RenderedArt.insetOn {
+                    RenderedInsetKey(primary: primary, pressed: pressed)
                 } else if clay {
                     ClayPill(primary: primary, pressed: pressed)
                 } else {
