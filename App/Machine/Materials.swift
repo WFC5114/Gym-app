@@ -256,9 +256,11 @@ struct ClayKit {
         if night {
             // NIGHT (Wei, 14 Oct 2026): ivory clay, terracotta joints, brass
             // hardware, graphite plinths, as in design/mockups/clay/screen.py night.
-            let joint = clay(0xD9774E)
-            return ClayKit(body: clay(0xE9DFD0, roughness: 0.46), joint: joint, socket: clay(0x7A4632, roughness: 0.55, coat: 0),
-                           hardware: clay(0xC9A46A, roughness: 0.34, coat: 0.45), rod: clay(0xF1ECE4),
+            // Kept a step darker and more matte than the mockup's ivory: live in
+            // RealityKit the light ivory read as glowing (Wei, 15 Oct).
+            let joint = clay(0xC46A45, roughness: 0.5, coat: 0.12)
+            return ClayKit(body: clay(0xC9BFB1, roughness: 0.62, coat: 0.1), joint: joint, socket: clay(0x6E3F2D, roughness: 0.6, coat: 0),
+                           hardware: clay(0xB8945E, roughness: 0.4, coat: 0.3), rod: clay(0xD3CBBF, roughness: 0.6, coat: 0.1),
                            dial: clay(0x3A3540, roughness: 0.5, coat: 0.1), plinth: clay(0x34303A, roughness: 0.5),
                            tick: clay(0x8E8892, coat: 0.1), sand: clay(0xF3E9D8, roughness: 0.8, coat: 0), glass: glass,
                            accent: joint)
@@ -287,8 +289,9 @@ struct ClayKit {
         if #available(iOS 27, *) {
             // Light soaks a little way into clay and comes back warmer, as in
             // the Cycles mockups (subsurface 0.12 to 0.18, radius about 3% of an object).
+            // More than that made the mannequin look lit from inside (Wei, 15 Oct).
             let r = CGFloat((hex >> 16) & 0xFF) / 255, g = CGFloat((hex >> 8) & 0xFF) / 255, b = CGFloat(hex & 0xFF) / 255
-            m.subsurfaceWeight = .init(scale: 0.3, texture: nil)
+            m.subsurfaceWeight = .init(scale: 0.12, texture: nil)
             m.subsurfaceColor = .init(color: CGColor(srgbRed: min(r * 1.08, 1), green: g * 0.92, blue: b * 0.85, alpha: 1), texture: nil)
             m.subsurfaceRadius = .init(scale: 0.08, texture: nil)
             m.subsurfaceRadiusScale = .init(color: CGColor(srgbRed: 1, green: 0.55, blue: 0.35, alpha: 1), texture: nil)

@@ -100,7 +100,7 @@ final class MachineScene {
         // above stays black where the orthographic camera looks, so the void stays #000.
         if let studio = MaterialKit.studioImage(),
            let env = try? await EnvironmentResource(equirectangular: studio, withName: "studio-softboxes") {
-            studioLight.components.set(ImageBasedLightComponent(source: .single(env), intensityExponent: 0.3))
+            studioLight.components.set(ImageBasedLightComponent(source: .single(env), intensityExponent: -0.6))
             root.addChild(studioLight)
             prismRoot.components.set(ImageBasedLightReceiverComponent(imageBasedLight: studioLight))
         }
@@ -114,6 +114,9 @@ final class MachineScene {
 
         // Key light from the upper left, in front: planes separate by tone and
         // mechanisms drop soft contact shadows onto the face.
+        // Lux kept low enough that the ivory clay mannequin sits at the Night
+        // render's exposure instead of glowing (Wei, 15 Oct 2026).
+        let keyLux: Float = 3200
         let key = Entity()
         let keyFrom = SIMD3<Float>(-2.4, 3.4, 5.0)
         if #available(iOS 27, *) {
@@ -121,12 +124,12 @@ final class MachineScene {
             // widens with distance, like the softbox in the clay mockups. The
             // key is split: an unshadowed directional share keeps the shading,
             // a spot share from the same side casts the soft shadows.
-            var keyLight = DirectionalLightComponent(color: .white, intensity: 5200 * 0.55)
+            var keyLight = DirectionalLightComponent(color: .white, intensity: keyLux * 0.55)
             keyLight.isRealWorldProxy = false
             key.components.set(keyLight)
             let softKey = Entity()
             let distance: Float = 13
-            let lux: Float = 5200 * 0.45
+            let lux: Float = keyLux * 0.45
             softKey.components.set(SpotLightComponent(color: .white, intensity: lux * 4 * .pi * distance * distance,
                                                       innerAngleInDegrees: 34, outerAngleInDegrees: 48, attenuationRadius: 60))
             var shadow = SpotLightComponent.Shadow()
@@ -137,7 +140,7 @@ final class MachineScene {
             softKey.look(at: .zero, from: simd_normalize(keyFrom) * distance, relativeTo: nil)
             root.addChild(softKey)
         } else {
-            var keyLight = DirectionalLightComponent(color: .white, intensity: 5200)
+            var keyLight = DirectionalLightComponent(color: .white, intensity: keyLux)
             keyLight.isRealWorldProxy = false
             key.components.set(keyLight)
             key.components.set(DirectionalLightComponent.Shadow(maximumDistance: 12, depthBias: 2))
@@ -146,7 +149,7 @@ final class MachineScene {
         root.addChild(key)
 
         let fill = Entity()
-        fill.components.set(DirectionalLightComponent(color: .white, intensity: 1100))
+        fill.components.set(DirectionalLightComponent(color: .white, intensity: 600))
         fill.look(at: .zero, from: SIMD3(3.5, -1.0, 4.0), relativeTo: nil)
         root.addChild(fill)
 
