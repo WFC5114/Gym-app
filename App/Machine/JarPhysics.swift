@@ -80,6 +80,9 @@ struct JarWorld {
     private var awakeTime = 0.0
     /// Where each block was when the current stillness window opened (by serial).
     private var restAnchors: [Int: (position: SIMD2<Double>, angle: Double)] = [:]
+    /// Every block has stayed slow through the current window.
+    private var slowThroughout = true
+    private var windowOpen = false
     /// Every block has been still for a moment: stepping stops until something changes.
     private(set) var isAtRest = true
     /// Bumped whenever a block moves.
@@ -152,6 +155,7 @@ struct JarWorld {
         restTime = 0
         awakeTime = 0
         restAnchors.removeAll()
+        windowOpen = false
     }
 
     func body(_ id: UUID) -> Body? { bodies.first { $0.id == id } }
@@ -175,26 +179,31 @@ struct JarWorld {
             left -= h
         }
         version &+= 1
-        // At rest once no block has gone anywhere for a moment. Measured as
-        // travel over a window, not speed: a resting box's speed flickers by
-        // about one substep of gravity (11 pt/s), so a speed test can miss rest.
-        if restAnchors.isEmpty {
+        // At rest once, for a moment, no block has gone anywhere or every
+        // block has crept along slowly. Travel catches a resting box whose
+        // speed flickers by about one substep of gravity (11 pt/s); speed
+        // catches a slow creep that would never stop travelling.
+        awakeTime += dt
+        if !windowOpen {
             for b in bodies where b.role == .block { restAnchors[b.serial] = (b.position, b.angle) }
+            windowOpen = true
             restTime = 0
+            slowThroughout = true
             return
         }
         restTime += dt
-        awakeTime += dt
+        slowThroughout = slowThroughout && bodies.allSatisfy { $0.role != .block || (simd_length($0.velocity) < 8 && abs($0.spin) < 0.1) }
         guard restTime >= Self.restWindow else { return }
         // A stack wedged against the glass can keep up a faint jitter: the
         // longer the world has been awake, the more of it counts as rest.
         let slack = 1 + max(awakeTime - 2, 0)
-        let still = awakeTime > Self.longestAwake || bodies.allSatisfy { b in
+        let stayedPut = bodies.allSatisfy { b in
             guard b.role == .block, let anchor = restAnchors[b.serial] else { return true }
             return simd_length(b.position - anchor.position) < 1.5 * slack && abs(b.angle - anchor.angle) < 0.03 * slack
         }
         restAnchors.removeAll()
-        if still {
+        windowOpen = false
+        if stayedPut || slowThroughout || awakeTime > Self.longestAwake {
             isAtRest = true
             for i in bodies.indices { bodies[i].velocity = .zero; bodies[i].spin = 0 }
         }
@@ -205,8 +214,8 @@ struct JarWorld {
     /// No drop takes longer than this to settle; after it the pile is called at rest.
     static let longestAwake = 6.0
 
-    /// Runs until everything is still, up to `limit` seconds (launch, fixtures).
-    mutating func settle(limit: Double = 4) {
+    /// Runs until everything is still (launch, fixtures); `longestAwake` bounds it.
+    mutating func settle(limit: Double = JarWorld.longestAwake + 1) {
         wake()
         var t = 0.0
         while !isAtRest && t < limit {

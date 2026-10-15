@@ -615,6 +615,9 @@ final class MachineModel {
         let maxV: CGFloat = 2400
         blocks[i].velocity = CGVector(dx: min(max(blocks[i].velocity.dx, -maxV), maxV), dy: min(max(blocks[i].velocity.dy, -maxV), maxV))
         if landingRect.contains(blocks[i].position) {
+            // Let go over the jar, a block drops in: an upward flick lifts it
+            // a little, not off the top of the screen.
+            blocks[i].velocity.dy = max(blocks[i].velocity.dy, -500)
             startFall(i, velocity: blocks[i].velocity)
         } else {
             beginReturn(i)
