@@ -4,6 +4,7 @@ import UIKit
 /// Text, keys and the hero on a face drawn from Blender, at its layout's
 /// anchors: the pictures are rendered, the changing words are set here in the
 /// render's own Inter Display at the render's sizes.
+@MainActor
 struct ArtPlacer {
     let model: MachineModel
     let layout: MachineLayout
