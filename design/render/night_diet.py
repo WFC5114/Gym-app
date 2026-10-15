@@ -24,7 +24,7 @@ label_anchor('caption', -0.43, Z(0.885), 0.024, weight='medium')
 label_anchor('nav', 0.43, Z(0.925), 0.026, align='right')
 label_anchor('heroLabel', -0.43, Z(0.545), 0.03)
 label_anchor('eaten', -0.43, Z(0.505), 0.028, weight='medium')
-label_anchor('unknownMacros', -0.43, Z(0.315), 0.022, weight='medium')
+label_anchor('unknownMacros', 0.43, Z(0.505), 0.022, weight='medium', align='right')   # beside 'eaten': the bigger jar's collar sits where it was
 
 # --- Hero: kcal left, set by the app from rendered glyphs.
 HERO_SIZE = 0.255
