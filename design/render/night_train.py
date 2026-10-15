@@ -212,7 +212,12 @@ def offset_in(prof):
 
 prof = [(-z, r) for z, r in reversed(outer)] + outer[1:]
 inner = offset_in(prof)
-link(lathe('glass', prof + list(reversed(inner)), 192, loop=True), pivot, GLASS)
+# Clear glass that lets light through to the sand: a tinted shell darkens
+# what is behind it at every wall it crosses, and a shadowing shell leaves the
+# sand lit only by refracted light, so pale sand read as grey in either bulb.
+HG_GLASS = resin('hourglassGlass', 0xFAFBFD, 0.05)
+shell = link(lathe('glass', prof + list(reversed(inner)), 192, loop=True), pivot, HG_GLASS)
+shell.visible_shadow = False
 link(lathe('neckRing', [(-0.012, 0.034), (-0.012, 0.04), (0.012, 0.04), (0.012, 0.034)], 64, loop=True), pivot, HARD)
 for i in range(7):
     t = link(block('tick', 0.003, 0.004, 0.01 if i % 2 == 0 else 0.006, bevel=0.002, sub=1), pivot, HARD)
