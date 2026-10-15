@@ -110,6 +110,8 @@ struct MachineKey: View {
                   : TypeKit.label(13 * min(scale, 1.25), weight: .heavy))
             .tracking(clay ? 1.1 : 1.4)
             .foregroundStyle(textColor(clay))
+            // A rendered key's rounded ends are no place for its label.
+            .padding(.horizontal, clay && RenderedArt.insetOn && !inScene ? 14 : 0)
             .frame(maxWidth: .infinity, minHeight: 44, maxHeight: .infinity)
             .background {
                 if inScene {

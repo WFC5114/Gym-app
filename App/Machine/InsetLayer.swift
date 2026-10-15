@@ -245,13 +245,22 @@ struct ServingInset: View {
                 stepButton("−") { setGrams(grams - step) }
                     .accessibilityLabel("Less")
                 VStack(spacing: 0) {
-                    Text(Readout.grams(grams))
-                        .font(TypeKit.display(40))
-                        .tracking(-1.6)
-                        .foregroundStyle(.white)
-                        .contentTransition(.numericText(value: grams))
-                        .lineLimit(1)
-                        .minimumScaleFactor(1)
+                    let text = Readout.grams(grams)
+                    if RenderedArt.insetOn && RenderedArt.covers(text) {
+                        // The rendered clay numerals, as on the faces.
+                        let size: CGFloat = 44, cap = TypeKit.displayUIFont(44).capHeight
+                        RenderedHero(text: text, size: size, origin: CGPoint(x: 0, y: cap))
+                            .frame(width: RenderedHero.width(text, size: size), height: cap)
+                            .padding(.vertical, 8)
+                    } else {
+                        Text(text)
+                            .font(TypeKit.display(40))
+                            .tracking(-1.6)
+                            .foregroundStyle(.white)
+                            .contentTransition(.numericText(value: grams))
+                            .lineLimit(1)
+                            .minimumScaleFactor(1)
+                    }
                     Engraved(text: "GRAMS", size: 9)
                 }
                 .frame(maxWidth: .infinity)
@@ -282,7 +291,12 @@ struct ServingInset: View {
                         }
                         .accessibilityLabel("Exact grams")
                 }
+                // Room inside the scroller for the rendered keys' soft shadows.
+                .padding(.top, 12)
+                .padding(.bottom, 24)
             }
+            .padding(.top, -12)
+            .padding(.bottom, -24)
             HStack(spacing: 0) {
                 readout("KCAL", Readout.kcal(n.kcal))
                 readout("PROTEIN", Readout.grams(n.protein) + " G")
