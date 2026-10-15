@@ -44,10 +44,11 @@ for i, (key, kind) in enumerate([('protein', 'protein'), ('carbs', 'carbs'), ('f
 
 # --- The jar, as in the mockup, fitted: bigger and centred on the face (Wei,
 # 15 Oct 2026: "all objects should be bigger and in the center"), standing a
-# little lower so it clears the macro gauges.
-JAR_Z = Z(-0.49) - 15 * U
-jar = empty('jar', (-0.003, -0.17, JAR_Z), rot=(math.radians(6), 0, math.radians(-8)))
-JS = 0.96
+# little lower so it clears the macro gauges. Grown again over a slimmer
+# quick-add row (Wei, 15 Oct: the first pass grew it only about 9%).
+JAR_Z = Z(-0.49) - 62 * U
+jar = empty('jar', (0.02, -0.17, JAR_Z), rot=(math.radians(6), 0, math.radians(-8)))
+JS = 1.16
 JW, JD, JH, wall_t = 0.292 * JS, 0.172 * JS, 0.36 * JS * K, 0.045 * JS
 base_top = 0.09 * JS
 
@@ -122,18 +123,20 @@ LAYOUT['labels']['target.name'] = dict(x=round(ix + 10, 2), y=round(ty - 10, 2),
 LAYOUT['labels']['target.value'] = dict(x=round(ix + 52, 2), y=round(ty - 10, 2), size=round(0.026 * PT * EM[BODY_FONT.name], 2),
                                         align='left', weight='medium')
 
-# --- The rail and its quick-add blocks.
-rail_z = Z(-0.72)
+# --- The rail and its quick-add blocks: a slim row low on the face, so the
+# jar can stand big above it.
+rail_z = Z(-0.72) - 31 * U
+QH = 0.7
 rail = link(block('rail', 0.45, 0.06, 0.011, bevel=0.009), None, PLINTH, group='backdrop')
 rail.location = (0, -0.03, rail_z)
 LAYOUT['railY'] = round(face_pt(0, rail_z + 0.011)[1], 2)
 LAYOUT['quick'] = {}
-for i, (kcal, w, h) in enumerate([(50, 0.08, 0.05), (100, 0.085, 0.056), (250, 0.09, 0.064), (500, 0.095, 0.074)]):
+for i, (kcal, w, h) in enumerate([(50, 0.08, 0.05 * QH), (100, 0.085, 0.056 * QH), (250, 0.09, 0.064 * QH), (500, 0.095, 0.074 * QH)]):
     x = -0.34 + i * 0.226
     q = link(block('quick', w, 0.045, h, bevel=0.03), None, FOOD['quick'], group='quick-%d' % kcal)
     q.location = (x, -0.04, rail_z + 0.011 + h)
-    text('quickNum', str(kcal), 0.042, HERO_FONT, PLINTH, (0, -0.0455, 0.008), q, align='CENTER', depth=0.003)
-    text('quickUnit', 'KCAL', 0.014, LABEL_FONT, PLINTH, (0, -0.0455, -h + 0.018), q, align='CENTER', depth=0.0015, spacing=1.2)
+    text('quickNum', str(kcal), 0.034, HERO_FONT, PLINTH, (0, -0.0455, -0.002), q, align='CENTER', depth=0.003)
+    text('quickUnit', 'KCAL', 0.012, LABEL_FONT, PLINTH, (0, -0.0455, -h + 0.012), q, align='CENTER', depth=0.0015, spacing=1.2)
     LAYOUT['quick'][str(kcal)] = rect_of([face_pt(x - w, rail_z + 0.011), face_pt(x + w, rail_z + 0.011 + 2 * h)])
 
 # --- Keys: clay LOG FOOD / LOAD and resin UNDO / DISCARD, up and pressed.
