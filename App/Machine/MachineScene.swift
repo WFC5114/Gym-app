@@ -30,6 +30,8 @@ final class MachineScene {
 
     private var numerals: [PrismFace: Numerals3D] = [:]
     private var facePlates: [ModelEntity] = []
+    /// BODY's rendered tray (RenderedArt), shown on the face behind the live mannequin.
+    private var bodyBackdrop: ModelEntity?
     /// Keys and gauges as clay and glass objects (clay skins).
     private let clayParts = ClayPartsRig()
 
@@ -186,6 +188,12 @@ final class MachineScene {
         let a = World.len(layout.apothem)
         for plate in facePlates { plate.removeFromParent() }
         facePlates = []
+        bodyBackdrop?.removeFromParent()
+        bodyBackdrop = nil
+        if RenderedArt.on(.body), faces.count > 2, let plane = Self.renderedBackdrop("night-body-backdrop", layout: layout) {
+            faces[2].addChild(plane)
+            bodyBackdrop = plane
+        }
         for (i, face) in faces.enumerated() {
             let theta = Float(i) * 2 * .pi / 3
             face.position = SIMD3(a * sin(theta), 0, a * cos(theta))
@@ -390,6 +398,20 @@ final class MachineScene {
         glassGroup.position = World.point(g.center(forHeight: g.maxHeight), z: 60, in: layout)
     }
 
+    /// A rendered face picture as a flat, unlit plane just proud of the tray:
+    /// exactly the render's pixels, with the live 3D objects standing in front.
+    private static func renderedBackdrop(_ name: String, layout: MachineLayout) -> ModelEntity? {
+        guard let image = RenderedArt.image(name)?.cgImage,
+              let texture = try? TextureResource.generate(from: image, options: .init(semantic: .color)) else { return nil }
+        var material = UnlitMaterial(applyPostProcessToneMap: false)
+        material.color = .init(tint: .white, texture: .init(texture))
+        material.blending = .transparent(opacity: .init(floatLiteral: 1))
+        let plane = ModelEntity(mesh: .generatePlane(width: World.len(layout.faceWidth), height: World.len(layout.faceHeight)),
+                                materials: [material])
+        plane.position = World.point(CGPoint(x: layout.faceWidth / 2, y: layout.faceHeight / 2), z: trayProud + 0.2, in: layout)
+        return plane
+    }
+
     private func buildBody(layout: MachineLayout) {
         if figureRig == nil {
             faces[2].addChild(figureRoot)
@@ -438,6 +460,7 @@ final class MachineScene {
         let trainRendered = RenderedArt.on(.train)
         glassGroup.isEnabled = !trainRendered
         if facePlates.count > 1 { facePlates[1].isEnabled = !trainRendered }
+        if facePlates.count > 2 { facePlates[2].isEnabled = bodyBackdrop == nil }
         applyDiet(model, layout: layout)
         for (face, n) in numerals {
             let glyphs = model.heroGlyphs[face]

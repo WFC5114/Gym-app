@@ -7,6 +7,15 @@ struct BodyFace: View {
     let layout: MachineLayout
 
     var body: some View {
+        if RenderedArt.on(.body) {
+            RenderedBodyFace(model: model, layout: layout)
+        } else {
+            drawnFace
+        }
+    }
+
+    /// The face drawn in code (skins without rendered art).
+    private var drawnFace: some View {
         let rail = model.rail
         let index = Int(model.bodyNumbers.target.rounded())
         let obs = model.bodyObservation
@@ -84,14 +93,14 @@ struct BodyFace: View {
     }
 
     /// What the figure's shape comes from, estimates named as such.
-    private func shapeSources(_ c: BodyComposition) -> String {
+    func shapeSources(_ c: BodyComposition) -> String {
         var parts = [model.bodyUsesSample ? "SHAPE FROM SAMPLE DATA" : "SHAPE FROM INBODY + HEALTH"]
         if c.fatIsEstimate { parts.append("FAT FROM SCALE TREND (EST.)") }
         if !model.figureTilt.isEven { parts.append("TRAINING TILT (EST.)") }
         return parts.joined(separator: " · ")
     }
 
-    private func weeklyDelta(index: Int) -> String {
+    func weeklyDelta(index: Int) -> String {
         let h = model.bodyHistory
         guard h.indices.contains(index), let now = h[index].weightKg else { return "NO WEIGHT THIS DAY" }
         let back = max(index - 7, 0)
@@ -100,7 +109,7 @@ struct BodyFace: View {
         return String(format: "%@%.1f KG / WK", d >= 0 ? "+" : "−", abs(d))
     }
 
-    private func dateLine(_ obs: BodyObservation?) -> String {
+    func dateLine(_ obs: BodyObservation?) -> String {
         guard let obs else { return "" }
         return obs.date.formatted(.dateTime.day().month(.abbreviated).year()).uppercased() + (obs.isScan ? " · SCAN DAY" : "")
     }

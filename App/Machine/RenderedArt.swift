@@ -77,6 +77,21 @@ enum RenderedArt {
         var glass: Glass
     }
 
+    struct Ruler: Decodable {
+        /// The plate, the first and last day's x, the line the ticks stand on, and the slider's top.
+        var rect: [CGFloat]
+        var track: [CGFloat]
+        var baseY: CGFloat
+        var cursorTop: CGFloat
+    }
+
+    struct BodyLayout: Decodable {
+        var face: [CGFloat]
+        var labels: [String: Label]
+        var hero: Hero
+        var ruler: Ruler
+    }
+
     /// The inset's pictures have no layout of their own: they are sliced to fit.
     struct InsetLayout: Decodable {
         var face: [CGFloat]
@@ -96,21 +111,23 @@ enum RenderedArt {
     private static let diet = load("night-diet", as: Layout.self)
     private static let train = load("night-train", as: TrainLayout.self)
     private static let inset = load("night-inset", as: InsetLayout.self)
+    private static let body = load("night-body", as: BodyLayout.self)
     /// Every picture of every face, by name (TRAIN's hero uses DIET's glyphs).
-    private static let sprites: [String: Sprite] = [diet?.sprites, train?.sprites, inset?.sprites]
+    private static let sprites: [String: Sprite] = [diet?.sprites, train?.sprites, inset?.sprites, body?.sprites]
         .compactMap { $0 }
         .reduce(into: [:]) { all, more in all.merge(more) { a, _ in a } }
 
     @MainActor private static var images: [String: UIImage] = [:]
 
     /// Faces drawn from Blender, when their pictures are bundled. BODY's
-    /// mannequin moves too much to pre-render and stays live 3D.
+    /// mannequin and turntable move too much to pre-render and stay live 3D, in
+    /// front of BODY's rendered tray (`MachineScene` shows it on the face).
     static func on(_ face: PrismFace) -> Bool {
         guard Brutal.skin.clayUI else { return false }
         switch face {
         case .diet: return diet != nil
         case .train: return train != nil && diet != nil
-        case .body: return false
+        case .body: return body != nil && diet != nil
         }
     }
 
@@ -119,6 +136,7 @@ enum RenderedArt {
 
     static var layout: Layout? { diet?.layout }
     static var trainLayout: TrainLayout? { train?.layout }
+    static var bodyLayout: BodyLayout? { body?.layout }
 
     static func sprite(_ name: String) -> Sprite? { sprites[name] }
 

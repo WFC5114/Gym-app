@@ -369,6 +369,21 @@ final class MachineModelTests: XCTestCase {
         XCTAssertLessThan(art.glass.baseY, keysTop, "glass above the keys")
     }
 
+    func testRenderedRulerTrackStandsOnItsPlateBelowTheTurntable() throws {
+        // night_body.py lays out the plate; the app stands a tick per day on its track.
+        let art = try XCTUnwrap(RenderedArt.bodyLayout, "BODY's rendered layout is bundled")
+        let r = art.ruler, plate = r.rect
+        XCTAssertGreaterThan(r.track[0], plate[0] + 8, "first day clear of the plate's left screws")
+        XCTAssertLessThan(r.track[1], plate[0] + plate[2] - 8, "last day clear of the right screws")
+        XCTAssertGreaterThan(r.cursorTop, plate[1], "the slider stays on the plate")
+        XCTAssertLessThan(r.baseY, plate[1] + plate[3])
+        let feet = FigureGeometry(layout: .reference).feet.y
+        XCTAssertGreaterThan(plate[1], feet + 0.075 * FigureGeometry(layout: .reference).unit, "plate below the turntable")
+        for name in ["night-body-tick-day", "night-body-tick-week", "night-body-tick-scan", "night-body-fine", "night-body-cursor"] {
+            XCTAssertNotNil(RenderedArt.sprite(name)?.object, "\(name) is bundled with its object rect")
+        }
+    }
+
     func testInsetPicturesSliceOutsideTheirObjectsMiddles() throws {
         // night_inset.py: each picture keeps its corners and stretches its middle.
         let names = ["night-inset-panel", "night-inset-field", "night-inset-primary", "night-inset-primary-down"]

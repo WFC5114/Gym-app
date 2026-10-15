@@ -1,0 +1,209 @@
+{
+ "layout": {
+  "face": [
+   420.0,
+   852.0
+  ],
+  "hero": {
+   "centerY": 132.11,
+   "fontSize": 67.52,
+   "x": 21.01
+  },
+  "labels": {
+   "caption": {
+    "align": "left",
+    "size": 7.04,
+    "weight": "medium",
+    "x": 27.38,
+    "y": 56.59
+   },
+   "line1": {
+    "align": "left",
+    "size": 8.73,
+    "weight": "bold",
+    "x": 27.38,
+    "y": 195.38
+   },
+   "line2": {
+    "align": "left",
+    "size": 8.21,
+    "weight": "medium",
+    "x": 27.38,
+    "y": 211.7
+   },
+   "nav": {
+    "align": "right",
+    "size": 7.57,
+    "weight": "bold",
+    "x": 392.62,
+    "y": 40.27
+   },
+   "reading.fat.name": {
+    "align": "center",
+    "size": 5.53,
+    "weight": "bold",
+    "x": 118.0,
+    "y": 686.0
+   },
+   "reading.fat.value": {
+    "align": "center",
+    "size": 8.79,
+    "weight": "medium",
+    "x": 118.0,
+    "y": 702.0
+   },
+   "reading.lean.name": {
+    "align": "center",
+    "size": 5.53,
+    "weight": "bold",
+    "x": 210.0,
+    "y": 686.0
+   },
+   "reading.lean.value": {
+    "align": "center",
+    "size": 8.79,
+    "weight": "medium",
+    "x": 210.0,
+    "y": 702.0
+   },
+   "reading.source.name": {
+    "align": "center",
+    "size": 5.53,
+    "weight": "bold",
+    "x": 302.0,
+    "y": 686.0
+   },
+   "reading.source.value": {
+    "align": "center",
+    "size": 8.79,
+    "weight": "medium",
+    "x": 302.0,
+    "y": 702.0
+   },
+   "schematic": {
+    "align": "center",
+    "size": 6.11,
+    "weight": "bold",
+    "x": 210.0,
+    "y": 270.0
+   },
+   "sources": {
+    "align": "center",
+    "size": 5.28,
+    "weight": "medium",
+    "x": 210.0,
+    "y": 285.0
+   },
+   "title": {
+    "align": "left",
+    "size": 12.22,
+    "weight": "bold",
+    "x": 27.38,
+    "y": 38.23
+   },
+   "unit": {
+    "align": "left",
+    "size": 9.89,
+    "weight": "bold",
+    "x": 210.0,
+    "y": 417.51
+   }
+  },
+  "ruler": {
+   "baseY": 808.0,
+   "cursorTop": 762.0,
+   "rect": [
+    26.0,
+    718.0,
+    368.0,
+    106.0
+   ],
+   "track": [
+    46.0,
+    374.0
+   ]
+  }
+ },
+ "pointsPerUnit": 424.68619246861925,
+ "scale": 3,
+ "sprites": {
+  "night-body-backdrop": {
+   "rect": [
+    0,
+    0,
+    420.0,
+    852.0
+   ]
+  },
+  "night-body-cursor": {
+   "object": [
+    8,
+    8.0,
+    12,
+    56.0
+   ],
+   "rect": [
+    196,
+    362,
+    36,
+    80
+   ]
+  },
+  "night-body-fine": {
+   "object": [
+    4.3,
+    4.0,
+    1.4,
+    10.0
+   ],
+   "rect": [
+    205,
+    412,
+    14,
+    22
+   ]
+  },
+  "night-body-tick-day": {
+   "object": [
+    4.0,
+    4.0,
+    2.0,
+    14.0
+   ],
+   "rect": [
+    205,
+    408,
+    14,
+    26
+   ]
+  },
+  "night-body-tick-scan": {
+   "object": [
+    4.7,
+    4.0,
+    2.6,
+    40.0
+   ],
+   "rect": [
+    204,
+    382,
+    16,
+    52
+   ]
+  },
+  "night-body-tick-week": {
+   "object": [
+    4.9,
+    4.0,
+    2.2,
+    24.0
+   ],
+   "rect": [
+    204,
+    398,
+    16,
+    36
+   ]
+  }
+ }
+}
