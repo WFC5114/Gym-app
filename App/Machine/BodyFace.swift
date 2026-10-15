@@ -15,6 +15,7 @@ struct BodyFace: View {
     }
 
     /// The face drawn in code (skins without rendered art).
+    @ViewBuilder
     private var drawnFace: some View {
         let rail = model.rail
         let index = Int(model.bodyNumbers.target.rounded())
