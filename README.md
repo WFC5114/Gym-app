@@ -7,6 +7,8 @@ A free, personal iPhone app for diet, body composition and training. It reads Ap
 
 ## Install on your iPhone (from Windows)
 
+Step by step, with what to expect: [`docs/INSTALL.md`](docs/INSTALL.md).
+
 1. Open the latest run of the **CI** workflow (or the latest GitHub release) and download `GymApp.ipa`.
 2. Install it with [Sideloadly](https://sideloadly.io) or [AltStore](https://altstore.io) using your Apple ID.
 3. On the phone: Settings > General > VPN & Device Management > trust your Apple ID. Turn on Developer Mode if asked.
