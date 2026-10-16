@@ -50,12 +50,19 @@ server (gsa.apple.com) refused the login; the app file is fine. If you can
 sign in at appleid.apple.com but not in iTunes or Sideloadly, the block is on
 the PC or network. Try, in order:
 
-1. Run the PC off the phone's hotspot and press Start again.
-2. Windows Settings > Time & language: turn on "Set time automatically".
-3. Turn off any VPN, proxy, or antivirus HTTPS/web scanning (or pause it).
-4. Update Sideloadly, and reinstall iTunes and iCloud from apple.com (not the
+1. Test the line: in PowerShell run
+   `curl.exe -k -sS -o NUL -w "%{http_code}" https://gsa.apple.com/grandslam/GsService2/lookup`.
+   **401** (repeatably) means Apple's sign-in server is reachable. "Could not
+   connect" or a mix of failures means your connection filters it: install
+   Proton VPN (free plan; Stealth protocol if it won't connect), connect, check
+   for 401, then run Sideloadly or AltServer with the VPN on. (On Wei's PC,
+   16 Oct 2026, the line failed on home and hotspot and gave 401 via Proton.)
+2. Run the PC off the phone's hotspot and press Start again.
+3. Windows Settings > Time & language: turn on "Set time automatically".
+4. Turn off any proxy or antivirus HTTPS/web scanning (or pause it).
+5. Update Sideloadly, and reinstall iTunes and iCloud from apple.com (not the
    Microsoft Store).
-5. Still failing: Apple may have paused desktop sign-ins after several failed
+6. Still failing: Apple may have paused desktop sign-ins after several failed
    tries. Wait a few hours and try once.
 
 The alternative is AltStore (also free, also 7 days), or a paid Apple
