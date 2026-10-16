@@ -42,3 +42,21 @@ installed with **Sideloadly**, which signs it with your own Apple ID.
 - BODY shows labelled **SAMPLE DATA** until Health has a weight in it.
 - Data stays on the phone. The only network calls are food lookups (Open Food
   Facts).
+
+## If Sideloadly can't sign in
+
+"GSA returned a non-plist response (HTTP 503)" means Apple's desktop sign-in
+server (gsa.apple.com) refused the login; the app file is fine. If you can
+sign in at appleid.apple.com but not in iTunes or Sideloadly, the block is on
+the PC or network. Try, in order:
+
+1. Run the PC off the phone's hotspot and press Start again.
+2. Windows Settings > Time & language: turn on "Set time automatically".
+3. Turn off any VPN, proxy, or antivirus HTTPS/web scanning (or pause it).
+4. Update Sideloadly, and reinstall iTunes and iCloud from apple.com (not the
+   Microsoft Store).
+5. Still failing: Apple may have paused desktop sign-ins after several failed
+   tries. Wait a few hours and try once.
+
+The alternative is AltStore (also free, also 7 days), or a paid Apple
+Developer account and TestFlight, which needs no PC sign-in at all.
