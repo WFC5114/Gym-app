@@ -58,6 +58,26 @@ jobs:
           name: GymApp-captures
           path: build/captures
 
+      # The simulator build the captures ran, zipped for a browser preview
+      # (e.g. appetize.io) when GYM can't be installed on a phone.
+      - name: Zip simulator app
+        if: always()
+        run: |
+          APP=$(find build/dd-sim/Build/Products -maxdepth 2 -type d -path '*-iphonesimulator/GymApp.app' | head -1)
+          if [ -n "$APP" ]; then
+            ditto -c -k --sequesterRsrc --keepParent "$APP" build/GymApp-simulator.zip
+          else
+            echo "warning: no simulator GymApp.app found"
+          fi
+
+      - name: Upload simulator app
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GymApp-simulator
+          path: build/GymApp-simulator.zip
+          if-no-files-found: warn
+
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
