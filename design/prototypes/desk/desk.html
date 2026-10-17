@@ -1,0 +1,590 @@
+<title>GYM Desk Objects</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Unbounded:wght@600;700&display=swap">
+<style>
+/* Layout: one full-screen desk; the object for the open tab sits in the middle, the number above it, its controls and the tabs below. Night clay palette, single dark look on purpose. */
+:root {
+  --bg: #0d0c0f;
+  --ivory: #ece6da;
+  --dim: #9b958b;
+  --faint: #6c675f;
+  --panel: #19181bdd;
+  --panel-2: #26252a;
+  --line: #34323a;
+  --terra: #d26b43;
+  --good: #8db97a;
+  --display: "Unbounded", "Arial Black", system-ui, sans-serif;
+  --body: "Figtree", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; overflow: hidden; }
+body { background: var(--bg); color: var(--ivory); font-family: var(--body); -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--terra); outline-offset: 2px; }
+#stage { position: fixed; inset: 0; touch-action: none; }
+#stage canvas { display: block; width: 100%; height: 100%; }
+.ui { position: fixed; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 14px); padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.ui > * { pointer-events: auto; }
+.head { pointer-events: none; display: flex; flex-direction: column; gap: 4px; max-width: 460px; width: 100%; margin: 0 auto; }
+.head .row { display: flex; justify-content: space-between; align-items: center; pointer-events: auto; }
+.label { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); font-weight: 700; }
+.big { font-family: var(--display); font-weight: 700; font-size: clamp(44px, 14vw, 64px); letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+.sub { color: var(--dim); font-size: 14px; }
+.hint { color: var(--faint); font-size: 13px; margin-top: 4px; }
+.tag { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: #c7a256; border: 1px solid #c7a25655; border-radius: 6px; padding: 2px 6px; }
+.mute { min-width: 44px; min-height: 44px; border-radius: 12px; display: grid; place-items: center; color: var(--dim); }
+.foot { display: flex; flex-direction: column; gap: 10px; max-width: 460px; width: 100%; margin: 0 auto; }
+.controls { display: flex; flex-direction: column; gap: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.chip { min-height: 44px; padding: 0 14px; border-radius: 999px; background: var(--panel); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); }
+.chip[aria-pressed="true"] { background: var(--ivory); color: #121212; border-color: var(--ivory); }
+.chip small { opacity: .7; font-weight: 500; }
+.btn { min-height: 54px; border-radius: 18px; padding: 0 20px; font-weight: 700; font-size: 17px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.btn.primary { background: var(--terra); color: #160a05; box-shadow: inset 0 1px 0 #ffffff45, 0 4px 0 #8a3f22; }
+.btn.primary:active { transform: translateY(3px); box-shadow: inset 0 1px 0 #ffffff45, 0 1px 0 #8a3f22; }
+.btn.soft { background: var(--panel); border: 1px solid var(--line); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.split { display: grid; grid-template-columns: 1fr 1.4fr 1fr; gap: 8px; }
+.tabs { display: grid; grid-template-columns: repeat(3, 1fr); background: #141317ee; border: 1px solid var(--line); border-radius: 24px; padding: 5px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.tabs button { min-height: 56px; border-radius: 19px; font-weight: 700; font-size: 14px; color: var(--dim); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.tabs button span { font-size: 11px; font-weight: 500; color: var(--faint); font-variant-numeric: tabular-nums; }
+.tabs button[aria-pressed="true"] { background: var(--panel-2); color: var(--ivory); }
+.tabs button[aria-pressed="true"] span { color: var(--dim); }
+.bodycard { background: #19181b; border: 1px solid var(--line); border-radius: 24px; padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.bodycard svg text { fill: var(--dim); font-size: 10px; font-family: var(--body); }
+.statrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--panel-2); border-radius: 14px; padding: 10px; }
+.stat b { display: block; font-size: 18px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+#bodyView { position: fixed; left: 0; right: 0; top: 50%; transform: translateY(-46%); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); pointer-events: auto; }
+#bodyView .bodycard { max-width: 460px; margin: 0 auto; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: #19181b; border-radius: 26px 26px 0 0; border-top: 1px solid var(--line); padding: 10px max(16px, env(safe-area-inset-right, 0px)) calc(env(safe-area-inset-bottom, 0px) + 16px) max(16px, env(safe-area-inset-left, 0px)); transform: translateY(105%); max-height: 70%; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 -12px 30px #000c; }
+.sheet .grab { width: 40px; height: 5px; border-radius: 3px; background: var(--line); margin: 0 auto; }
+.sheet .list { overflow-y: auto; display: flex; flex-direction: column; }
+.sheet .item { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 52px; border-top: 1px solid var(--line); text-align: left; width: 100%; }
+.sheet .item:first-child { border-top: 0; }
+.sheet .item i { width: 12px; height: 12px; border-radius: 4px; display: inline-block; margin-right: 10px; vertical-align: -1px; }
+.sheet .item .k { color: var(--dim); font-variant-numeric: tabular-nums; }
+.scrim { position: fixed; inset: 0; background: #0008; z-index: 19; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.scrim.on { opacity: 1; pointer-events: auto; }
+.toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 12px); z-index: 30; transform: translate(-50%, -90px); background: var(--ivory); color: #121212; font-weight: 700; font-size: 14px; padding: 10px 16px; border-radius: 999px; white-space: nowrap; transition: transform .35s cubic-bezier(.3,1.5,.5,1); }
+.toast.on { transform: translate(-50%, 0); }
+.loading { position: fixed; inset: 0; display: grid; place-items: center; color: var(--dim); font-size: 14px; z-index: 40; background: var(--bg); transition: opacity .4s; }
+.loading.done { opacity: 0; pointer-events: none; }
+.err { color: var(--terra); max-width: 300px; text-align: center; line-height: 1.4; }
+@media (prefers-reduced-motion: reduce) { .toast, .scrim { transition: none; } }
+</style>
+
+<div id="stage" aria-label="Desk with the object for the open tab. Drag to turn it."></div>
+
+<div class="ui">
+  <div class="head">
+    <div class="row"><span class="label" id="hLabel">Left to eat today</span><span class="row" style="gap:6px"><span class="tag">sample day</span><button class="mute" id="mute" aria-label="Sound on" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="muteWave" d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/></svg></button></span></div>
+    <div class="big" id="hBig">0</div>
+    <div class="sub" id="hSub"></div>
+    <div class="hint" id="hHint"></div>
+  </div>
+  <div class="foot">
+    <div class="controls" id="controls"></div>
+    <nav class="tabs" aria-label="Sections">
+      <button id="tab-food" data-tab="food" aria-pressed="true">Food<span id="tsFood"></span></button>
+      <button id="tab-rest" data-tab="rest" aria-pressed="false">Rest<span id="tsRest"></span></button>
+      <button id="tab-body" data-tab="body" aria-pressed="false">Body<span id="tsBody"></span></button>
+    </nav>
+  </div>
+</div>
+
+<div id="bodyView" hidden></div>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-label="Add food">
+  <div class="grab"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center"><strong style="font-size:18px">Add food</strong><button class="btn soft" style="min-height:44px;padding:0 14px" id="closeSheet">Close</button></div>
+  <div class="sub">Sample foods. The app searches Open Food Facts and scans barcodes and labels.</div>
+  <div class="list" id="foodList"></div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="loading" id="loading">Setting the desk…</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/",
+  "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import * as CANNON from 'cannon-es';
+
+const $ = (s) => document.querySelector(s);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ---------- sample day ----------
+const FOODS = [
+  { name: 'Greek yogurt', kcal: 146, p: 20, c: 6, f: 4 },
+  { name: 'Banana', kcal: 105, p: 1, c: 27, f: 0 },
+  { name: 'Chicken breast 150 g', kcal: 248, p: 46, c: 0, f: 5 },
+  { name: 'Rice 200 g', kcal: 260, p: 5, c: 57, f: 1 },
+  { name: 'Protein bar', kcal: 190, p: 21, c: 22, f: 8 },
+  { name: 'Salmon 150 g', kcal: 312, p: 33, c: 0, f: 19 },
+  { name: 'Peanut butter 2 tbsp', kcal: 190, p: 7, c: 7, f: 16 },
+  { name: 'Avocado toast', kcal: 260, p: 7, c: 26, f: 15 },
+  { name: 'Pasta bowl', kcal: 560, p: 18, c: 96, f: 11 },
+];
+const COACH = { Legs: 180, Back: 150, Chest: 150, Shoulders: 120, Arms: 90, Core: 60 };
+const TINT = { p: 0xc8613b, c: 0xe2c374, f: 0x8ea6ba, q: 0xe9e1d2 };
+const S = {
+  tab: 'food', target: 2400,
+  eaten: [ { name: 'Oats with milk', kcal: 320, p: 13, c: 50, f: 8 }, { name: 'Chicken breast 150 g', kcal: 248, p: 46, c: 0, f: 5 }, { name: 'Rice 200 g', kcal: 260, p: 5, c: 57, f: 1 } ],
+  part: 'Legs', secs: 180, rests: 0, restFlowing: false,
+  weights: [82.6, 82.3, 82.4, 81.9, 81.7, 81.5, 81.0, 80.8, 80.9, 80.6, 80.4, 80.1],
+  sound: true,
+};
+const kcalEaten = () => S.eaten.reduce((a, e) => a + e.kcal, 0);
+const fmt = (n) => Math.round(n).toLocaleString('en-US');
+const mmss = (s) => { s = Math.max(0, Math.ceil(s)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const dominant = (e) => { if (!e.p && !e.c && !e.f) return 'q'; const v = { p: e.p * 4, c: e.c * 4, f: e.f * 9 }; return Object.keys(v).sort((a, b) => v[b] - v[a])[0]; };
+
+let toastT;
+function toast(m) { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 1700); }
+
+// ---------- sound: synthesised clay knocks and glass clinks ----------
+let actx = null;
+function audio() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {} } if (actx && actx.state === 'suspended') actx.resume(); return actx; }
+let lastKnock = 0;
+function knock(strength, glass) {
+  if (!S.sound || !actx) return;
+  const now = actx.currentTime; if (now - lastKnock < 0.025) return; lastKnock = now;
+  const g = actx.createGain(), o = actx.createOscillator(), f = actx.createBiquadFilter();
+  const vol = Math.min(0.5, strength * 0.12);
+  o.type = glass ? 'sine' : 'triangle';
+  o.frequency.setValueAtTime(glass ? 1900 + Math.random() * 500 : 180 + Math.random() * 80, now);
+  o.frequency.exponentialRampToValueAtTime(glass ? 1500 : 90, now + (glass ? 0.25 : 0.08));
+  f.type = 'lowpass'; f.frequency.value = glass ? 6000 : 900;
+  g.gain.setValueAtTime(vol, now); g.gain.exponentialRampToValueAtTime(0.0001, now + (glass ? 0.35 : 0.12));
+  o.connect(f); f.connect(g); g.connect(actx.destination); o.start(now); o.stop(now + 0.4);
+}
+let hiss = null;
+function sandHiss(level) {
+  if (!actx) return;
+  if (!hiss) {
+    const len = actx.sampleRate * 2, buf = actx.createBuffer(1, len, actx.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * 0.5;
+    const src = actx.createBufferSource(); src.buffer = buf; src.loop = true;
+    const f = actx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 3200; f.Q.value = 0.8;
+    const g = actx.createGain(); g.gain.value = 0; src.connect(f); f.connect(g); g.connect(actx.destination); src.start();
+    hiss = g;
+  }
+  hiss.gain.setTargetAtTime(S.sound ? level * 0.035 : 0, actx.currentTime, 0.08);
+}
+
+// ---------- renderer and the desk ----------
+const stage = $('#stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.localClippingEnabled = true;
+stage.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d0c0f);
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.55;
+
+const camera = new THREE.PerspectiveCamera(28, 1, 0.05, 30);
+const OBJ_H = 0.5;                 // both objects are scaled to this height (metres, for the physics)
+const DESK_Y = -OBJ_H / 2 - 0.004;
+
+const key = new THREE.DirectionalLight(0xfff0de, 2.6);
+key.position.set(-1.1, 2.4, 1.6);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -0.7, right: 0.7, top: 0.7, bottom: -0.7, near: 0.5, far: 6 });
+key.shadow.bias = -0.0004; key.shadow.normalBias = 0.01; key.shadow.radius = 4;
+scene.add(key, key.target);
+const rim = new THREE.DirectionalLight(0xc9d6ff, 0.6); rim.position.set(1.5, 1.2, -1.5); scene.add(rim);
+scene.add(new THREE.HemisphereLight(0xfff4e6, 0x141216, 0.35));
+
+// Desk: graphite pressed clay, a faint grain from a canvas texture.
+function grainTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+  const img = g.createImageData(256, 256);
+  for (let i = 0; i < img.data.length; i += 4) { const v = 128 + (Math.random() - 0.5) * 22; img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(10, 10); return t;
+}
+const desk = new THREE.Mesh(new THREE.CircleGeometry(4, 96), new THREE.MeshPhysicalMaterial({ color: 0x151418, roughness: 0.9, bumpMap: grainTexture(), bumpScale: 0.6, sheen: 0.3, sheenColor: new THREE.Color(0x5a5560), sheenRoughness: 0.9 }));
+desk.rotation.x = -Math.PI / 2; desk.position.y = DESK_Y; desk.receiveShadow = true; scene.add(desk);
+
+function claySkin(m) {
+  if (!m || m.transmission) return m;
+  m.roughness = Math.max(0.42, m.roughness);
+  m.sheen = 0.35; m.sheenRoughness = 0.8; m.sheenColor = new THREE.Color(0xffffff).lerp(m.color, 0.6);
+  m.clearcoat = Math.min(m.clearcoat || 0.2, 0.3); m.clearcoatRoughness = 0.45;
+  return m;
+}
+function glassSkin(m) {
+  m.transmission = 1; m.thickness = 0.03; m.ior = 1.47; m.roughness = 0.03; m.metalness = 0;
+  m.color = new THREE.Color(0xf6f8fc); m.attenuationColor = new THREE.Color(0xeef3f7); m.attenuationDistance = 0.6;
+  m.clearcoat = 1; m.clearcoatRoughness = 0.02; m.envMapIntensity = 1.2; m.specularIntensity = 1;
+  return m;
+}
+
+// ---------- a held object: drag to turn, inertia, a damped spring back ----------
+class Held {
+  constructor(group) { this.g = group; this.q = new THREE.Quaternion(); this.w = new THREE.Vector3(); this.rest = new THREE.Quaternion(); this.lift = 0; this.liftV = 0; this.x = 0; this.xv = 0; this.xTarget = 0; this.dragging = false; this.drag = new THREE.Vector2(); }
+  step(dt) {
+    // slide between tabs and lift while held: damped springs
+    const ax = (-170 * (this.x - this.xTarget) - 26 * this.xv); this.xv += ax * dt; this.x += this.xv * dt;
+    const lt = this.dragging ? 0.06 : 0, al = (-260 * (this.lift - lt) - 24 * this.liftV); this.liftV += al * dt; this.lift += this.liftV * dt;
+    if (this.dragging) {
+      const k = 0.011, d = this.drag;
+      const want = new THREE.Vector3(d.y, d.x, 0).multiplyScalar(k / Math.max(dt, 1 / 240));
+      this.w.lerp(want, 0.55); d.set(0, 0);
+    } else {
+      const err = this.rest.clone().multiply(this.q.clone().invert());
+      if (err.w < 0) { err.x *= -1; err.y *= -1; err.z *= -1; err.w *= -1; }
+      const ang = 2 * Math.acos(Math.min(1, err.w)), s = Math.sqrt(Math.max(1e-9, 1 - err.w * err.w));
+      const axis = new THREE.Vector3(err.x / s, err.y / s, err.z / s);
+      const torque = ang > 1e-4 ? axis.multiplyScalar(26 * ang) : new THREE.Vector3();
+      torque.addScaledVector(this.w, -7.5);
+      this.w.addScaledVector(torque, dt);
+    }
+  }
+  integrate(dt) { const a = this.w.length() * dt; if (a > 1e-9) this.q.premultiply(new THREE.Quaternion().setFromAxisAngle(this.w.clone().normalize(), a)).normalize(); }
+  apply(baseY) { this.g.quaternion.copy(this.q); this.g.position.set(this.x, baseY + this.lift, 0); }
+}
+
+// ---------- load the Blender models ----------
+const loader = new GLTFLoader();
+// The models ship as base64 GLB inside JSON (a served type); decoded here and parsed in memory.
+const load = async (u) => {
+  const r = await fetch(u); if (!r.ok) throw new Error(u + ' ' + r.status);
+  const bin = atob((await r.json()).glb), bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Promise((res, rej) => loader.parse(bytes.buffer, '', res, rej));
+};
+let jar, glass;
+try {
+  const [jg, hg] = await Promise.all([load('jar.json'), load('hourglass.json')]);
+  jar = prepare(jg.scene, OBJ_H * 0.96);
+  glass = prepare(hg.scene, OBJ_H * 1.05);
+} catch (e) {
+  $('#loading').innerHTML = '<div class="err">The 3D models did not load. Reload the page; if it keeps happening, tell Claude what your phone shows.</div>';
+  throw e;
+}
+
+function prepare(root, height) {
+  root.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(root), size = box.getSize(new THREE.Vector3()), centre = box.getCenter(new THREE.Vector3());
+  const s = height / size.y;
+  root.scale.setScalar(s); root.position.copy(centre).multiplyScalar(-s);
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const glassy = o.material && (o.material.transmission > 0 || /glass/i.test(o.material.name));
+    o.material = glassy ? glassSkin(o.material) : claySkin(o.material);
+    o.castShadow = !glassy; o.receiveShadow = true;
+  });
+  const group = new THREE.Group(); group.add(root); scene.add(group);
+  return { group, root, scale: s, offset: root.position.clone(), held: new Held(group) };
+}
+
+// ---------- the jar: Box2D-Lite in the app; cannon-es here, same idea ----------
+const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -9.82, 0) });
+world.solver.iterations = 14;
+const clayMat = new CANNON.Material('clay'), glassMat = new CANNON.Material('glass');
+world.addContactMaterial(new CANNON.ContactMaterial(clayMat, clayMat, { friction: 0.5, restitution: 0.12 }));
+world.addContactMaterial(new CANNON.ContactMaterial(clayMat, glassMat, { friction: 0.25, restitution: 0.18 }));
+
+// interior from the jar's own walls (holder space, at rest)
+jar.group.updateMatrixWorld(true);
+const boxOf = (name) => { let b = null; jar.root.traverse((o) => { if (!b && o.name && o.name.startsWith(name)) b = new THREE.Box3().setFromObject(o); }); return b; };
+const wL = boxOf('wallL'), wR = boxOf('wallR'), wB = boxOf('wallBack'), wF = boxOf('wallFront'), fl = boxOf('floor');
+const IN = { x0: wL.max.x, x1: wR.min.x, z0: Math.min(wB.max.z, wF.max.z) === wB.max.z ? wB.max.z : wF.max.z, z1: 0, y0: fl.max.y, y1: wL.max.y };
+// front/back: whichever wall has the larger z is the front
+const front = wF.min.z > wB.min.z ? wF : wB, back = front === wF ? wB : wF;
+IN.z0 = back.max.z; IN.z1 = front.min.z;
+const W = IN.x1 - IN.x0, D = IN.z1 - IN.z0, H = IN.y1 - IN.y0, T = 0.03;
+const jarBody = new CANNON.Body({ type: CANNON.Body.KINEMATIC, material: glassMat });
+const cx = (IN.x0 + IN.x1) / 2, cz = (IN.z0 + IN.z1) / 2;
+jarBody.addShape(new CANNON.Box(new CANNON.Vec3(W / 2 + T, T / 2, D / 2 + T)), new CANNON.Vec3(cx, IN.y0 - T / 2, cz));
+jarBody.addShape(new CANNON.Box(new CANNON.Vec3(W / 2 + T, T / 2, D / 2 + T)), new CANNON.Vec3(cx, IN.y1 + T / 2, cz)); // collar lid
+jarBody.addShape(new CANNON.Box(new CANNON.Vec3(T / 2, H / 2, D / 2 + T)), new CANNON.Vec3(IN.x0 - T / 2, IN.y0 + H / 2, cz));
+jarBody.addShape(new CANNON.Box(new CANNON.Vec3(T / 2, H / 2, D / 2 + T)), new CANNON.Vec3(IN.x1 + T / 2, IN.y0 + H / 2, cz));
+jarBody.addShape(new CANNON.Box(new CANNON.Vec3(W / 2, H / 2, T / 2)), new CANNON.Vec3(cx, IN.y0 + H / 2, IN.z0 - T / 2));
+jarBody.addShape(new CANNON.Box(new CANNON.Vec3(W / 2, H / 2, T / 2)), new CANNON.Vec3(cx, IN.y0 + H / 2, IN.z1 + T / 2));
+world.addBody(jarBody);
+const deskBody = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane(), material: clayMat });
+deskBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0); deskBody.position.set(0, DESK_Y, 0); world.addBody(deskBody);
+
+const blocks = [];
+const blockSize = (kcal) => W * (0.17 + 0.17 * Math.min(1, Math.sqrt(kcal / 700)));
+function addBlock(food, drop) {
+  const s = blockSize(food.kcal), sx = s * (0.9 + Math.random() * 0.25), sy = s * (0.75 + Math.random() * 0.2), sz = Math.min(D * 0.8, s * (0.85 + Math.random() * 0.2));
+  const color = TINT[dominant(food)];
+  const mesh = new THREE.Mesh(new RoundedBoxGeometry(sx, sy, sz, 4, Math.min(sx, sy, sz) * 0.22),
+    new THREE.MeshPhysicalMaterial({ color, roughness: 0.55, sheen: 0.5, sheenRoughness: 0.7, sheenColor: new THREE.Color(0xffffff).lerp(new THREE.Color(color), 0.5), clearcoat: 0.15, clearcoatRoughness: 0.5 }));
+  mesh.castShadow = true; mesh.receiveShadow = true; scene.add(mesh);
+  const body = new CANNON.Body({ mass: sx * sy * sz * 900, material: clayMat, shape: new CANNON.Box(new CANNON.Vec3(sx / 2 * 0.97, sy / 2 * 0.97, sz / 2 * 0.97)), linearDamping: 0.05, angularDamping: 0.08 });
+  // spawn just under the collar, in jar space, then into the world
+  const local = new THREE.Vector3(IN.x0 + sx / 2 + Math.random() * Math.max(0.001, W - sx), IN.y1 - sy * 0.6 - (drop ? 0 : Math.random() * H * 0.5), IN.z0 + D / 2 + (Math.random() - 0.5) * Math.max(0, D - sz) * 0.8);
+  const wpos = local.applyMatrix4(jar.group.matrixWorld);
+  body.position.set(wpos.x, wpos.y, wpos.z);
+  body.quaternion.setFromEuler(Math.random() * 0.6, Math.random() * Math.PI, Math.random() * 0.6);
+  body.addEventListener('collide', (ev) => { const v = Math.abs(ev.contact.getImpactVelocityAlongNormal()); if (v > 0.35) knock(v, ev.body === jarBody); });
+  world.addBody(body); blocks.push({ mesh, body });
+}
+
+// ---------- the hourglass: sand that falls the way the glass is held ----------
+const PROFILE = [[0.0,0.01],[0.0013,0.0101],[0.0067,0.0101],[0.0182,0.0133],[0.0288,0.0218],[0.0349,0.0307],[0.0394,0.0393],[0.0439,0.048],[0.0489,0.0567],[0.0554,0.0676],[0.0624,0.0793],[0.0698,0.0909],[0.0774,0.1016],[0.0861,0.1124],[0.0951,0.123],[0.1043,0.1326],[0.1137,0.1408],[0.124,0.1483],[0.1346,0.155],[0.1457,0.1607],[0.157,0.1651],[0.1692,0.1686],[0.1825,0.171],[0.1963,0.1725],[0.21,0.173],[0.2235,0.1724],[0.2373,0.1708],[0.2509,0.1683],[0.2637,0.1649],[0.2753,0.1609],[0.2865,0.1558],[0.2975,0.15],[0.308,0.1436],[0.3174,0.1368],[0.3267,0.129],[0.3358,0.1206],[0.3448,0.1121],[0.3524,0.1044],[0.3598,0.0963],[0.3672,0.088],[0.3747,0.0802],[0.3812,0.0742],[0.3872,0.0691],[0.3931,0.0647],[0.3993,0.0608],[0.4077,0.0571],[0.4147,0.0554],[0.4194,0.0546],[0.4203,0.0545]];
+const rAt = (z) => { for (let i = 1; i < PROFILE.length; i++) { const [z0, r0] = PROFILE[i - 1], [z1, r1] = PROFILE[i]; if (z <= z1) return r0 + (r1 - r0) * (z - z0) / Math.max(1e-6, z1 - z0); } return PROFILE[PROFILE.length - 1][1]; };
+const ZMAX = 0.415;
+// The glass's own space (Blender pivot units, y up after export) inside the holder: same transform as the model.
+const sandSpace = new THREE.Group(); sandSpace.scale.setScalar(glass.scale); sandSpace.position.copy(glass.offset); glass.group.add(sandSpace);
+const sandMat = new THREE.MeshStandardMaterial({ color: 0xefe3cc, roughness: 0.92 });
+const capMat = new THREE.MeshBasicMaterial({ color: 0xd9cbb1, side: THREE.BackSide });
+function bulb(sign) {
+  const pts = [];
+  for (let z = 0.006; z <= ZMAX; z += 0.006) pts.push(new THREE.Vector2(Math.max(0.002, rAt(z) - 0.005), sign * z));
+  pts.unshift(new THREE.Vector2(0.0005, sign * 0.006)); pts.push(new THREE.Vector2(0.0005, sign * ZMAX));
+  if (sign < 0) pts.reverse();
+  const geo = new THREE.LatheGeometry(pts, 72);
+  const plane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+  const fm = sandMat.clone(); fm.clippingPlanes = [plane]; fm.side = THREE.FrontSide;
+  const bm = capMat.clone(); bm.clippingPlanes = [plane];
+  const m1 = new THREE.Mesh(geo, fm), m2 = new THREE.Mesh(geo, bm);
+  m1.castShadow = false; sandSpace.add(m1, m2);
+  // volume samples for the level under any tilt
+  const samples = [];
+  while (samples.length < 2400) {
+    const z = Math.random() * ZMAX, R = rAt(ZMAX * 0.5) + 0.01, x = (Math.random() * 2 - 1) * R, y = (Math.random() * 2 - 1) * R;
+    if (z > 0.006 && x * x + y * y < (rAt(z) - 0.005) ** 2) samples.push(new THREE.Vector3(x, sign * z, y));
+  }
+  return { plane, meshes: [m1, m2], samples, amount: 0, heights: new Float32Array(samples.length) };
+}
+const bulbA = bulb(1), bulbB = bulb(-1);
+const SAND = 0.86;          // the sand fills 86% of one bulb
+bulbA.amount = 0; bulbB.amount = SAND;
+const stream = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 10, 1, true), sandMat.clone());
+stream.visible = false; scene.add(stream);
+const tmpV = new THREE.Vector3(), tmpM = new THREE.Matrix4();
+function levelOf(b) {
+  // world height below which `amount` of the bulb's volume lies
+  if (b.amount <= 0.002) return -1e3;
+  if (b.amount >= 0.998) return 1e3;
+  tmpM.copy(sandSpace.matrixWorld);
+  const hs = b.heights;
+  for (let i = 0; i < b.samples.length; i++) hs[i] = tmpV.copy(b.samples[i]).applyMatrix4(tmpM).y;
+  hs.sort();
+  return hs[Math.min(hs.length - 1, Math.floor(b.amount * hs.length))];
+}
+let restAnnounced = true;
+function stepSand(dt) {
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(glass.group.quaternion.clone().invert());
+  const s = up.y;                                   // +1: A on top, -1: B on top
+  const top = s > 0 ? bulbA : bulbB, bottom = s > 0 ? bulbB : bulbA;
+  const g = Math.abs(s);
+  let flowing = false;
+  if (g > 0.08 && top.amount > 0) {
+    const rate = (SAND / S.secs) * Math.sqrt(g);
+    const d = Math.min(top.amount, rate * dt);
+    top.amount -= d; bottom.amount = Math.min(1, bottom.amount + d); flowing = true;
+  }
+  S.restFlowing = flowing;
+  S.restLeft = flowing ? top.amount / ((SAND / S.secs) * Math.sqrt(g)) : null;
+  for (const b of [bulbA, bulbB]) {
+    b.plane.constant = levelOf(b);
+    b.meshes.forEach((m) => { m.visible = b.amount > 0.002 && S.tab !== 'body'; });
+  }
+  // the stream from the neck down to the lower pile, always straight down
+  const neck = new THREE.Vector3(0, 0, 0).applyMatrix4(sandSpace.matrixWorld);
+  const lowLevel = Math.min(bottom.plane.constant, neck.y);
+  const len = neck.y - Math.max(lowLevel, neck.y - 0.25);
+  stream.visible = flowing && len > 0.004 && S.tab === 'rest';
+  if (stream.visible) {
+    const r = 0.0028 * (0.85 + Math.random() * 0.3);
+    stream.scale.set(r, len, r); stream.position.set(neck.x, neck.y - len / 2, neck.z);
+  }
+  if (flowing && top.amount <= 0.002 && !restAnnounced) { restAnnounced = true; toast('Rest done. Next set.'); knock(3, true); setTimeout(() => knock(2.5, true), 140); }
+  if (flowing && top.amount > SAND * 0.3 && restAnnounced) { restAnnounced = false; S.rests += 1; toast(`Rest ${S.rests} · ${S.part} · ${mmss(S.secs)}`); }
+  sandHiss(stream.visible ? 1 : 0);
+}
+
+// ---------- camera framing ----------
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h;
+  // fit the object's height into the band between the number and the controls
+  const band = OBJ_H / 0.5;
+  const fov = camera.fov * Math.PI / 180, dist = Math.max(band / (2 * Math.tan(fov / 2)), (OBJ_H / 0.62) / (2 * Math.tan(fov / 2) * camera.aspect));
+  camera.position.set(0, dist * 0.2 + 0.02, dist);
+  camera.lookAt(0, -0.03, 0);
+  camera.updateProjectionMatrix();
+  scene.fog = new THREE.Fog(0x0d0c0f, dist * 1.05, dist * 2.4);
+}
+addEventListener('resize', resize); resize();
+
+// ---------- input: drag the object to turn it ----------
+const active = () => S.tab === 'food' ? jar.held : S.tab === 'rest' ? glass.held : null;
+let ptr = null, downAt = 0, moved = 0, lastTap = 0;
+stage.addEventListener('pointerdown', (e) => {
+  audio(); const h = active(); if (!h) return;
+  ptr = { id: e.pointerId, x: e.clientX, y: e.clientY }; downAt = performance.now(); moved = 0;
+  h.dragging = true; stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove', (e) => {
+  if (!ptr || e.pointerId !== ptr.id) return; const h = active(); if (!h) return;
+  const dx = e.clientX - ptr.x, dy = e.clientY - ptr.y; ptr.x = e.clientX; ptr.y = e.clientY;
+  h.drag.x += dx; h.drag.y += dy; moved += Math.abs(dx) + Math.abs(dy);
+});
+function endPtr(e) {
+  if (!ptr || e.pointerId !== ptr.id) return; const h = active(); ptr = null; if (!h) return;
+  h.dragging = false;
+  if (h === glass.held) chooseGlassRest();
+  const now = performance.now();
+  if (moved < 8 && now - downAt < 300) { if (now - lastTap < 350) { onDoubleTap(); lastTap = 0; } else lastTap = now; }
+}
+stage.addEventListener('pointerup', endPtr); stage.addEventListener('pointercancel', endPtr);
+function chooseGlassRest() {
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(glass.held.q);
+  glass.held.rest = up.y >= 0 ? new THREE.Quaternion() : new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI);
+}
+function flipGlass() {
+  const h = glass.held; const up = new THREE.Vector3(0, 1, 0).applyQuaternion(h.q);
+  h.rest = up.y >= 0 ? new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI) : new THREE.Quaternion();
+  h.w.add(new THREE.Vector3(0, 0, up.y >= 0 ? 5 : -5)); h.liftV += 1.2; knock(1.2, false);
+}
+function onDoubleTap() { if (S.tab === 'rest') flipGlass(); else if (S.tab === 'food') { jar.held.w.add(new THREE.Vector3(0, 0, 6)); jar.held.liftV += 1.5; } }
+
+// ---------- UI ----------
+function setTab(t) {
+  S.tab = t;
+  document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.tab === t));
+  jar.held.xTarget = t === 'food' ? 0 : -1.2; glass.held.xTarget = t === 'rest' ? 0 : 1.2;
+  $('#bodyView').hidden = t !== 'body';
+  renderControls(); renderHead();
+}
+document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => { audio(); setTab(b.dataset.tab); }));
+$('#mute').addEventListener('click', () => { audio(); S.sound = !S.sound; $('#muteWave').style.display = S.sound ? '' : 'none'; $('#mute').setAttribute('aria-label', S.sound ? 'Sound on' : 'Sound off'); if (!S.sound) sandHiss(0); });
+
+function renderControls() {
+  const c = $('#controls');
+  if (S.tab === 'food') {
+    c.innerHTML = `<div class="chips">${[100, 250, 500].map((k) => `<button class="chip" data-q="${k}">+${k} <small>kcal</small></button>`).join('')}</div>
+      <button class="btn primary" id="openSheet">Add food</button>`;
+    c.querySelectorAll('[data-q]').forEach((b) => b.addEventListener('click', () => { audio(); eat({ name: `Quick add ${b.dataset.q} kcal`, kcal: +b.dataset.q, p: 0, c: 0, f: 0 }); }));
+    $('#openSheet').addEventListener('click', openSheet);
+  } else if (S.tab === 'rest') {
+    c.innerHTML = `<div class="chips">${Object.keys(COACH).map((p) => `<button class="chip" data-p="${p}" aria-pressed="${S.part === p}">${p}</button>`).join('')}</div>
+      <div class="split"><button class="btn soft" data-d="-15">−15 s</button><button class="btn primary" id="flip">Turn over</button><button class="btn soft" data-d="15">+15 s</button></div>`;
+    c.querySelectorAll('[data-p]').forEach((b) => b.addEventListener('click', () => { S.part = b.dataset.p; S.secs = COACH[S.part]; renderControls(); renderHead(); }));
+    c.querySelectorAll('[data-d]').forEach((b) => b.addEventListener('click', () => { S.secs = Math.max(15, Math.min(600, S.secs + +b.dataset.d)); renderHead(); }));
+    $('#flip').addEventListener('click', () => { audio(); flipGlass(); });
+  } else {
+    c.innerHTML = '';
+    renderBody();
+  }
+}
+function renderHead() {
+  const left = S.target - kcalEaten();
+  if (S.tab === 'food') { $('#hLabel').textContent = 'Left to eat today'; $('#hSub').textContent = `of ${fmt(S.target)} kcal · ${S.eaten.length} foods in the jar`; $('#hHint').textContent = 'Drag the jar to turn it. Twist it fast to shake. Double-tap to knock it.'; }
+  if (S.tab === 'rest') { $('#hLabel').textContent = S.restFlowing ? `Resting · ${S.part}` : `Next rest · ${S.part}`; $('#hSub').textContent = `Coach suggests ${mmss(COACH[S.part])} · ${S.rests} rests today`; $('#hHint').textContent = 'Turn the glass over to start. Tilt it and the sand follows.'; }
+  if (S.tab === 'body') { $('#hLabel').textContent = 'Weight'; $('#hSub').textContent = 'kg · from Apple Health and InBody in the app'; $('#hHint').textContent = ''; }
+  $('#tsFood').textContent = fmt(left) + ' left';
+  $('#tsBody').textContent = S.weights[S.weights.length - 1].toFixed(1) + ' kg';
+  bigTarget = S.tab === 'food' ? left : null;
+}
+let bigShown = S.target - kcalEaten(), bigV = 0, bigTarget = bigShown;
+function updateBig(dt) {
+  const el = $('#hBig');
+  if (S.tab === 'food') {
+    const a = -150 * (bigShown - bigTarget) - 22 * bigV; bigV += a * dt; bigShown += bigV * dt;
+    if (reduceMotion) bigShown = bigTarget;
+    el.textContent = fmt(bigShown);
+  } else if (S.tab === 'rest') {
+    el.textContent = mmss(S.restFlowing ? Math.min(S.secs, S.restLeft) : S.secs);
+    $('#tsRest').textContent = S.restFlowing ? mmss(Math.min(S.secs, S.restLeft)) : S.part;
+    if (Math.random() < 0.05) renderHead();
+  } else el.textContent = S.weights[S.weights.length - 1].toFixed(1);
+  if (S.tab !== 'rest') $('#tsRest').textContent = S.restFlowing ? mmss(S.restLeft) : S.part;
+}
+function eat(food) {
+  S.eaten.push(food); addBlock(food, true); renderHead(); toast(`Added ${food.name}`);
+}
+function renderBody() {
+  const ws = S.weights, w = 340, h = 150, lo = Math.floor(Math.min(...ws) - 0.5), hi = Math.ceil(Math.max(...ws) + 0.5);
+  const pl = 30, pb = 18, pt = 8, iw = w - pl - 8, ih = h - pb - pt;
+  const x = (i) => pl + i / (ws.length - 1) * iw, y = (v) => pt + (hi - v) / (hi - lo) * ih;
+  const pts = ws.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const ticks = [hi, (hi + lo) / 2, lo];
+  const d4 = ws[ws.length - 1] - ws[ws.length - 5];
+  $('#bodyView').innerHTML = `<div class="bodycard"><div class="label">12 weeks <span class="tag" style="margin-left:6px">sample</span></div>
+    <svg width="100%" viewBox="0 0 ${w} ${h}" role="img" aria-label="Weight over 12 weeks, sample data">
+      ${ticks.map((t) => `<line x1="${pl}" x2="${w - 8}" y1="${y(t)}" y2="${y(t)}" stroke="#34323a"/><text x="0" y="${y(t) + 3}">${t % 1 ? t.toFixed(1) : t}</text>`).join('')}
+      <path d="M${x(0)},${pt + ih} L${pts.split(' ').join(' L')} L${x(ws.length - 1)},${pt + ih} Z" fill="#d26b4322"/>
+      <polyline points="${pts}" fill="none" stroke="#d26b43" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+      <circle cx="${x(ws.length - 1)}" cy="${y(ws[ws.length - 1])}" r="4.5" fill="#ece6da"/>
+      <text x="${pl}" y="${h - 3}">12 wk ago</text><text x="${w - 8}" y="${h - 3}" text-anchor="end">now</text></svg>
+    <div class="statrow"><div class="stat"><span class="label">4 weeks</span><b style="color:${d4 <= 0 ? 'var(--good)' : 'var(--terra)'}">${d4 > 0 ? '+' : '−'}${Math.abs(d4).toFixed(1)} kg</b></div><div class="stat"><span class="label">Body fat</span><b>19.8%</b></div><div class="stat"><span class="label">Lean</span><b>64.2 kg</b></div></div>
+    <button class="btn soft" id="weigh">Add today's weight</button></div>`;
+  $('#weigh').addEventListener('click', () => { const nw = +(ws[ws.length - 1] - 0.1 - Math.random() * 0.2).toFixed(1); ws.push(nw); ws.shift(); renderBody(); renderHead(); toast(`Logged ${nw.toFixed(1)} kg (sample)`); });
+}
+// sheet
+const sheet = $('#sheet'), scrim = $('#scrim');
+let sheetY = 105, sheetV = 0, sheetTarget = 105;
+$('#foodList').innerHTML = FOODS.map((f, i) => `<button class="item" data-i="${i}"><span><i style="background:#${TINT[dominant(f)].toString(16).padStart(6, '0')}"></i>${f.name}</span><span class="k">${f.kcal} kcal</span></button>`).join('');
+$('#foodList').addEventListener('click', (e) => { const b = e.target.closest('[data-i]'); if (!b) return; closeSheet(); setTimeout(() => eat(FOODS[+b.dataset.i]), 180); });
+function openSheet() { audio(); sheetTarget = 0; scrim.classList.add('on'); }
+function closeSheet() { sheetTarget = 105; scrim.classList.remove('on'); }
+$('#closeSheet').addEventListener('click', closeSheet); scrim.addEventListener('click', closeSheet);
+
+// ---------- start: settle the sample jar before anyone sees it ----------
+jar.group.updateMatrixWorld(true);
+S.eaten.forEach((f) => addBlock(f, false));
+for (let i = 0; i < 360; i++) { jarBody.angularVelocity.set(0, 0, 0); world.step(1 / 120); }
+glass.held.x = 1.2; glass.held.xTarget = 1.2;
+setTab('food');
+
+const FIXED = 1 / 120; let acc = 0, last = performance.now();
+function frame(t) {
+  const dt = Math.min(0.05, (t - last) / 1000); last = t;
+  // sheet spring
+  sheetV += (-300 * (sheetY - sheetTarget) - 30 * sheetV) * dt; sheetY += sheetV * dt; if (reduceMotion) sheetY = sheetTarget;
+  sheet.style.transform = `translateY(${sheetY.toFixed(2)}%)`;
+  // objects
+  acc += dt; let n = 0;
+  while (acc >= FIXED && n < 8) {
+    for (const o of [jar, glass]) o.held.step(FIXED);
+    // the jar: kinematic body carries the turn into the physics
+    jarBody.quaternion.set(jar.held.q.x, jar.held.q.y, jar.held.q.z, jar.held.q.w);
+    jarBody.angularVelocity.set(jar.held.w.x, jar.held.w.y, jar.held.w.z);
+    const jx = jar.held.x, jy = jar.held.lift;
+    jarBody.velocity.set((jx - jarBody.position.x) / FIXED, (jy - jarBody.position.y) / FIXED, -jarBody.position.z / FIXED);
+    world.step(FIXED);
+    jar.held.q.set(jarBody.quaternion.x, jarBody.quaternion.y, jarBody.quaternion.z, jarBody.quaternion.w);
+    glass.held.integrate(FIXED);
+    acc -= FIXED; n++;
+  }
+  if (n === 8) acc = 0;
+  jar.held.apply(0); glass.held.apply(0);
+  jar.group.updateMatrixWorld(true); glass.group.updateMatrixWorld(true);
+  for (const b of blocks) { b.mesh.position.copy(b.body.position); b.mesh.quaternion.copy(b.body.quaternion); }
+  stepSand(dt);
+  updateBig(dt);
+  key.target.position.set(0, 0, 0);
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+renderHead();
+requestAnimationFrame((t) => { last = t; $('#loading').classList.add('done'); requestAnimationFrame(frame); });
+</script>
