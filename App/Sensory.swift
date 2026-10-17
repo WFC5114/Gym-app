@@ -8,6 +8,8 @@ enum SensoryEvent: CaseIterable {
     case scrubTick
     case scrubInBodyDay
     case rotatePrism
+    /// The hourglass has run out.
+    case restDone
 
     var intensity: Float {
         switch self {
@@ -16,6 +18,7 @@ enum SensoryEvent: CaseIterable {
         case .scrubTick: return 0.25
         case .scrubInBodyDay: return 1.0
         case .rotatePrism: return 0.6
+        case .restDone: return 0.7
         }
     }
 
@@ -26,6 +29,7 @@ enum SensoryEvent: CaseIterable {
         case .scrubTick: return 0.80
         case .scrubInBodyDay: return 0.80
         case .rotatePrism: return 0.5
+        case .restDone: return 0.4
         }
     }
 }
@@ -51,6 +55,10 @@ enum HapticPatterns {
             }
         case .setDone, .scrubTick, .scrubInBodyDay:
             events.append(CHHapticEvent(eventType: .hapticTransient, parameters: [i, s], relativeTime: 0))
+        case .restDone:
+            // Two soft knocks, like tapping the glass.
+            events.append(CHHapticEvent(eventType: .hapticTransient, parameters: [i, s], relativeTime: 0))
+            events.append(CHHapticEvent(eventType: .hapticTransient, parameters: [i, s], relativeTime: 0.16))
         case .rotatePrism:
             // Swells to the 60° midpoint, then a crisp seating pulse at 120°.
             events.append(CHHapticEvent(eventType: .hapticContinuous, parameters: [i, s], relativeTime: 0, duration: 0.35))
@@ -68,5 +76,56 @@ enum HapticPatterns {
             ], relativeTime: 0)
         ] : []
         return try CHHapticPattern(events: events, parameterCurves: curves)
+    }
+}
+
+/// Plays the custom patterns. Honours the haptics toggle; does nothing on
+/// hardware without a Taptic Engine (simulator).
+final class HapticEngine {
+    static let shared = HapticEngine()
+    private var engine: CHHapticEngine?
+    static let enabledKey = "haptics.enabled"
+
+    var isEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: Self.enabledKey) as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: Self.enabledKey) }
+    }
+
+    /// Silences haptics for this launch only (fixtures, tests); not saved.
+    var isMuted = false
+
+    private func ready() -> CHHapticEngine? {
+        guard isEnabled, !isMuted, CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return nil }
+        if let engine { return engine }
+        guard let e = try? CHHapticEngine() else { return nil }
+        e.isAutoShutdownEnabled = true
+        e.resetHandler = { [weak e] in try? e?.start() }
+        try? e.start()
+        engine = e
+        return e
+    }
+
+    /// `scale` multiplies the event's intensity (impact speed, load size).
+    func play(_ event: SensoryEvent, weight: Float = 0.5, scale: Float = 1) {
+        guard let engine = ready(), let pattern = try? HapticPatterns.pattern(for: event, weight: weight) else { return }
+        guard let player = try? engine.makePlayer(with: pattern) else { return }
+        try? engine.start()
+        if scale != 1 {
+            try? player.sendParameters([CHHapticDynamicParameter(parameterID: .hapticIntensityControl, value: min(max(scale, 0.1), 1), relativeTime: 0)], atTime: CHHapticTimeImmediate)
+        }
+        try? player.start(atTime: CHHapticTimeImmediate)
+    }
+
+    /// One light tick (rotation detents, steppers).
+    func tick(intensity: Float, sharpness: Float) {
+        guard let engine = ready() else { return }
+        let event = CHHapticEvent(eventType: .hapticTransient, parameters: [
+            CHHapticEventParameter(parameterID: .hapticIntensity, value: intensity),
+            CHHapticEventParameter(parameterID: .hapticSharpness, value: sharpness),
+        ], relativeTime: 0)
+        guard let pattern = try? CHHapticPattern(events: [event], parameters: []),
+              let player = try? engine.makePlayer(with: pattern) else { return }
+        try? engine.start()
+        try? player.start(atTime: CHHapticTimeImmediate)
     }
 }

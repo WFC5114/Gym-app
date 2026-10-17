@@ -17,8 +17,8 @@ final class SpringTests: XCTestCase {
         return result
     }
 
-    func testDeckBouncesThreeTimes() {
-        let visible = peaks(.deck).filter { $0 > 0.05 }
+    func testJarBouncesThreeTimes() {
+        let visible = peaks(.jar).filter { $0 > 0.05 }
         XCTAssertEqual(visible.count, 3)
     }
 
@@ -42,11 +42,12 @@ final class SpringTests: XCTestCase {
         XCTAssertEqual(PrismFace.train.yaw, 120)
     }
 
-    func testDeckRestsLowerAsTheDayFills() {
-        XCTAssertEqual(Deck.restingDepth(eaten: 0, target: 2450), 0)
-        XCTAssertEqual(Deck.restingDepth(eaten: 1225, target: 2450), 0.5, accuracy: 0.0001)
-        XCTAssertEqual(Deck.restingDepth(eaten: 9999, target: 2450), 1.2, accuracy: 0.0001)
-        XCTAssertEqual(Deck.restingDepth(eaten: 100, target: 0), 0)
-        XCTAssertEqual(Deck.weights, [50, 100, 250, 500])
+    func testQuickAddWeights() {
+        XCTAssertEqual(QuickAdd.weights, [50, 100, 250, 500])
+    }
+
+    func testTumbleBouncesOnceThenSettles() {
+        let visible = peaks(.tumble).filter { $0 > 0.05 }
+        XCTAssertEqual(visible.count, 1)
     }
 }

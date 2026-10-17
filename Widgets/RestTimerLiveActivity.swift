@@ -7,7 +7,7 @@ struct RestTimerLiveActivity: Widget {
         ActivityConfiguration(for: RestTimerAttributes.self) { context in
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("REST · SET \(context.state.setNumber)").font(Brutal.label(11))
+                    Text("REST \(context.state.setNumber)").font(Brutal.label(11))
                     Text(context.state.exercise.uppercased()).font(Brutal.label(15))
                 }
                 Spacer()
@@ -23,7 +23,7 @@ struct RestTimerLiveActivity: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Text("SET \(context.state.setNumber)")
+                    Text("REST \(context.state.setNumber)")
                         .font(Brutal.label(14))
                         .foregroundStyle(Brutal.paper)
                 }

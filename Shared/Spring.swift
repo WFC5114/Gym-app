@@ -10,14 +10,28 @@ struct SpringConfig: Equatable {
     /// Below 1 the spring overshoots and bounces; 1 is critically damped.
     var dampingRatio: Double { damping / (2 * (mass * stiffness).squareRoot()) }
 
-    /// DIET deck slam: ultra-heavy and underdamped, three decaying bounces.
-    static let deck = SpringConfig(mass: 3.5, stiffness: 450, damping: 22)
+    /// DIET jar taking a block's weight: ultra-heavy and underdamped, three decaying bounces.
+    static let jar = SpringConfig(mass: 3.5, stiffness: 450, damping: 22)
     /// TRAIN piston firing into its upper limit.
     static let piston = SpringConfig(mass: 1.0, stiffness: 800, damping: 35)
     /// BODY numbers following the scrubber.
     static let bodyNumbers = SpringConfig(mass: 1.2, stiffness: 180, damping: 28)
     /// Prism rotation: about 8% overshoot on the 120° turn.
     static let prism = SpringConfig(mass: 1.0, stiffness: 300, damping: 21.7)
+    /// Reduce Motion: critically damped, no overshoot, nothing travels far.
+    static let calm = SpringConfig(mass: 1.0, stiffness: 300, damping: 34.64)
+    /// Display values that track a moving target closely (sand level, glass size).
+    static let follow = SpringConfig(mass: 1.0, stiffness: 400, damping: 40)
+    /// Hero number punch on impact: light and springy, two quick bounces.
+    static let punch = SpringConfig(mass: 0.6, stiffness: 520, damping: 9)
+    /// A food block tumbling into its place in the jar: one clear bounce, then still.
+    static let tumble = SpringConfig(mass: 1.0, stiffness: 220, damping: 15)
+    /// Hit rays flying out from a contact: critically damped, they shoot and stop.
+    static let burst = SpringConfig(mass: 1.0, stiffness: 160, damping: 25.3)
+    /// BODY mannequin flexing its arm after a tap: quick, one small overshoot.
+    static let flex = SpringConfig(mass: 1.0, stiffness: 140, damping: 13)
+    /// BODY mannequin turning its head: slow and soft.
+    static let glance = SpringConfig(mass: 1.2, stiffness: 60, damping: 10)
 }
 
 /// One spring-driven value, integrated every frame (semi-implicit Euler).
@@ -30,6 +44,15 @@ struct SpringState: Equatable {
         let force = -config.stiffness * (position - target) - config.damping * velocity
         velocity += force / config.mass * dt
         position += velocity * dt
+    }
+
+    /// Integrates a real frame interval in bounded fixed substeps (≤ 1/480 s), so
+    /// the result does not depend on frame rate and a long hitch cannot explode.
+    mutating func advance(_ dt: Double, config: SpringConfig) {
+        let clamped = min(max(dt, 0), 1.0 / 15)
+        let steps = max(1, Int((clamped * 480).rounded(.up)))
+        let h = clamped / Double(steps)
+        for _ in 0..<steps { step(h, config: config) }
     }
 
     func isSettled(tolerance: Double = 0.001) -> Bool {
@@ -47,14 +70,7 @@ enum PrismFace: Int, CaseIterable {
     func previous() -> PrismFace { PrismFace(rawValue: (rawValue + 2) % 3)! }
 }
 
-/// The DIET deck's resting depth: it sits lower as the day fills.
-enum Deck {
-    static let maxCompression: Double = 1
-
-    static func restingDepth(eaten: Double, target: Double) -> Double {
-        guard target > 0 else { return 0 }
-        return min(max(eaten / target, 0), 1.2) * maxCompression
-    }
-
+/// Quick-add energy blocks on the DIET rail (calories without macros).
+enum QuickAdd {
     static let weights: [Int] = [50, 100, 250, 500]
 }

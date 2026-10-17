@@ -27,6 +27,10 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSSupportsLiveActivities: true
+        UIAppFonts: [Unbounded-Black.ttf, InterDisplay-Bold.otf, InterDisplay-Medium.otf]
+        UIUserInterfaceStyle: Dark
+        CADisableMinimumFrameDurationOnPhone: true
+        NSCameraUsageDescription: GYM uses the camera only to read food barcodes. Nothing is recorded or uploaded.
         NSHealthShareUsageDescription: GYM reads your weight, InBody body composition, activity, sleep and workouts to track your progress. Your data stays on your phone.
         NSHealthUpdateUsageDescription: GYM saves the workouts you log to Apple Health.
     settings:
@@ -63,6 +67,18 @@ targets:
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
+  GymAppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - UITests
+    dependencies:
+      - target: GymApp
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: GymApp
+        PRODUCT_BUNDLE_IDENTIFIER: com.wfc5114.gymapp.uitests
 schemes:
   GymApp:
     build:
@@ -71,3 +87,4 @@ schemes:
     test:
       targets:
         - GymAppTests
+        - GymAppUITests

@@ -14,6 +14,17 @@ struct Skin: Identifiable, Equatable {
     let soundKit: String
     /// What unlocks the skin, or nil when it is available from the start.
     let unlock: String?
+    /// Inlaid colour plate per face (DIET, TRAIN, BODY); nil keeps the bare chassis.
+    var faceColors: [UInt32]? = nil
+    /// Hero numerals, weights and slabs.
+    var objectColor: UInt32 = 0xEDEDED
+    /// Satin and clearcoat on objects instead of matte graphite.
+    var glossy = false
+    /// Claymorphic chrome: keys and gauges are lit clay and glass objects on a
+    /// thick clay tray, labels are set in a sans, and dim labels may step back.
+    var clayUI = false
+    /// Colour of type on the faces.
+    var inkHex: UInt32 = 0xFFFFFF
 
     static let mono = Skin(
         id: "mono", name: "MONO",
@@ -33,7 +44,42 @@ struct Skin: Identifiable, Equatable {
         roughness: 0.15, metalness: 0.85, soundKit: "Synth-Volt",
         unlock: "100% protein target 14 days in a row"
     )
-    static let all: [Skin] = [.mono, .concrete, .signal]
+    /// Default (Wei, 13 Oct 2026): colour and light like a toy, each face its own
+    /// colour so the prism reads at a glance while it turns. Objects are warm
+    /// cream with satin clearcoat; white type stays readable on all three faces.
+    static let flare = Skin(
+        id: "flare", name: "FLARE",
+        base: Color(hex: 0x000000), accent: Color(hex: 0xFFFFFF), mid: Color(hex: 0xFF5A1F),
+        roughness: 0.55, metalness: 0.0, soundKit: "Anvil",
+        unlock: nil,
+        faceColors: [0xE8461E, 0x2340E0, 0x7B3FE4],
+        objectColor: 0xFFF4E0,
+        glossy: true
+    )
+    /// Default (Wei, 14 Oct 2026, picked "Night" of three whole-screen clay
+    /// mockups, design/mockups/clay/screen.py): mature claymorphism. Graphite
+    /// clay trays, ivory clay objects and numerals, clear glass, a terracotta accent.
+    static let night = Skin(
+        id: "night", name: "NIGHT",
+        base: Color(hex: 0x000000), accent: Color(hex: 0xF1ECE4), mid: Color(hex: 0xD9774E),
+        roughness: 0.55, metalness: 0.0, soundKit: "Anvil",
+        unlock: nil,
+        faceColors: [0x121115, 0x121115, 0x121115],
+        objectColor: 0xF1ECE4,
+        glossy: true,
+        clayUI: true,
+        inkHex: 0xF1ECE4
+    )
+    static let all: [Skin] = [.night, .flare, .mono, .concrete, .signal]
+
+    /// `-skin <id>` on launch picks a skin (fixtures and comparisons); otherwise NIGHT.
+    static var launch: Skin {
+        let args = ProcessInfo.processInfo.arguments
+        if let i = args.firstIndex(of: "-skin"), i + 1 < args.count, let skin = all.first(where: { $0.id == args[i + 1] }) {
+            return skin
+        }
+        return .night
+    }
 }
 
 extension Color {
@@ -48,7 +94,7 @@ extension Color {
 
 /// The GYM design system for the Laboratory Measuring Deck.
 enum Brutal {
-    static var skin: Skin = .mono
+    static var skin: Skin = .launch
 
     /// Background of the machine and the void around it.
     static var paper: Color { skin.base }
@@ -59,7 +105,6 @@ enum Brutal {
     static var muted: Color { skin.mid }
 
     static let border: CGFloat = 3
-    static let shadowOffset: CGFloat = 6
     static let grid: CGFloat = 8
 
     static func display(_ size: CGFloat) -> Font {
@@ -73,28 +118,5 @@ enum Brutal {
     /// SwiftUI fallbacks for flat UI. The 3D machine integrates `SpringState` per frame instead.
     static let snap = Animation.interpolatingSpring(mass: SpringConfig.piston.mass, stiffness: SpringConfig.piston.stiffness, damping: SpringConfig.piston.damping)
     static let settle = Animation.interpolatingSpring(mass: SpringConfig.bodyNumbers.mass, stiffness: SpringConfig.bodyNumbers.stiffness, damping: SpringConfig.bodyNumbers.damping)
-    static let heavy = Animation.interpolatingSpring(mass: SpringConfig.deck.mass, stiffness: SpringConfig.deck.stiffness, damping: SpringConfig.deck.damping)
-}
-
-struct BrutalCard: ViewModifier {
-    var fill: Color = Brutal.paper
-
-    func body(content: Content) -> some View {
-        content
-            .padding(Brutal.grid * 2)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(fill)
-            .overlay(Rectangle().stroke(Brutal.ink, lineWidth: Brutal.border))
-            .background(
-                Rectangle()
-                    .fill(Brutal.ink)
-                    .offset(x: Brutal.shadowOffset, y: Brutal.shadowOffset)
-            )
-    }
-}
-
-extension View {
-    func brutalCard(fill: Color = Brutal.paper) -> some View {
-        modifier(BrutalCard(fill: fill))
-    }
+    static let heavy = Animation.interpolatingSpring(mass: SpringConfig.jar.mass, stiffness: SpringConfig.jar.stiffness, damping: SpringConfig.jar.damping)
 }

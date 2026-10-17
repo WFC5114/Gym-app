@@ -16,16 +16,22 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-26
-    timeout-minutes: 40
+    # Xcode 27 (public preview image): iOS 27 RealityKit brings soft spot-light
+    # shadows, subsurface clay and bloom. The app still targets iOS 26 and uses
+    # them only when it runs on iOS 27.
+    runs-on: xcode-27
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
       - name: Show Xcode
         run: xcodebuild -version
 
+      - name: Metal toolchain
+        run: xcodebuild -downloadComponent MetalToolchain || echo "Metal toolchain already present or not downloadable"
+
       - name: Install tools
-        run: brew install xcodegen ldid
+        run: brew install xcodegen ldid imagemagick
 
       - name: Generate Xcode project
         run: xcodegen generate
@@ -41,6 +47,36 @@ jobs:
         with:
           name: GymApp-ipa
           path: build/GymApp.ipa
+
+      - name: UI captures
+        run: scripts/capture.sh
+
+      - name: Upload captures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GymApp-captures
+          path: build/captures
+
+      # The simulator build the captures ran, zipped for a browser preview
+      # (e.g. appetize.io) when GYM can't be installed on a phone.
+      - name: Zip simulator app
+        if: always()
+        run: |
+          APP=$(find build/dd-sim/Build/Products -maxdepth 2 -type d -path '*-iphonesimulator/GymApp.app' | head -1)
+          if [ -n "$APP" ]; then
+            ditto -c -k --sequesterRsrc --keepParent "$APP" build/GymApp-simulator.zip
+          else
+            echo "warning: no simulator GymApp.app found"
+          fi
+
+      - name: Upload simulator app
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GymApp-simulator
+          path: build/GymApp-simulator.zip
+          if-no-files-found: warn
 
       - name: Upload logs on failure
         if: failure()

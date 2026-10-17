@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Runs unit tests on the newest available iPhone simulator.
+# Runs unit tests (GymAppTests only; UI captures live in scripts/capture.sh)
+# on the newest available iPhone simulator.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p build
@@ -19,5 +20,6 @@ xcodebuild test \
   -project GymApp.xcodeproj \
   -scheme GymApp \
   -destination "id=$UDID" \
+  -only-testing:GymAppTests \
   CODE_SIGNING_ALLOWED=NO \
   | tee build/test.log

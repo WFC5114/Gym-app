@@ -1,0 +1,16 @@
+Recorded impact layers in this folder come from Kenney's free sound packs,
+licensed CC0 1.0 (public domain): http://creativecommons.org/publicdomain/zero/1.0/
+
+- plate_*, metal_*, wood_*, glass_*: "Impact Sounds" by Kenney (www.kenney.nl)
+  https://kenney.nl/assets/impact-sounds
+  zip: https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip
+  (impactPlate_heavy/light, impactMetal_heavy, impactWood_heavy, impactGlass_light, variants 000-004)
+- click_*: "Interface Sounds" by Kenney (www.kenney.nl)
+  https://kenney.nl/assets/interface-sounds
+  zip: https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip
+  (click_001-005)
+
+Processing (scripted, ffmpeg): mono, 44.1 kHz, 16-bit CAF, trailing silence
+removed, loudness normalised to -16 LUFS with a -1.5 dBTP ceiling. In the app
+each one is layered under the synthesised material sound, with random variant
+choice and bounded pitch variation.
