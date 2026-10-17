@@ -10,7 +10,10 @@
 #
 # Units are the live view's: the object is scaled to 0.5 tall and centred on the
 # origin (three.js, y up); here Blender's z is up and three's z is Blender's -y.
-#   python3 desk_studio.py <out dir> [samples]
+# Wei (17 Oct, on v2: "slightly ugly since it's all gray and black and white, I
+# want some color but mature"): each tab has its own desk, a deep jewel-toned
+# clay (TABS), and its own studio light, which carries the desk's colour.
+#   python3 desk_studio.py <out dir> [samples] [tab ...]
 import bpy, bmesh, math, os, sys
 from mathutils import Vector
 
@@ -19,6 +22,8 @@ FOV, PITCH, DIST = 28.0, 15.0, 3.51
 TARGET = (0.0, -0.02, 0.0)        # three.js
 ASPECT = 0.62                     # the backdrop; narrower phones crop its sides
 RING_R, RING_W = 0.36, 0.006
+TABS = {'food': 0x0B5A45, 'rest': 0x1B3290, 'body': 0x5C1C60}   # pine, ink indigo, aubergine
+WALL_Y, SWEEP_R = 1.9, 0.6       # the coloured desks curve up into a wall behind (Blender y)
 
 
 def b(x, y, z):
@@ -36,8 +41,10 @@ def lin(h):
     return [((v + 0.055) / 1.055) ** 2.4 if v > 0.04045 else v / 12.92 for v in c] + [1]
 
 
-def desk_material():
-    """The Night tray's graphite clay, its light pooled round the object."""
+def desk_material(color=0x211F24, floor=0.0, wall=False):
+    """Pressed clay (the Night tray's by default), its light pooled round the
+    object; away from it, it falls to `floor` of its light (0: into the night).
+    The wall's light falls with height instead."""
     m = bpy.data.materials.new('desk')
     m.use_nodes = True
     nt = m.node_tree
@@ -67,16 +74,24 @@ def desk_material():
     tone.inputs['To Min'].default_value = 0.36
     tone.inputs['To Max'].default_value = 0.48
     nt.links.new(mott.outputs['Fac'], tone.inputs['Value'])
-    # Darker away from the object: the desk falls into the night.
+    # Darker away from the object: the desk falls into the night (or the wall
+    # darkens as it rises).
     dist = nt.nodes.new('ShaderNodeVectorMath')
-    dist.operation = 'LENGTH'
-    nt.links.new(coord.outputs['Object'], dist.inputs[0])
     fall = nt.nodes.new('ShaderNodeMapRange')
     fall.interpolation_type = 'SMOOTHERSTEP'
-    fall.inputs['From Min'].default_value = 0.9
-    fall.inputs['From Max'].default_value = 4.5
-    fall.inputs['To Min'].default_value = 1.0
-    fall.inputs['To Max'].default_value = 0.0
+    if wall:
+        dist.operation = 'DOT_PRODUCT'
+        dist.inputs[1].default_value = (0, 0, 1)
+        fall.inputs['From Min'].default_value = DESK + 0.1
+        fall.inputs['From Max'].default_value = DESK + 1.5
+        fall.inputs['To Min'].default_value = 0.95
+    else:
+        dist.operation = 'LENGTH'
+        fall.inputs['From Min'].default_value = 0.9
+        fall.inputs['From Max'].default_value = 4.5
+        fall.inputs['To Min'].default_value = 1.0
+    fall.inputs['To Max'].default_value = floor
+    nt.links.new(coord.outputs['Object'], dist.inputs[0])
     nt.links.new(dist.outputs['Value'], fall.inputs['Value'])
     mul = nt.nodes.new('ShaderNodeMath')
     mul.operation = 'MULTIPLY'
@@ -86,7 +101,7 @@ def desk_material():
     col.data_type = 'RGBA'
     col.blend_type = 'MULTIPLY'
     col.inputs['Factor'].default_value = 1.0
-    col.inputs['A'].default_value = lin(0x211F24)
+    col.inputs['A'].default_value = lin(color)
     nt.links.new(mul.outputs['Value'], col.inputs['B'])
     nt.links.new(col.outputs['Result'], bsdf.inputs['Base Color'])
     # ...its sheen and gloss too, so the far desk has no edge against the night.
@@ -104,9 +119,32 @@ def desk_material():
     return m
 
 
-def desk(scene):
-    """A big graphite slab with a ring pressed into it where the object stands,
-    ticked like a measuring mat."""
+def sweep(scene, color):
+    """The coloured desks' wall: the desk curves up behind the object like a
+    photographer's paper sweep, darker the higher it goes."""
+    bm = bmesh.new()
+    prof = []
+    for i in range(25):
+        a = -math.pi / 2 + math.pi / 2 * i / 24
+        prof.append((WALL_Y - SWEEP_R + SWEEP_R * math.cos(a), DESK + 0.0005 + SWEEP_R + SWEEP_R * math.sin(a)))
+    prof.append((WALL_Y, DESK + 4.0))
+    rows = [[bm.verts.new((x, y, z)) for (y, z) in prof] for x in (-30.0, 30.0)]
+    for i in range(len(prof) - 1):
+        bm.faces.new((rows[0][i], rows[1][i], rows[1][i + 1], rows[0][i + 1]))   # facing the object
+    me = bpy.data.meshes.new('sweep')
+    bm.to_mesh(me)
+    bm.free()
+    for p in me.polygons:
+        p.use_smooth = True
+    o = bpy.data.objects.new('sweep', me)
+    scene.collection.objects.link(o)
+    o.data.materials.append(desk_material(color, floor=0.15, wall=True))
+    return o
+
+
+def desk(scene, color=0x211F24, wall=False):
+    """A big clay slab with a ring pressed into it where the object stands,
+    ticked like a measuring mat; with `wall`, it curves up behind."""
     bm = bmesh.new()
     bmesh.ops.create_cube(bm, size=1.0)
     for v in bm.verts:
@@ -118,7 +156,9 @@ def desk(scene):
     bm.free()
     slab = bpy.data.objects.new('desk', me)
     scene.collection.objects.link(slab)
-    slab.data.materials.append(desk_material())
+    slab.data.materials.append(desk_material(color, floor=0.62 if wall else 0.0))
+    if wall:
+        sweep(scene, color)
 
     # the cutter: a groove ring and short ticks outside it, joined into one
     parts = []
@@ -238,21 +278,18 @@ def studio_render_settings(scene, samples):
     scene.view_settings.look = 'AgX - Base Contrast'
 
 
-if __name__ == '__main__':
-    out = os.path.abspath(sys.argv[1])
-    samples = int(sys.argv[2]) if len(sys.argv) > 2 else 128
-    os.makedirs(out, exist_ok=True)
+def render_tab(out, samples, tab):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     scene = bpy.context.scene
     studio_render_settings(scene, samples)
-    desk(scene)
+    desk(scene, TABS[tab], wall=True)
     ls = lights(scene)
     camera(scene)
     scene.render.image_settings.file_format = 'JPEG'
     scene.render.image_settings.quality = 90
-    scene.render.filepath = os.path.join(out, 'desk-backdrop.jpg')
+    scene.render.filepath = os.path.join(out, 'desk-backdrop-%s.jpg' % tab)
     bpy.ops.render.render(write_still=True)
-    print('rendered backdrop', flush=True)
+    print('rendered backdrop', tab, flush=True)
 
     # The studio from the object, for the live view's ambient light: the key is
     # the live light (it casts the shadows), so it is left out here. The other
@@ -268,11 +305,19 @@ if __name__ == '__main__':
     pc.location = (0, 0, 0)
     pc.rotation_euler = (math.radians(90), 0, math.radians(-90))
     scene.camera = pc
-    scene.render.resolution_x, scene.render.resolution_y = 1024, 512
+    scene.render.resolution_x, scene.render.resolution_y = 768, 384
     scene.cycles.samples = max(32, samples // 2)
     scene.view_settings.view_transform = 'Standard'
     scene.view_settings.look = 'None'
     scene.render.image_settings.file_format = 'HDR'
-    scene.render.filepath = os.path.join(out, 'desk-env.hdr')
+    scene.render.filepath = os.path.join(out, 'desk-env-%s.hdr' % tab)
     bpy.ops.render.render(write_still=True)
-    print('rendered env', flush=True)
+    print('rendered env', tab, flush=True)
+
+
+if __name__ == '__main__':
+    out = os.path.abspath(sys.argv[1])
+    samples = int(sys.argv[2]) if len(sys.argv) > 2 else 128
+    os.makedirs(out, exist_ok=True)
+    for tab in sys.argv[3:] or list(TABS):
+        render_tab(out, samples, tab)

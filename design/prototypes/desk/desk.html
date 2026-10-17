@@ -5,18 +5,22 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Unbounded:wght@900&display=swap">
 <style>
-/* Version 2. Everything still is from Blender: the desk (desk-backdrop.jpg), the
-   studio light (env.json), the buttons (desk-ui-*.png) and the numerals
-   (night-glyph-*.png). The jar and hourglass are the Blender models with their
-   creases' shadows baked in, lit live so they can be turned. Night clay palette,
-   one dark look on purpose. */
+/* Version 3 (Wei, 17 Oct: "slightly ugly since it's all gray and black and
+   white. I want some color but mature and some glassish jelly like buttons and
+   there should be a bar for macros that fills up"). Everything is still from
+   Blender: each tab's coloured desk and its studio light (desk-backdrop-*.jpg,
+   env-*.json), the glass and jelly controls and the macro tubes (desk-ui-*.png),
+   the numerals (night-glyph-*.png). The jar and hourglass are the Blender models
+   with their creases' shadows baked in, lit live so they can be turned. */
 :root {
   --night: #0d0c0f;
   --ivory: #ece6da;
   --dim: #a39d93;
   --faint: #78736b;
   --sheet: #1b1a1e;
-  --line: #2f2d34;
+  --card: #19181bee;
+  --well: #232227;
+  --line: #ffffff1c;
   --terra: #d9774e;
   --good: #9cc188;
   --display: "Unbounded", "Arial Black", system-ui, sans-serif;
@@ -24,6 +28,10 @@
   color-scheme: dark;
 }
 [hidden] { display: none !important; }
+/* each tab's desk colour carries into its sheets and cards (desk_studio.py TABS) */
+#app[data-tab="food"] { --sheet: #10231d; --card: #0f201bee; --well: #173229; }
+#app[data-tab="rest"] { --sheet: #121731; --card: #11162eee; --well: #1b2347; }
+#app[data-tab="body"] { --sheet: #211226; --card: #1f1124ee; --well: #2e1a34; }
 html, body { height: 100%; overflow: hidden; margin: 0; }
 body { background: var(--night); color: var(--ivory); font-family: var(--body); -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
@@ -31,16 +39,24 @@ button:focus-visible { outline: 2px solid var(--terra); outline-offset: 3px; bor
 /* The phone column: the desk picture is drawn for a phone's shape, so wide
    screens get a phone-shaped column on black. */
 #app { position: fixed; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100vw, 62vh); overflow: hidden; }
-#stage { position: absolute; inset: 0; touch-action: none; background: var(--night) url(desk-backdrop.jpg) center / auto 100% no-repeat; }
-#stage canvas { display: block; width: 100%; height: 100%; }
+#stage { position: absolute; inset: 0; touch-action: none; background: var(--night); }
+#stage .bd { position: absolute; inset: 0; background: center / auto 100% no-repeat; pointer-events: none; }
+#stage canvas { position: relative; display: block; width: 100%; height: 100%; }
 .ui { position: absolute; inset: 0; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
   padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px calc(env(safe-area-inset-bottom, 0px) + 12px); }
 .head { display: flex; flex-direction: column; gap: 2px; }
 .head .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
 .label { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--dim); font-weight: 800; }
 .sub { color: var(--dim); font-size: 15px; font-weight: 500; }
-.macros { display: flex; gap: 14px; color: var(--dim); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 4px; }
-.macros i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: 0; }
+/* macro gauges: glass tubes from Blender, filled with the food clays */
+.macros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
+.gauge { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.gauge .t { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; font-size: 12px; font-weight: 700; color: var(--dim); white-space: nowrap; }
+.gauge .t b { color: var(--ivory); font-weight: 800; font-variant-numeric: tabular-nums; font-size: 13px; }
+.gauge .t b small { color: var(--dim); font-weight: 600; font-size: 11px; }
+.gauge .t b.over { color: var(--terra); }
+.tube { position: relative; height: 18px; }
+.tube .fill { position: absolute; left: 4px; top: 4px; height: 10px; }
 .tag { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: #c9a46a; border: 1px solid #c9a46a55; border-radius: 6px; padding: 2px 6px; font-weight: 700; }
 /* The hero number is set from rendered clay numerals. */
 .hero { position: relative; height: 66px; margin: 6px 0 2px; }
@@ -61,9 +77,10 @@ button:focus-visible { outline: 2px solid var(--terra); outline-offset: 3px; bor
 .row3 > * { flex: 1; }
 /* clay controls: sizes come from desk-ui.json at load (see skinClay) */
 .clay { position: relative; display: flex; align-items: center; justify-content: center; white-space: nowrap; font-weight: 800; }
-.clay.primary { color: #221f24; font-size: 17px; }
-.clay.soft, .clay.chip { color: var(--ivory); font-size: 15px; }
-.clay.chip.on { color: #221f24; }
+.clay.primary { color: #2b1704; font-size: 17px; }
+.clay.soft { color: #221f24; font-size: 16px; }
+.clay.chip { color: var(--ivory); font-size: 15px; text-shadow: 0 1px 2px #0008; }
+.clay.chip.on { color: #2b1704; text-shadow: none; }
 .clay small { font-weight: 600; opacity: .7; margin-left: 4px; }
 .clay[disabled] { opacity: .45; }
 .tabs { position: relative; height: 68px; }
@@ -71,24 +88,24 @@ button:focus-visible { outline: 2px solid var(--terra); outline-offset: 3px; bor
 .pic { position: absolute; pointer-events: none; box-sizing: border-box; }
 .tabs button { flex: 1; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; color: var(--dim); position: relative; z-index: 1; }
 .tabs button span { font-size: 11px; font-weight: 600; color: var(--faint); font-variant-numeric: tabular-nums; }
-.tabs button[aria-pressed="true"] { color: var(--ivory); }
-.tabs button[aria-pressed="true"] span { color: var(--dim); }
+.tabs button[aria-pressed="true"] { color: #221f24; }
+.tabs button[aria-pressed="true"] span { color: #5a544c; }
 
-.hint { position: absolute; left: 50%; transform: translate(-50%, 0); top: 68.5%; display: flex; align-items: center; gap: 8px; background: #0d0c0fcc; border: 1px solid var(--line); color: var(--ivory); font-size: 14px; font-weight: 600; padding: 9px 14px; border-radius: 999px; pointer-events: none; white-space: nowrap; transition: opacity .4s; }
+.hint { position: absolute; left: 50%; transform: translate(-50%, 0); top: 68.5%; display: flex; align-items: center; gap: 8px; background: #0008; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border: 1px solid var(--line); color: var(--ivory); font-size: 14px; font-weight: 600; padding: 9px 14px; border-radius: 999px; pointer-events: none; white-space: nowrap; transition: opacity .4s; }
 .hint.gone { opacity: 0; }
 .hint svg { flex: none; }
 #bodyView { position: absolute; left: 16px; right: 16px; top: 31%; pointer-events: auto; }
-.card { background: #19181bee; border: 1px solid var(--line); border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: inset 0 1px 0 #ffffff10, 0 18px 30px #000a; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 26px; padding: 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: inset 0 1px 0 #ffffff10, 0 18px 30px #000a; }
 .card svg text { fill: var(--dim); font-size: 10px; font-family: var(--body); }
 .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-.stat { background: #232227; border-radius: 16px; padding: 10px 12px; box-shadow: inset 0 1px 0 #ffffff0d; }
+.stat { background: var(--well); border-radius: 16px; padding: 10px 12px; box-shadow: inset 0 1px 0 #ffffff0d; }
 .stat b { display: block; font-size: 18px; margin-top: 4px; font-variant-numeric: tabular-nums; }
 /* sheets */
 .scrim { position: absolute; inset: 0; background: #000a; z-index: 19; opacity: 0; pointer-events: none; transition: opacity .25s; }
 .scrim.on { opacity: 1; pointer-events: auto; }
 .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--sheet); border-radius: 28px 28px 0 0; padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
   transform: translateY(105%); max-height: 78%; display: flex; flex-direction: column; gap: 12px; box-shadow: inset 0 1px 0 #ffffff14, 0 -16px 40px #000c; }
-.sheet .grab { width: 40px; height: 5px; border-radius: 3px; background: #3a3840; margin: 0 auto 2px; flex: none; }
+.sheet .grab { width: 40px; height: 5px; border-radius: 3px; background: #ffffff30; margin: 0 auto 2px; flex: none; }
 .sheet h2 { margin: 0; font-size: 20px; font-weight: 800; }
 .sheet .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .sheet .x { min-width: 44px; min-height: 44px; display: grid; place-items: center; color: var(--dim); border-radius: 22px; }
@@ -98,11 +115,11 @@ button:focus-visible { outline: 2px solid var(--terra); outline-offset: 3px; bor
 .item:first-child { border-top: 0; }
 .item i { width: 14px; height: 14px; border-radius: 5px; display: inline-block; margin-right: 12px; vertical-align: -2px; box-shadow: inset 0 -2px 0 #0003, inset 0 1px 0 #fff5; }
 .item .k { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 15px; }
-.field { display: flex; align-items: center; gap: 10px; background: #111013; border-radius: 16px; min-height: 50px; padding: 0 14px; box-shadow: inset 0 2px 6px #000c, inset 0 -1px 0 #ffffff0d; }
+.field { display: flex; align-items: center; gap: 10px; background: #0007; border-radius: 16px; min-height: 50px; padding: 0 14px; box-shadow: inset 0 2px 6px #000c, inset 0 -1px 0 #ffffff0d; }
 .field input { flex: 1; background: none; border: 0; color: var(--ivory); font: 500 16px var(--body); outline: none; min-width: 0; }
 .field input::placeholder { color: var(--faint); }
 .facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.facts div { background: #232227; border-radius: 14px; padding: 10px; text-align: center; }
+.facts div { background: var(--well); border-radius: 14px; padding: 10px; text-align: center; }
 .facts b { display: block; font-size: 18px; font-variant-numeric: tabular-nums; }
 .facts span { font-size: 11px; color: var(--dim); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .parts { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 12px; padding: 4px 0 6px; }
@@ -110,13 +127,13 @@ button:focus-visible { outline: 2px solid var(--terra); outline-offset: 3px; bor
 .chat { overflow-y: auto; display: flex; flex-direction: column; gap: 10px; min-height: 120px; flex: 1; padding: 2px 2px 6px; }
 .bubble { max-width: 88%; padding: 11px 14px; border-radius: 20px; font-size: 15px; line-height: 1.45; white-space: pre-wrap; }
 .bubble.me { align-self: flex-end; background: var(--ivory); color: #221f24; border-bottom-right-radius: 6px; font-weight: 600; }
-.bubble.coach { align-self: flex-start; background: #26252a; border-bottom-left-radius: 6px; box-shadow: inset 0 1px 0 #ffffff12; }
+.bubble.coach { align-self: flex-start; background: var(--well); border-bottom-left-radius: 6px; box-shadow: inset 0 1px 0 #ffffff12; }
 .bubble.wait { color: var(--dim); }
 .asks { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; flex: none; scrollbar-width: none; }
 .asks::-webkit-scrollbar { display: none; }
-.ask { flex: none; min-height: 40px; padding: 0 14px; border-radius: 20px; background: #26252a; font-size: 14px; font-weight: 700; box-shadow: inset 0 1px 0 #ffffff12, 0 3px 0 #0008; }
+.ask { flex: none; min-height: 40px; padding: 0 14px; border-radius: 20px; background: var(--well); font-size: 14px; font-weight: 700; box-shadow: inset 0 1px 0 #ffffff12, 0 3px 0 #0008; }
 .ask:active { transform: translateY(2px); box-shadow: inset 0 1px 0 #ffffff12, 0 1px 0 #0008; }
-.send { min-width: 44px; min-height: 44px; border-radius: 22px; display: grid; place-items: center; background: var(--terra); color: #1d0d06; }
+.send { min-width: 44px; min-height: 44px; border-radius: 22px; display: grid; place-items: center; background: #c24a32; color: var(--ivory); }
 .send[disabled] { opacity: .4; }
 .toast { position: absolute; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 10px); z-index: 30; transform: translate(-50%, -100px); background: var(--ivory); color: #221f24; font-weight: 700; font-size: 14px; padding: 6px 6px 6px 16px; border-radius: 999px; white-space: nowrap; display: flex; align-items: center; gap: 10px; min-height: 32px; box-shadow: 0 10px 24px #000a; }
 .toast button { min-height: 32px; padding: 0 12px; border-radius: 16px; background: #221f24; color: var(--ivory); font-weight: 800; font-size: 13px; }
@@ -128,8 +145,8 @@ button:focus-visible { outline: 2px solid var(--terra); outline-offset: 3px; bor
 @media (prefers-reduced-motion: reduce) { .scrim, .hint { transition: none; } }
 </style>
 
-<div id="app">
-  <div id="stage" aria-label="A desk with the object for the open tab. Drag it to turn it."></div>
+<div id="app" data-tab="food">
+  <div id="stage" aria-label="A desk with the object for the open tab. Drag it to turn it."><div class="bd" data-bd="food"></div><div class="bd" data-bd="rest"></div><div class="bd" data-bd="body"></div></div>
 
   <div class="ui">
     <div class="head">
@@ -138,14 +155,14 @@ button:focus-visible { outline: 2px solid var(--terra); outline-offset: 3px; bor
           <span class="label" id="hLabel">Left to eat today</span>
           <div class="hero" id="hero" aria-live="off"></div>
           <span class="sub" id="hSub"></span>
-          <div class="macros" id="hMacros"></div>
         </div>
         <button class="coach" id="coachBtn" aria-label="Open the coach">
           <span class="puck"><img class="up" alt=""><img class="down" alt="">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2a130a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 7 0 1 1 3.2 5.6L4 19l1.2-3.3A6.8 6.8 0 0 1 4 12z"/><path d="M9 11.5h.01M12 11.5h.01M15 11.5h.01"/></svg></span>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f6eadc" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 7 0 1 1 3.2 5.6L4 19l1.2-3.3A6.8 6.8 0 0 1 4 12z"/><path d="M9 11.5h.01M12 11.5h.01M15 11.5h.01"/></svg></span>
           <span>Coach</span>
         </button>
       </div>
+      <div class="macros" id="hMacros"></div>
     </div>
     <div class="foot">
       <div class="controls" id="controls"></div>
@@ -204,11 +221,12 @@ const FOODS = [
   { name: 'Apple', kcal: 95, p: 0, c: 25, f: 0 },
 ];
 const COACH = { Legs: 180, Back: 150, Chest: 150, Shoulders: 120, Arms: 90, Core: 60 };
-// The Night food clays (night_kit.py FOODS)
-const TINT = { c: 0xD9A85B, p: 0xB0704A, f: 0xEFE3C8, m: 0xCDBDA6, q: 0xE3CB98 };
+// The food clays, the same as the macro tubes' fills (desk_ui.py MACRO)
+const TINT = { c: 0xE3A43A, p: 0xC65D3E, f: 0x9DBF8E, m: 0xD8C3A0, q: 0xEDE3D0 };
+const TABS = ['food', 'rest', 'body'];
 const TINT_NAME = { c: 'Mostly carbs', p: 'Mostly protein', f: 'Mostly fat', m: 'Mixed', q: 'Quick add, macros unknown' };
 const S = {
-  tab: 'food', target: 2400, protein: 160,
+  tab: 'food', target: 2400, protein: 160, carbs: 250, fat: 75,
   eaten: [{ ...FOODS[9] }, { ...FOODS[2] }, { ...FOODS[3] }],
   part: 'Legs', secs: 180,
   rest: null,              // {start, end, part, secs, added}
@@ -276,14 +294,14 @@ function sandHiss(level) {
 // ---------- assets ----------
 const getJSON = async (u) => { const r = await fetch(u); if (!r.ok) throw new Error(u + ' ' + r.status); return r.json(); };
 const b64 = (s) => { const bin = atob(s), bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); return bytes.buffer; };
-let UI, jarGL, glassGL, envData;
+let UI, jarGL, glassGL, envData = {};
 try {
   const loader = new GLTFLoader();
   const parse = (buf) => new Promise((res, rej) => loader.parse(buf, '', res, rej));
-  const [ui, j, h, e] = await Promise.all([getJSON('desk-ui.json'), getJSON('jar.json'), getJSON('hourglass.json'), getJSON('env.json')]);
+  const [ui, j, h, ...envs] = await Promise.all([getJSON('desk-ui.json'), getJSON('jar.json'), getJSON('hourglass.json'), ...TABS.map((t) => getJSON(`env-${t}.json`))]);
   UI = ui;
   [jarGL, glassGL] = await Promise.all([parse(b64(j.glb)), parse(b64(h.glb))]);
-  envData = new RGBELoader().parse(b64(e.hdr));
+  TABS.forEach((t, i) => { envData[t] = new RGBELoader().parse(b64(envs[i].hdr)); });
 } catch (err) {
   $('#loading').innerHTML = '<div class="err">The desk did not load. Reload the page; if it keeps happening, tell Claude what your phone shows.</div>';
   throw err;
@@ -292,18 +310,19 @@ try {
 // ---------- clay controls from the Blender pictures ----------
 // Each picture holds the object and its shadow; the slice keeps the round ends.
 // The layout box is the object itself (negative margins), so controls line up.
+// A border image stretches the middle with no seam (the glass shows any overlap);
+// its width is drawn over the box and never moves the layout.
 function bg(name) {
-  // three pictures: caps fixed, the middle stretched under them by a point each side
-  const s = UI.sprites[name], [, l, , r] = s.slice, [, , , ph] = s.rect;
-  return `url(${name}-l@3x.png) left top / ${l}px ${ph}px no-repeat, url(${name}-r@3x.png) right top / ${r}px ${ph}px no-repeat, url(${name}-m@3x.png) ${l - 1}px 0 / calc(100% - ${l + r - 2}px) ${ph}px no-repeat`;
+  const s = UI.sprites[name], [, l, , r] = s.slice;
+  return `border-image:url(${name}@3x.png) 0 ${r * 3} 0 ${l * 3} fill / 0 ${r}px 0 ${l}px stretch`;
 }
 function skinCSS() {
   let css = '';
   const one = (sel, name, down) => {
     const s = UI.sprites[name], [ol, ot, ow, oh] = s.object, [, , pw, ph] = s.rect;
     const mr = pw - ol - ow, mb = ph - ot - oh;
-    css += `${sel}{background:${bg(name)};height:${ph}px;margin:${-ot}px ${-mr}px ${-mb}px ${-ol}px;padding:${ot}px ${mr}px ${mb}px ${ol}px;box-sizing:border-box}`;
-    if (down) css += `${sel}:active:not([disabled]){background:${bg(down)}}`;
+    css += `${sel}{${bg(name)};height:${ph}px;margin:${-ot}px ${-mr}px ${-mb}px ${-ol}px;padding:${ot}px ${mr}px ${mb}px ${ol}px;box-sizing:border-box}`;
+    if (down) css += `${sel}:active:not([disabled]){${bg(down)}}`;
   };
   one('.clay.primary', 'desk-ui-primary', 'desk-ui-primary-down');
   one('.clay.soft', 'desk-ui-soft', 'desk-ui-soft-down');
@@ -323,7 +342,7 @@ function sliced(el, name, width) {
   const s = UI.sprites[name], [ol, ot, ow] = s.object, [, , pw, ph] = s.rect;
   el.style.left = -ol + 'px'; el.style.top = -ot + 'px';
   el.style.width = (width + pw - ow) + 'px'; el.style.height = ph + 'px';
-  el.style.background = bg(name);
+  el.style.borderImage = bg(name).slice('border-image:'.length);
 }
 skinCSS();
 addEventListener('resize', () => sliced($('#wellPic'), 'desk-ui-well', $('#tabs').clientWidth));
@@ -379,11 +398,24 @@ stage.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const pmrem = new THREE.PMREMGenerator(renderer);
-{
-  const t = new THREE.DataTexture(envData.data, envData.width, envData.height, THREE.RGBAFormat, envData.type);
+// each tab's studio light, which carries its desk's colour
+const ENV = {};
+for (const tab of TABS) {
+  const e = envData[tab], t = new THREE.DataTexture(e.data, e.width, e.height, THREE.RGBAFormat, e.type);
   t.colorSpace = THREE.LinearSRGBColorSpace; t.flipY = true; t.mapping = THREE.EquirectangularReflectionMapping;
   t.minFilter = THREE.LinearFilter; t.magFilter = THREE.LinearFilter; t.generateMipmaps = false; t.needsUpdate = true;
-  scene.environment = pmrem.fromEquirectangular(t).texture;
+  ENV[tab] = pmrem.fromEquirectangular(t).texture;
+}
+scene.environment = ENV.food;
+// each tab's desk picture, cross-faded on a spring
+const BD = {};
+document.querySelectorAll('#stage .bd').forEach((el) => { el.style.backgroundImage = `url(desk-backdrop-${el.dataset.bd}.jpg)`; BD[el.dataset.bd] = { el, o: el.dataset.bd === 'food' ? 1 : 0, v: 0 }; el.style.opacity = BD[el.dataset.bd].o; });
+function fadeDesks(dt) {
+  for (const t of TABS) {
+    const d = BD[t]; [d.o, d.v] = spring(d.o, d.v, t === S.tab ? 1 : 0, 90, 19, dt);
+    if (reduceMotion) d.o = t === S.tab ? 1 : 0;
+    d.el.style.opacity = Math.max(0, Math.min(1, d.o)).toFixed(3);
+  }
 }
 scene.environmentIntensity = 1.0;
 
@@ -568,7 +600,7 @@ const blocks = [];
 function blockMesh(food, sx, sy, sz) {
   const color = TINT[kind(food)];
   const m = new THREE.Mesh(new RoundedBoxGeometry(sx, sy, sz, 5, Math.min(sx, sy, sz) * 0.36),
-    new THREE.MeshPhysicalMaterial({ color, roughness: 0.52, sheen: 0.5, sheenRoughness: 0.7, sheenColor: new THREE.Color(0xffffff).lerp(new THREE.Color(color), 0.5),
+    new THREE.MeshPhysicalMaterial({ color, roughness: 0.5, sheen: 0.3, sheenRoughness: 0.7, sheenColor: new THREE.Color(0xffffff).lerp(new THREE.Color(color), 0.8),
       clearcoat: 0.22, clearcoatRoughness: 0.4, normalMap: grainNormal, normalScale: new THREE.Vector2(0.12, 0.12) }));
   m.castShadow = true; m.receiveShadow = true; return m;
 }
@@ -781,7 +813,7 @@ function showHint() {
 
 // ---------- tabs ----------
 function setTab(t) {
-  S.tab = t;
+  S.tab = t; $('#app').dataset.tab = t; scene.environment = ENV[t];
   document.querySelectorAll('.tabs button').forEach((b) => b.setAttribute('aria-pressed', b.dataset.tab === t));
   jar.held.xTarget = t === 'food' ? 0 : -1.3; glass.held.xTarget = t === 'rest' ? 0 : 1.3;
   $('#bodyView').hidden = t !== 'body';
@@ -828,7 +860,7 @@ function renderHead() {
   if (S.tab === 'food') {
     $('#hLabel').innerHTML = (left >= 0 ? 'Left to eat today' : 'Over today') + tag;
     $('#hSub').textContent = `of ${fmt(S.target)} kcal · ${S.eaten.length} food${S.eaten.length === 1 ? '' : 's'} in the jar`;
-    $('#hMacros').innerHTML = `<span><i style="background:${hex(TINT.p)}"></i>${fmt(sum('p'))} g protein</span><span><i style="background:${hex(TINT.c)}"></i>${fmt(sum('c'))} g carbs</span><span><i style="background:${hex(TINT.f)}"></i>${fmt(sum('f'))} g fat</span>`;
+    renderMacros();
     $('#hMacros').hidden = false;
   } else if (S.tab === 'rest') {
     $('#hLabel').innerHTML = (S.rest ? `Resting · ${S.rest.part}` : `Next rest · ${S.part}`) + tag;
@@ -843,6 +875,37 @@ function renderHead() {
   $('#tsFood').textContent = fmt(Math.abs(left)) + (left >= 0 ? ' left' : ' over');
   $('#tsBody').textContent = S.weights[S.weights.length - 1].toFixed(1) + ' kg';
   bigTarget = Math.abs(left);
+}
+// Three glass tubes fill with clay as the day's protein, carbs and fat add up.
+const MACROS = [['p', 'Protein', 'protein'], ['c', 'Carbs', 'carbs'], ['f', 'Fat', 'fat']];
+const gauge = {};
+function renderMacros() {
+  const el = $('#hMacros');
+  if (!el.children.length) {
+    el.innerHTML = MACROS.map(([k, name]) => `<div class="gauge" data-k="${k}"><div class="t"><span>${name}</span><b></b></div><div class="tube" role="meter" aria-label="${name}"><div class="pic fill"></div><div class="pic glass"></div></div></div>`).join('');
+    for (const [k] of MACROS) gauge[k] = { el: el.querySelector(`[data-k="${k}"]`), shown: 0, v: 0, want: 0 };
+  }
+  for (const [k, name, goal] of MACROS) {
+    const g = gauge[k], got = sum(k), of = S[goal];
+    g.want = Math.min(1, got / of);
+    const b = g.el.querySelector('b'); b.className = got > of ? 'over' : '';
+    b.innerHTML = `${fmt(got)}<small> / ${fmt(of)} g</small>`;
+    g.el.querySelector('.tube').setAttribute('aria-valuenow', Math.round(got)); g.el.querySelector('.tube').setAttribute('aria-valuemax', of);
+  }
+}
+function fillMacros(dt) {
+  if (S.tab !== 'food') return;
+  for (const [k] of MACROS) {
+    const g = gauge[k]; if (!g) continue;
+    [g.shown, g.v] = spring(g.shown, g.v, g.want, 120, 18, dt); if (reduceMotion) g.shown = g.want;
+    const tube = g.el.querySelector('.tube'), fill = g.el.querySelector('.fill'), glassPic = g.el.querySelector('.glass');
+    if (glassPic.dataset.w != tube.clientWidth) { sliced(glassPic, 'desk-ui-tube', tube.clientWidth); glassPic.dataset.w = tube.clientWidth; }
+    const inner = tube.clientWidth - 8, w = Math.max(0, Math.min(1, g.shown)) * inner;
+    const s = UI.sprites['desk-ui-fill-' + k], min = s.slice[1] + s.slice[3] - (s.rect[2] - s.object[2]) + 1;
+    fill.hidden = w < 0.5;
+    const ww = Math.round(Math.max(min, w) * 2) / 2;
+    if (fill.dataset.w != ww) { sliced(fill, 'desk-ui-fill-' + k, ww); fill.style.left = (4 - s.object[0]) + 'px'; fill.style.top = (4 - s.object[1]) + 'px'; fill.dataset.w = ww; }
+  }
 }
 let bigShown = Math.abs(S.target - kcalEaten()), bigV = 0, bigTarget = bigShown;
 function updateHero(dt) {
@@ -1014,7 +1077,7 @@ function frame(t) {
   sheet.style.transform = `translateY(${sheetY.toFixed(2)}%)`;
   [toastY, toastV] = spring(toastY, toastV, toastTarget, 300, 26, dt); if (reduceMotion) toastY = toastTarget;
   $('#toast').style.transform = `translate(-50%, ${toastY.toFixed(1)}px)`;
-  placeKnob(dt);
+  placeKnob(dt); fadeDesks(dt); fillMacros(dt);
   acc += dt; let n = 0;
   while (acc >= FIXED && n < 12) { physicsStep(); acc -= FIXED; n++; }
   if (n === 12) acc = 0;

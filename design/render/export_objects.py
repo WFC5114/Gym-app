@@ -8,6 +8,11 @@
 # the clay parts carry Cycles ambient occlusion baked into a colour attribute
 # (COLOR_0), the part of the lighting that stays true however the object is
 # turned. The live renderer multiplies its ambient light by it.
+# Wei (17 Oct, on desk v2: "all gray and black and white, I want some color but
+# mature"): DESK_COLOURS=1 turns the near-black clay parts into colour clays
+# that sit with each tab's desk (desk_studio.py TABS): the jar's base in
+# terracotta brown on the pine desk, the hourglass's dial plate in mustard on
+# the indigo desk.
 #   python3 export_objects.py jar|hourglass <out dir> [ao samples]
 import os, sys, json, runpy, math
 
@@ -23,6 +28,13 @@ ns = runpy.run_path(os.path.join(here, script), run_name='__main__')
 
 import bpy
 from mathutils import Quaternion, Vector
+
+if os.environ.get('DESK_COLOURS'):
+    import bpy as _bpy
+    for name, colour in {'plinth': 0x5E2B22, 'dial': 0xA8741E}.items():
+        m = _bpy.data.materials.get(name)
+        if m:
+            m.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = ns['lin'](colour)
 
 root = ns['jar'] if which == 'jar' else ns['pivot']
 root.location = (0, 0, 0)
